@@ -13,7 +13,7 @@
                   [class.embedded-cell-selected]="isSelected(cell.rowIndex, cell.colIndex)"
                   [attr.colspan]="getSpan(cell.rowIndex, cell.colIndex).colSpan > 1 ? getSpan(cell.rowIndex, cell.colIndex).colSpan : null"
                   [attr.rowspan]="getSpan(cell.rowIndex, cell.colIndex).rowSpan > 1 ? getSpan(cell.rowIndex, cell.colIndex).rowSpan : null"
-                  (click)="onCellClick(cell.rowIndex, cell.colIndex)"
+                  (click)="onCellClick($event, cell.rowIndex, cell.colIndex)"
                   (contextmenu)="onCellContextMenu($event, cell.rowIndex, cell.colIndex)"
                   (drop)="onDrop($event, cell)"
                   (dragover)="onDragOver($event)"

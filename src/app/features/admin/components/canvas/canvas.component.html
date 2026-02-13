@@ -1,17 +1,16 @@
 <div class="canvas-wrapper">
   <div class="canvas-toolbar">
-    <button type="button" class="btn btn-primary" (click)="addColumn()" title="Add column">+ Col</button>
-    <button type="button" class="btn btn-danger" (click)="removeColumn()" [disabled]="!canRemoveColumn()" title="Remove column">− Col</button>
-    <button type="button" class="btn btn-primary" (click)="addRow()" title="Add row">+ Row</button>
-    <button type="button" class="btn btn-danger" (click)="removeRow()" [disabled]="!canRemoveRow()" title="Remove row">− Row</button>
-    @if (canMerge()) {
-      <button type="button" class="btn btn-secondary" (click)="mergeSelection()">Merge selected</button>
-    }
-    @if (selectionStart(); as start) {
-      <span class="toolbar-hint">Click another cell to select range, then Merge</span>
-    }
-    <span class="toolbar-hint">Right‑click a merged cell to unmerge</span>
-    <button type="button" class="btn btn-secondary" (click)="saveLayout()" title="Log canvas HTML">Save layout</button>
+    <div class="canvas-toolbar-buttons">
+      <button type="button" class="btn btn-primary" (click)="addColumn()" title="Add column">+ Col</button>
+      <button type="button" class="btn btn-danger" (click)="removeColumn()" [disabled]="!canRemoveColumn()" title="Remove column">− Col</button>
+      <button type="button" class="btn btn-primary" (click)="addRow()" title="Add row">+ Row</button>
+      <button type="button" class="btn btn-danger" (click)="removeRow()" [disabled]="!canRemoveRow()" title="Remove row">− Row</button>
+      @if (canMerge()) {
+        <button type="button" class="btn btn-secondary" (click)="mergeSelection()">Merge selected</button>
+      }
+      <button type="button" class="btn btn-secondary" (click)="saveLayout()" title="Log canvas HTML">Save layout</button>
+    </div>
+    <p class="canvas-toolbar-hint">Ctrl+click cells to select range, then Merge. Ctrl+click selected cell to unselect it. Right‑click merged cell to unmerge.</p>
   </div>
 
   <div class="canvas-scroll" #canvasArea>
@@ -28,7 +27,7 @@
                   [class.canvas-cell-selected]="isSelected(cell.rowIndex, cell.colIndex)"
                   [attr.colspan]="getSpan(cell.rowIndex, cell.colIndex).colSpan > 1 ? getSpan(cell.rowIndex, cell.colIndex).colSpan : null"
                   [attr.rowspan]="getSpan(cell.rowIndex, cell.colIndex).rowSpan > 1 ? getSpan(cell.rowIndex, cell.colIndex).rowSpan : null"
-                  (click)="onCellClick(cell.rowIndex, cell.colIndex)"
+                  (click)="onCellClick($event, cell.rowIndex, cell.colIndex)"
                   (contextmenu)="onCellContextMenu($event, cell.rowIndex, cell.colIndex)"
                   (drop)="onDrop($event, cell)"
                   (dragover)="onDragOver($event)"

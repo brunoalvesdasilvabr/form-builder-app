@@ -18,20 +18,25 @@ export class CanvasComponent {
 
   readonly rows = this.canvas.rows;
 
-  /** For merge: first selected cell (rowIndex, colIndex). */
-  readonly selectionStart = signal<{ row: number; col: number } | null>(null);
-  /** For merge: second selected cell. */
-  readonly selectionEnd = signal<{ row: number; col: number } | null>(null);
+  /** Set of 'row,col' for selected cells. Merge only when this set forms a rectangle. */
+  readonly selectionCells = signal<Set<string>>(new Set());
 
+  /** Bounding rectangle for merge; valid only when selection forms a full rectangle. */
   readonly mergeRange = computed(() => {
-    const start = this.selectionStart();
-    const end = this.selectionEnd();
-    if (!start || !end) return null;
-    const r0 = Math.min(start.row, end.row);
-    const r1 = Math.max(start.row, end.row);
-    const c0 = Math.min(start.col, end.col);
-    const c1 = Math.max(start.col, end.col);
-    return { r0, r1, c0, c1 };
+    const set = this.selectionCells();
+    if (set.size === 0) return null;
+    let minR = Infinity, maxR = -Infinity, minC = Infinity, maxC = -Infinity;
+    set.forEach((key) => {
+      const [r, c] = key.split(',').map(Number);
+      minR = Math.min(minR, r); maxR = Math.max(maxR, r);
+      minC = Math.min(minC, c); maxC = Math.max(maxC, c);
+    });
+    for (let r = minR; r <= maxR; r++) {
+      for (let c = minC; c <= maxC; c++) {
+        if (!set.has(`${r},${c}`)) return null;
+      }
+    }
+    return { r0: minR, r1: maxR, c0: minC, c1: maxC };
   });
 
   readonly canMerge = computed(() => {
@@ -41,44 +46,45 @@ export class CanvasComponent {
     return r0 < r1 || c0 < c1;
   });
 
-  /** Set of 'row,col' for the current selection range (reactive). */
-  readonly selectedCells = computed(() => {
-    const start = this.selectionStart();
-    const end = this.selectionEnd();
-    if (!start) return new Set<string>();
-    if (!end) return new Set([`${start.row},${start.col}`]);
-    const r0 = Math.min(start.row, end.row);
-    const r1 = Math.max(start.row, end.row);
-    const c0 = Math.min(start.col, end.col);
-    const c1 = Math.max(start.col, end.col);
-    const set = new Set<string>();
-    for (let r = r0; r <= r1; r++) {
-      for (let c = c0; c <= c1; c++) set.add(`${r},${c}`);
-    }
-    return set;
-  });
-
   isSelected(rowIndex: number, colIndex: number): boolean {
-    return this.selectedCells().has(`${rowIndex},${colIndex}`);
+    return this.selectionCells().has(`${rowIndex},${colIndex}`);
   }
 
-  onCellClick(rowIndex: number, colIndex: number): void {
-    const start = this.selectionStart();
-    if (!start) {
-      this.selectionStart.set({ row: rowIndex, col: colIndex });
-      this.selectionEnd.set(null);
-      return;
-    }
-    if (start.row === rowIndex && start.col === colIndex) {
+  /** Ctrl+click: select range for merge; Ctrl+click selected cell: unselect only that cell. Unmerge via right‑click. Without Ctrl: clear selection. */
+  onCellClick(e: MouseEvent, rowIndex: number, colIndex: number): void {
+    if (e.ctrlKey) {
+      const key = `${rowIndex},${colIndex}`;
+      const set = this.selectionCells();
+      if (set.has(key)) {
+        const next = new Set(set);
+        next.delete(key);
+        this.selectionCells.set(next);
+        return;
+      }
+      if (set.size === 0) {
+        this.selectionCells.set(new Set([key]));
+        return;
+      }
+      if (set.size === 1) {
+        const [first] = set;
+        const [r0, c0] = first.split(',').map(Number);
+        const r1 = rowIndex, c1 = colIndex;
+        const loR = Math.min(r0, r1), hiR = Math.max(r0, r1), loC = Math.min(c0, c1), hiC = Math.max(c0, c1);
+        const rect = new Set<string>();
+        for (let r = loR; r <= hiR; r++) for (let c = loC; c <= hiC; c++) rect.add(`${r},${c}`);
+        this.selectionCells.set(rect);
+        return;
+      }
+      const next = new Set(set);
+      next.add(key);
+      this.selectionCells.set(next);
+    } else {
       this.clearSelection();
-      return;
     }
-    this.selectionEnd.set({ row: rowIndex, col: colIndex });
   }
 
   clearSelection(): void {
-    this.selectionStart.set(null);
-    this.selectionEnd.set(null);
+    this.selectionCells.set(new Set());
   }
 
   readonly canRemoveRow = computed(() => (this.canvas.rows()?.length ?? 0) > 1);
@@ -110,6 +116,10 @@ export class CanvasComponent {
     const { r0, r1, c0, c1 } = range;
     this.canvas.mergeCells(r0, c0, r1, c1);
     this.clearSelection();
+  }
+
+  hasSelection(): boolean {
+    return this.selectionCells().size > 0;
   }
 
   unmergeAt(rowIndex: number, colIndex: number): void {
