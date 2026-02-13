@@ -38,10 +38,8 @@ export class EmbeddedTableComponent {
 
   private readonly state = signal<NestedTableState | null>(null);
 
-  /** Default used when widget has no nestedTable yet (first paint). */
-  private readonly initialDefault = this.defaultState();
+  private readonly initialDefault = this.defaultState(); // fallback before widget has nestedTable
 
-  /** Rows to display: from state, or from widget.nestedTable, or default — so first paint is never empty. */
   readonly rows = computed(() => {
     const s = this.state();
     if (s?.rows?.length) return s.rows;
@@ -160,7 +158,7 @@ export class EmbeddedTableComponent {
         if (!widget) return;
         this.moveWidgetInNested(fromCellId, targetCell.id, widget);
       } catch {
-        // ignore
+        // ignore bad drop data
       }
       (e.currentTarget as HTMLElement)?.classList.remove('embedded-cell-drag-over');
       return;
@@ -235,8 +233,7 @@ export class EmbeddedTableComponent {
     this.emitState();
   }
 
-  /** Set of 'row,col' for selected cells. Merge only when this set forms a rectangle. */
-  readonly selectionCells = signal<Set<string>>(new Set());
+  readonly selectionCells = signal<Set<string>>(new Set()); // "row,col", merge only when it's a full rectangle
 
   readonly mergeRange = computed(() => {
     const set = this.selectionCells();
@@ -264,7 +261,7 @@ export class EmbeddedTableComponent {
     return this.selectionCells().has(`${rowIndex},${colIndex}`);
   }
 
-  /** Ctrl+click: select range for merge; Ctrl+click selected cell: unselect only that cell. Unmerge via right‑click. Without Ctrl: clear selection. */
+  // same as canvas: ctrl+click to build selection, right-click merged to unmerge
   onCellClick(e: MouseEvent, rowIndex: number, colIndex: number): void {
     if (e.ctrlKey) {
       const key = `${rowIndex},${colIndex}`;

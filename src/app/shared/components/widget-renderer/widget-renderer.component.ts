@@ -6,7 +6,6 @@ import type { WidgetInstance, NestedTableState } from '../../models/canvas.model
 
 const MOVE_DATA_TYPE = 'application/x-canvas-move';
 
-/** Presentational component: renders a widget with inputs/outputs only. */
 @Component({
   selector: 'app-widget-renderer',
   standalone: true,
@@ -16,8 +15,7 @@ const MOVE_DATA_TYPE = 'application/x-canvas-move';
 })
 export class WidgetRendererComponent {
   widget = input.required<WidgetInstance>();
-  /** When set, the widget can be dragged to another cell (main canvas). */
-  cellId = input<string | undefined>(undefined);
+  cellId = input<string | undefined>(undefined); // set = draggable to another canvas cell
   showRemove = input<boolean>(true);
   removeWidget = output<void>();
   nestedTableChange = output<NestedTableState>();

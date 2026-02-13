@@ -20,7 +20,7 @@
           <tr>
             @for (cell of row.cells; track cell.id) {
               @if (shouldSkipCell(cell.rowIndex, cell.colIndex)) {
-                <!-- merged: no td (origin's rowspan/colspan covers this) -->
+                <!-- slot is part of a merged cell, origin td has the colspan/rowspan -->
               } @else {
                 <td
                   class="canvas-cell"

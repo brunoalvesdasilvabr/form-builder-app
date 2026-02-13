@@ -5,7 +5,6 @@ import { WIDGET_LABELS } from '../../../../shared/models/canvas.model';
 
 const WIDGET_TYPES: WidgetType[] = ['input', 'checkbox', 'radio', 'table', 'label'];
 
-/** Presentational: drag source for widget types. */
 @Component({
   selector: 'app-palette',
   standalone: true,

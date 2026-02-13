@@ -5,7 +5,6 @@ import type { WidgetInstance } from '../../models/canvas.model';
 
 const NESTED_MOVE_DATA_TYPE = 'application/x-nested-move';
 
-/** Presentational component: renders a widget inside an embedded table cell (inputs/outputs only). */
 @Component({
   selector: 'app-widget-cell-renderer',
   standalone: true,
@@ -15,8 +14,7 @@ const NESTED_MOVE_DATA_TYPE = 'application/x-nested-move';
 })
 export class WidgetCellRendererComponent {
   widget = input.required<WidgetInstance>();
-  /** When set, the widget can be dragged to another cell within the embedded table. */
-  cellId = input<string | undefined>(undefined);
+  cellId = input<string | undefined>(undefined); // set = draggable within this table
   removeWidget = output<void>();
   labelChange = output<string>();
   optionsChange = output<string[]>();

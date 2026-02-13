@@ -18,10 +18,8 @@ export class CanvasComponent {
 
   readonly rows = this.canvas.rows;
 
-  /** Set of 'row,col' for selected cells. Merge only when this set forms a rectangle. */
-  readonly selectionCells = signal<Set<string>>(new Set());
+  readonly selectionCells = signal<Set<string>>(new Set()); // "row,col" keys, merge only if they form a rectangle
 
-  /** Bounding rectangle for merge; valid only when selection forms a full rectangle. */
   readonly mergeRange = computed(() => {
     const set = this.selectionCells();
     if (set.size === 0) return null;
@@ -50,7 +48,7 @@ export class CanvasComponent {
     return this.selectionCells().has(`${rowIndex},${colIndex}`);
   }
 
-  /** Ctrl+click: select range for merge; Ctrl+click selected cell: unselect only that cell. Unmerge via right‑click. Without Ctrl: clear selection. */
+  // ctrl+click = add/remove from selection (or fill rect if 1 cell selected). no ctrl = clear. unmerge = right-click merged cell
   onCellClick(e: MouseEvent, rowIndex: number, colIndex: number): void {
     if (e.ctrlKey) {
       const key = `${rowIndex},${colIndex}`;
@@ -137,7 +135,7 @@ export class CanvasComponent {
         if (!targetCell.isMergedOrigin || !widget) return;
         this.canvas.moveWidget(fromCellId, targetCell.id, widget);
       } catch {
-        // ignore invalid move data
+        // bad payload, skip
       }
       (e.currentTarget as HTMLElement)?.classList.remove('canvas-cell-drag-over');
       return;

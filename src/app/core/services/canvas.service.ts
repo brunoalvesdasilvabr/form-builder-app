@@ -82,7 +82,7 @@ export class CanvasService {
     return row.cells[colIndex] ?? null;
   }
 
-  /** Returns the "origin" cell for a given position (handles merged cells). */
+  // top-left cell for this position (same cell if not merged)
   getOriginCell(rowIndex: number, colIndex: number): CanvasCell | null {
     return gridMerge.getOriginCell(
       this.state().rows as { cells: gridMerge.MergeableCell[] }[],
@@ -91,7 +91,6 @@ export class CanvasService {
     ) as CanvasCell | null;
   }
 
-  /** Creates default 2x2 nested table state for embedded table widgets. */
   createDefaultNestedTable(): NestedTableState {
     const rows: NestedTableRow[] = [];
     for (let r = 0; r < 2; r++) {
@@ -179,7 +178,6 @@ export class CanvasService {
     this.state.set({ rows });
   }
 
-  /** Move a widget from one cell to another (main canvas). */
   moveWidget(fromCellId: string, toCellId: string, widget: WidgetInstance): void {
     if (fromCellId === toCellId) return;
     const rows = this.state().rows.map((row) => ({
@@ -225,13 +223,11 @@ export class CanvasService {
     return !origin.isMergedOrigin || (origin.rowIndex === rowIndex && origin.colIndex === colIndex);
   }
 
-  /** Whether this (rowIndex, colIndex) is the top-left of a merged range. */
   isOrigin(rowIndex: number, colIndex: number): boolean {
     const cell = this.getCell(rowIndex, colIndex);
     return cell?.isMergedOrigin ?? false;
   }
 
-  /** Colspan/rowspan for the cell that occupies (rowIndex, colIndex). */
   getSpan(rowIndex: number, colIndex: number): { colSpan: number; rowSpan: number } {
     return gridMerge.getSpanAt(
       this.state().rows as { cells: gridMerge.MergeableCell[] }[],
@@ -240,7 +236,7 @@ export class CanvasService {
     );
   }
 
-  /** Check if (rowIndex, colIndex) is the origin of a merged cell (so we don't render a duplicate td). */
+  // skip rendering td when this slot is covered by a merged cell
   shouldSkipRendering(rowIndex: number, colIndex: number): boolean {
     return gridMerge.shouldSkipRendering(
       this.state().rows as { cells: gridMerge.MergeableCell[] }[],

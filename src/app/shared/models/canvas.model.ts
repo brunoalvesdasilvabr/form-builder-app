@@ -8,7 +8,6 @@ export const WIDGET_LABELS: Record<WidgetType, string> = {
   label: 'Label',
 };
 
-/** A single cell inside a nested (embedded) table widget. */
 export interface NestedTableCell {
   id: string;
   rowIndex: number;
@@ -36,8 +35,7 @@ export interface WidgetInstance {
   placeholder?: string;
   colspan?: number;
   rowspan?: number;
-  /** When type is 'table', holds the nested table structure. */
-  nestedTable?: NestedTableState;
+  nestedTable?: NestedTableState; // only for type 'table'
 }
 
 export interface CanvasCell {
@@ -47,7 +45,7 @@ export interface CanvasCell {
   widget: WidgetInstance | null;
   colSpan: number;
   rowSpan: number;
-  isMergedOrigin: boolean; // true if this cell is the top-left of a merged range
+  isMergedOrigin: boolean; // top-left of a merge
 }
 
 export interface CanvasRow {

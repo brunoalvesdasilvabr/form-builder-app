@@ -1,9 +1,5 @@
-/**
- * Shared grid merge/unmerge logic for canvas and embedded tables.
- * Works on any row/cell structure that has rowIndex, colIndex, colSpan, rowSpan, isMergedOrigin.
- */
+// merge/unmerge for canvas + embedded tables (needs rowIndex, colIndex, colSpan, rowSpan, isMergedOrigin on cells)
 
-/** Minimal cell shape for merge logic; row/cell types can have extra props (id, widget, etc.). */
 export interface MergeableCell {
   rowIndex: number;
   colIndex: number;
@@ -23,7 +19,7 @@ function getSpan(cell: MergeableCell): { colSpan: number; rowSpan: number } {
   };
 }
 
-/** Returns the origin cell that occupies (rowIndex, colIndex). */
+// which cell actually owns this grid position (for merged ranges)
 export function getOriginCell<T extends MergeableCell>(
   rows: { cells: T[] }[],
   rowIndex: number,
@@ -64,7 +60,6 @@ export function shouldSkipRendering<T extends MergeableCell>(
   return (origin.rowIndex !== rowIndex || origin.colIndex !== colIndex);
 }
 
-/** Merge cells from (originRow, originCol) to (endRow, endCol). Returns new rows array. */
 export function mergeCells<T extends MergeableRow>(
   rows: T[],
   originRow: number,
@@ -91,7 +86,6 @@ export function mergeCells<T extends MergeableRow>(
   })) as T[];
 }
 
-/** Unmerge the merged cell that contains (rowIndex, colIndex). Returns new rows array. */
 export function unmergeCell<T extends MergeableRow>(
   rows: T[],
   rowIndex: number,

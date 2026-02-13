@@ -3,7 +3,6 @@ import { CommonModule } from '@angular/common';
 import { PaletteComponent } from './components/palette/palette.component';
 import { CanvasComponent } from './components/canvas/canvas.component';
 
-/** Admin (form builder) feature: palette + canvas. First route. */
 @Component({
   selector: 'app-admin',
   standalone: true,
