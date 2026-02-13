@@ -1,0 +1,61 @@
+.palette {
+  background: var(--bg-panel);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  padding: 1rem;
+  min-width: 180px;
+}
+
+.palette-title {
+  margin: 0 0 0.25rem 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.palette-hint {
+  margin: 0 0 1rem 0;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.palette-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.palette-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  background: var(--bg-cell);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: grab;
+  transition: background 0.15s, border-color 0.15s;
+
+  &:hover {
+    background: var(--bg-cell-hover);
+    border-color: var(--accent);
+  }
+
+  &:active {
+    cursor: grabbing;
+  }
+}
+
+.palette-item-dragging {
+  opacity: 0.6;
+}
+
+.palette-item-icon {
+  font-size: 1.1rem;
+  color: var(--accent);
+}
+
+.palette-item-label {
+  font-size: 0.85rem;
+  font-weight: 500;
+}

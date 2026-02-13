@@ -1,0 +1,17 @@
+<div class="palette">
+  <h3 class="palette-title">Components</h3>
+  <p class="palette-hint">Drag components into the canvas table</p>
+  <div class="palette-list">
+    @for (type of widgets(); track type) {
+      <div
+        class="palette-item"
+        draggable="true"
+        (dragstart)="onDragStart($event, type)"
+        (dragend)="onDragEnd($event)"
+      >
+        <span class="palette-item-icon">{{ iconFor(type) }}</span>
+        <span class="palette-item-label">{{ labels()[type] }}</span>
+      </div>
+    }
+  </div>
+</div>

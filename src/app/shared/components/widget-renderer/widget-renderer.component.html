@@ -1,0 +1,86 @@
+@if (widget(); as w) {
+  <div
+    class="widget"
+    (click)="$event.stopPropagation()"
+    [attr.draggable]="cellId() !== undefined"
+    (dragstart)="cellId() !== undefined && onDragStartCell($event)"
+    (dragend)="onDragEndCell($event)"
+  >
+    @switch (w.type) {
+      @case ('input') {
+        <div class="widget-field">
+          <input
+            type="text"
+            class="widget-label-input"
+            [value]="w.label ?? ''"
+            (input)="onLabelInput($any($event.target).value)"
+            placeholder="Label"
+          />
+          <input
+            type="text"
+            class="widget-input"
+            [placeholder]="w.placeholder ?? 'Enter text...'"
+          />
+        </div>
+      }
+      @case ('checkbox') {
+        <div class="widget-field widget-checkbox-row">
+          <input type="checkbox" class="widget-checkbox-input" [id]="w.id" />
+          <input
+            type="text"
+            class="widget-label-input widget-checkbox-label"
+            [value]="w.label ?? ''"
+            (input)="onLabelInput($any($event.target).value)"
+            placeholder="Checkbox label"
+          />
+        </div>
+      }
+      @case ('radio') {
+        <div class="widget-field">
+          <input
+            type="text"
+            class="widget-label-input"
+            [value]="w.label ?? ''"
+            (input)="onLabelInput($any($event.target).value)"
+            placeholder="Group label"
+          />
+          <div class="widget-radio-group">
+            @for (opt of (w.options ?? ['Option 1', 'Option 2']); track $index) {
+              <div class="widget-radio-item">
+                <input type="radio" [name]="w.id" [value]="opt" />
+                <input
+                  type="text"
+                  class="widget-radio-option-input"
+                  [value]="opt"
+                  (input)="onOptionChange(w.options ?? [], $index, $any($event.target).value)"
+                />
+                <button type="button" class="widget-option-remove" (click)="removeOption(w.options ?? [], $index)" title="Remove option">×</button>
+              </div>
+            }
+            <button type="button" class="widget-option-add" (click)="addOption(w.options ?? [])">+ Option</button>
+          </div>
+        </div>
+      }
+      @case ('table') {
+        <app-embedded-table
+          [widget]="w"
+          (nestedTableChange)="nestedTableChange.emit($event)"
+        />
+      }
+      @case ('label') {
+        <div class="widget-field">
+          <input
+            type="text"
+            class="widget-label-only"
+            [value]="w.label ?? ''"
+            (input)="onLabelInput($any($event.target).value)"
+            placeholder="Label text"
+          />
+        </div>
+      }
+    }
+    @if (showRemove()) {
+      <button type="button" class="widget-remove" (click)="onRemove($event)" title="Remove">×</button>
+    }
+  </div>
+}

@@ -1,0 +1,50 @@
+<div class="embedded-table-wrap">
+  <div class="embedded-table-scroll">
+    <table class="embedded-table">
+      <tbody>
+        @for (row of rows(); track row.id) {
+          <tr>
+            @for (cell of row.cells; track cell.id) {
+              @if (shouldSkipCell(cell.rowIndex, cell.colIndex)) {
+                <!-- merged: covered by origin's colspan/rowspan -->
+              } @else {
+                <td
+                  class="embedded-cell"
+                  [class.embedded-cell-selected]="isSelected(cell.rowIndex, cell.colIndex)"
+                  [attr.colspan]="getSpan(cell.rowIndex, cell.colIndex).colSpan > 1 ? getSpan(cell.rowIndex, cell.colIndex).colSpan : null"
+                  [attr.rowspan]="getSpan(cell.rowIndex, cell.colIndex).rowSpan > 1 ? getSpan(cell.rowIndex, cell.colIndex).rowSpan : null"
+                  (click)="onCellClick(cell.rowIndex, cell.colIndex)"
+                  (contextmenu)="onCellContextMenu($event, cell.rowIndex, cell.colIndex)"
+                  (drop)="onDrop($event, cell)"
+                  (dragover)="onDragOver($event)"
+                  (dragleave)="onDragLeave($event)"
+                >
+                  @if (cell.widget) {
+                    <app-widget-cell-renderer
+                      [widget]="cell.widget"
+                      [cellId]="cell.id"
+                      (removeWidget)="removeNestedWidget(cell.id)"
+                      (labelChange)="onCellWidgetLabelChange(cell.id, $event)"
+                      (optionsChange)="onCellWidgetOptionsChange(cell.id, $event)"
+                    />
+                  } @else {
+                    <div class="embedded-cell-placeholder">Drop here</div>
+                  }
+                </td>
+              }
+            }
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+  <div class="embedded-sidebar">
+    @if (canMerge()) {
+      <button type="button" class="embedded-btn embedded-btn-merge" (click)="mergeSelection()" title="Merge selected">Merge</button>
+    }
+    <button type="button" class="embedded-btn embedded-btn-plus" (click)="addColumn()" title="Add column">+</button>
+    <button type="button" class="embedded-btn embedded-btn-minus" (click)="removeColumn()" [disabled]="!canRemoveColumn()" title="Remove column">−</button>
+    <button type="button" class="embedded-btn embedded-btn-plus" (click)="addRow()" title="Add row">+</button>
+    <button type="button" class="embedded-btn embedded-btn-minus" (click)="removeRow()" [disabled]="!canRemoveRow()" title="Remove row">−</button>
+  </div>
+</div>
