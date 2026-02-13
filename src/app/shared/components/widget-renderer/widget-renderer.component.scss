@@ -1,8 +1,18 @@
+:host {
+  display: block;
+  width: 100%;
+}
+
 .widget {
   position: relative;
   width: 100%;
   min-height: 2rem;
   padding: 0.5rem;
+  box-sizing: border-box;
+
+  &.widget--no-padding {
+    padding: 0;
+  }
 }
 
 .widget[draggable="true"] {
@@ -149,6 +159,15 @@
   display: block;
   width: 100%;
   min-height: 140px;
+  max-width: 100%;
+}
+
+.widget app-embedded-table .embedded-table-wrap,
+.widget app-embedded-table .embedded-table-scroll,
+.widget app-embedded-table .embedded-table {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .widget-remove {

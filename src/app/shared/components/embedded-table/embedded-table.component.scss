@@ -2,27 +2,37 @@
   display: block;
   width: 100%;
   min-height: 120px;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .embedded-table-wrap {
   position: relative;
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
   min-height: 120px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--bg-cell);
   overflow: hidden;
+  box-sizing: border-box;
 }
 
 .embedded-table-scroll {
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
   overflow: auto;
+  box-sizing: border-box;
 }
 
 .embedded-table {
   width: 100%;
+  table-layout: fixed;
   border-collapse: collapse;
   font-size: 0.85rem;
+  box-sizing: border-box;
 }
 
 .embedded-cell {

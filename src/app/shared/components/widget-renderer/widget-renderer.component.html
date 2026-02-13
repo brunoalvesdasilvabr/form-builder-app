@@ -1,6 +1,7 @@
 @if (widget(); as w) {
   <div
     class="widget"
+    [class.widget--no-padding]="w.type === 'table'"
     (click)="$event.stopPropagation()"
     [attr.draggable]="cellId() !== undefined"
     (dragstart)="cellId() !== undefined && onDragStartCell($event)"

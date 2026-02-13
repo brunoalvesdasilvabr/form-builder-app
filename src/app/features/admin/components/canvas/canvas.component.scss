@@ -87,6 +87,7 @@
 
 .canvas-table {
   width: 100%;
+  table-layout: fixed;
   border-collapse: collapse;
   background: var(--bg-main);
   border-radius: var(--radius);
@@ -103,6 +104,12 @@
 
   &:hover {
     background: var(--bg-cell-hover);
+  }
+
+  > * {
+    display: block;
+    width: 100%;
+    min-width: 0;
   }
 }
 
