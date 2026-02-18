@@ -1,11 +1,29 @@
-export type WidgetType = 'input' | 'checkbox' | 'radio' | 'table' | 'label';
+export type WidgetType = "input" | "checkbox" | "radio" | "table" | "label";
+
+/** Option for the property binding dropdown; value is used in {{ value }} inside components. */
+export interface BindableProperty {
+  value: string;
+  label: string;
+}
 
 export const WIDGET_LABELS: Record<WidgetType, string> = {
-  input: 'Input',
-  checkbox: 'Checkbox',
-  radio: 'Radio',
-  table: 'Table',
-  label: 'Label',
+  input: "Input",
+  checkbox: "Checkbox",
+  radio: "Radio",
+  table: "Table",
+  label: "Label",
+};
+
+/** Ordered list of widget types shown in the palette; single source of truth for builders. */
+export const WIDGET_TYPES: WidgetType[] = ["input", "checkbox", "radio", "table", "label"];
+
+/** Icons for palette items; reusable across admin palette and any other consumer. */
+export const WIDGET_PALETTE_ICONS: Record<WidgetType, string> = {
+  input: "▭",
+  checkbox: "☑",
+  radio: "◉",
+  table: "⊞",
+  label: "Aa",
 };
 
 export interface NestedTableCell {
@@ -36,6 +54,10 @@ export interface WidgetInstance {
   colspan?: number;
   rowspan?: number;
   nestedTable?: NestedTableState; // only for type 'table'
+  /** Value binding template e.g. "{{ listValue1 }}" for input, checkbox, label */
+  valueBinding?: string;
+  /** Per-option value bindings for radio, e.g. ["{{ listValue1 }}", "{{ listValue2 }}"] */
+  optionBindings?: string[];
 }
 
 export interface CanvasCell {
@@ -46,6 +68,8 @@ export interface CanvasCell {
   colSpan: number;
   rowSpan: number;
   isMergedOrigin: boolean; // top-left of a merge
+  /** Optional CSS class(es) applied to the cell's td */
+  className?: string;
 }
 
 export interface CanvasRow {

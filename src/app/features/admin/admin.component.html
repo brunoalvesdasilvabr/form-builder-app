@@ -1,6 +1,6 @@
 <div class="admin">
   <header class="admin-header">
-    <p class="admin-subtitle">Drag components into the table. Add rows/columns, then select a range and merge cells.</p>
+    <p class="admin-subtitle">Drag components into the table. Add rows/columns, then select a range and merge cells. Click a cell with a component to edit its class in the right panel.</p>
   </header>
   <main class="admin-main">
     <aside class="admin-sidebar">
@@ -9,5 +9,49 @@
     <section class="admin-content">
       <app-canvas />
     </section>
+    @if (selectedCell(); as cell) {
+      <aside class="admin-right-panel">
+        <div class="admin-right-panel-header">
+          <h3 class="admin-right-panel-title">Cell properties</h3>
+          <button type="button" class="admin-right-panel-close" (click)="closePanel()" title="Close panel">×</button>
+        </div>
+        <div class="admin-right-panel-body">
+          <label class="admin-right-panel-label" for="cell-class-input">Class binding</label>
+          <input
+            id="cell-class-input"
+            type="text"
+            class="admin-right-panel-input"
+            [ngModel]="pendingClass()"
+            (ngModelChange)="pendingClass.set($event)"
+            placeholder="type the class you want to bind to this component"
+          />
+          @if (cell.widget && cell.widget.type !== 'table') {
+            <div class="admin-right-panel-field">
+              <label class="admin-right-panel-label" for="value-binding-select">Property binding</label>
+              <select
+                id="value-binding-select"
+                class="admin-right-panel-input admin-right-panel-select"
+                [ngModel]="pendingProperty()"
+                (ngModelChange)="pendingProperty.set($event)"
+              >
+                <option value="">— None —</option>
+                @for (prop of bindableProperties; track prop.value) {
+                  <option [value]="prop.value">{{ prop.label }}</option>
+                }
+              </select>
+              <p class="admin-right-panel-hint">Bound to: {{ getBindingTargetLabel(cell) }}</p>
+            </div>
+          }
+          <button type="button" class="admin-right-panel-apply" (click)="applyChanges()">Apply</button>
+        </div>
+      </aside>
+    }
   </main>
+  @if (notificationMessages().length) {
+    <div class="admin-notification" role="status">
+      @for (msg of notificationMessages(); track msg) {
+        <p class="admin-notification-message">{{ msg }}</p>
+      }
+    </div>
+  }
 </div>

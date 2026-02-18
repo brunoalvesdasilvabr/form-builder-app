@@ -20,13 +20,20 @@
                   (dragleave)="onDragLeave($event)"
                 >
                   @if (cell.widget) {
-                    <app-widget-cell-renderer
-                      [widget]="cell.widget"
-                      [cellId]="cell.id"
-                      (removeWidget)="removeNestedWidget(cell.id)"
-                      (labelChange)="onCellWidgetLabelChange(cell.id, $event)"
-                      (optionsChange)="onCellWidgetOptionsChange(cell.id, $event)"
-                    />
+                    @if (cell.widget.type === 'table') {
+                      <app-embedded-table
+                        [widget]="cell.widget"
+                        (nestedTableChange)="onCellNestedTableChange(cell.id, cell.widget.id, $event)"
+                      />
+                    } @else {
+                      <app-widget-cell-renderer
+                        [widget]="cell.widget"
+                        [cellId]="cell.id"
+                        (removeWidget)="removeNestedWidget(cell.id)"
+                        (labelChange)="onCellWidgetLabelChange(cell.id, $event)"
+                        (optionsChange)="onCellWidgetOptionsChange(cell.id, $event)"
+                      />
+                    }
                   } @else {
                     <div class="embedded-cell-placeholder">Drop here</div>
                   }
@@ -38,7 +45,7 @@
       </tbody>
     </table>
   </div>
-  <div class="embedded-sidebar">
+  <div class="embedded-sidebar" (click)="$event.stopPropagation()">
     @if (canMerge()) {
       <button type="button" class="embedded-btn embedded-btn-merge" (click)="mergeSelection()" title="Merge selected">Merge</button>
     }

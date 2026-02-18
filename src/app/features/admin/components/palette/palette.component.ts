@@ -1,9 +1,11 @@
 import { Component, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import type { WidgetType } from '../../../../shared/models/canvas.model';
-import { WIDGET_LABELS } from '../../../../shared/models/canvas.model';
-
-const WIDGET_TYPES: WidgetType[] = ['input', 'checkbox', 'radio', 'table', 'label'];
+import {
+  WIDGET_TYPES,
+  WIDGET_LABELS,
+  WIDGET_PALETTE_ICONS,
+} from '../../../../shared/models/canvas.model';
 
 @Component({
   selector: 'app-palette',
@@ -17,14 +19,7 @@ export class PaletteComponent {
   readonly labels = signal(WIDGET_LABELS);
 
   iconFor(type: WidgetType): string {
-    const icons: Record<WidgetType, string> = {
-      input: '▭',
-      checkbox: '☑',
-      radio: '◉',
-      table: '⊞',
-      label: 'Aa',
-    };
-    return icons[type] ?? '?';
+    return WIDGET_PALETTE_ICONS[type] ?? '?';
   }
 
   onDragStart(e: DragEvent, type: WidgetType): void {

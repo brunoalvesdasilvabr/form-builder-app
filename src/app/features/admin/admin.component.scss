@@ -41,3 +41,127 @@
   min-width: 0;
   min-height: 400px;
 }
+
+.admin-right-panel {
+  flex-shrink: 0;
+  width: 280px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.admin-right-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.admin-right-panel-title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.admin-right-panel-close {
+  background: none;
+  border: none;
+  font-size: 1.25rem;
+  line-height: 1;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0 0.25rem;
+  border-radius: 4px;
+}
+
+.admin-right-panel-close:hover {
+  color: var(--text);
+  background: var(--bg-hover, rgba(0, 0, 0, 0.05));
+}
+
+.admin-right-panel-body {
+  padding: 1rem;
+}
+
+.admin-right-panel-label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  margin-bottom: 0.35rem;
+}
+
+.admin-right-panel-input {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg, #fff);
+  color: var(--text);
+  box-sizing: border-box;
+}
+
+.admin-right-panel-input:focus {
+  outline: none;
+  border-color: var(--primary, #2563eb);
+}
+
+.admin-right-panel-field {
+  margin-top: 1rem;
+}
+
+.admin-right-panel-hint {
+  margin: 0.4rem 0 0 0;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.admin-right-panel-select {
+  cursor: pointer;
+  appearance: auto;
+}
+
+.admin-right-panel-apply {
+  margin-top: 1.25rem;
+  width: 100%;
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #fff;
+  background: var(--primary, #2563eb);
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.admin-right-panel-apply:hover {
+  opacity: 0.9;
+}
+
+.admin-notification {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  padding: 1rem 1.25rem;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 100;
+}
+
+.admin-notification-message {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text);
+}
+
+.admin-notification-message + .admin-notification-message {
+  margin-top: 0.35rem;
+}

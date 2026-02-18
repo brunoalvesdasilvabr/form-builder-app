@@ -1,0 +1,32 @@
+:host {
+  display: block;
+  width: 100%;
+}
+
+.widget-label-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.widget-label-control {
+  font-size: 0.8rem;
+  color: var(--text);
+  font-weight: 500;
+  padding: 0.35rem 0.5rem;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  width: 100%;
+
+  &:hover,
+  &:focus {
+    border-color: var(--border);
+    background: var(--bg-main);
+    outline: none;
+  }
+
+  &::placeholder {
+    color: var(--text-muted);
+  }
+}

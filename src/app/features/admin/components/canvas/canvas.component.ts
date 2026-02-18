@@ -1,20 +1,21 @@
-import { Component, inject, signal, computed, viewChild, ElementRef } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { CanvasService } from '../../../../core/services/canvas.service';
-import { WidgetRendererComponent } from '../../../../shared/components/widget-renderer/widget-renderer.component';
-import type { CanvasCell, WidgetType, NestedTableState, WidgetInstance } from '../../../../shared/models/canvas.model';
+import { Component, inject, signal, computed, viewChild, ElementRef } from "@angular/core";
+import { CommonModule } from "@angular/common";
+import { CanvasService } from "../../../../core/services/canvas.service";
+import { WidgetRendererComponent } from "../../../../shared/components/widget-renderer/widget-renderer.component";
+import type { CanvasCell, WidgetType, NestedTableState, WidgetInstance } from "../../../../shared/models/canvas.model";
+import { WIDGET_TYPES } from "../../../../shared/models/canvas.model";
 
 @Component({
-  selector: 'app-canvas',
+  selector: "app-canvas",
   standalone: true,
   imports: [CommonModule, WidgetRendererComponent],
-  templateUrl: './canvas.component.html',
-  styleUrl: './canvas.component.scss',
+  templateUrl: "./canvas.component.html",
+  styleUrl: "./canvas.component.scss",
 })
 export class CanvasComponent {
   private readonly canvas = inject(CanvasService);
 
-  private readonly canvasAreaRef = viewChild<ElementRef<HTMLElement>>('canvasArea');
+  private readonly canvasAreaRef = viewChild<ElementRef<HTMLElement>>("canvasArea");
 
   readonly rows = this.canvas.rows;
 
@@ -23,11 +24,16 @@ export class CanvasComponent {
   readonly mergeRange = computed(() => {
     const set = this.selectionCells();
     if (set.size === 0) return null;
-    let minR = Infinity, maxR = -Infinity, minC = Infinity, maxC = -Infinity;
+    let minR = Infinity,
+      maxR = -Infinity,
+      minC = Infinity,
+      maxC = -Infinity;
     set.forEach((key) => {
-      const [r, c] = key.split(',').map(Number);
-      minR = Math.min(minR, r); maxR = Math.max(maxR, r);
-      minC = Math.min(minC, c); maxC = Math.max(maxC, c);
+      const [r, c] = key.split(",").map(Number);
+      minR = Math.min(minR, r);
+      maxR = Math.max(maxR, r);
+      minC = Math.min(minC, c);
+      maxC = Math.max(maxC, c);
     });
     for (let r = minR; r <= maxR; r++) {
       for (let c = minC; c <= maxC; c++) {
@@ -48,8 +54,8 @@ export class CanvasComponent {
     return this.selectionCells().has(`${rowIndex},${colIndex}`);
   }
 
-  // ctrl+click = add/remove from selection (or fill rect if 1 cell selected). no ctrl = clear. unmerge = right-click merged cell
-  onCellClick(e: MouseEvent, rowIndex: number, colIndex: number): void {
+  // ctrl+click = add/remove from selection (or fill rect if 1 cell selected). no ctrl = clear or open right panel if cell has widget. unmerge = right-click merged cell
+  onCellClick(e: MouseEvent, rowIndex: number, colIndex: number, cell: CanvasCell): void {
     if (e.ctrlKey) {
       const key = `${rowIndex},${colIndex}`;
       const set = this.selectionCells();
@@ -65,9 +71,13 @@ export class CanvasComponent {
       }
       if (set.size === 1) {
         const [first] = set;
-        const [r0, c0] = first.split(',').map(Number);
-        const r1 = rowIndex, c1 = colIndex;
-        const loR = Math.min(r0, r1), hiR = Math.max(r0, r1), loC = Math.min(c0, c1), hiC = Math.max(c0, c1);
+        const [r0, c0] = first.split(",").map(Number);
+        const r1 = rowIndex,
+          c1 = colIndex;
+        const loR = Math.min(r0, r1),
+          hiR = Math.max(r0, r1),
+          loC = Math.min(c0, c1),
+          hiC = Math.max(c0, c1);
         const rect = new Set<string>();
         for (let r = loR; r <= hiR; r++) for (let c = loC; c <= hiC; c++) rect.add(`${r},${c}`);
         this.selectionCells.set(rect);
@@ -77,6 +87,11 @@ export class CanvasComponent {
       next.add(key);
       this.selectionCells.set(next);
     } else {
+      if (cell.widget && cell.widget.type !== 'table') {
+        this.canvas.setSelectedCell(cell.id);
+      } else {
+        this.canvas.setSelectedCell(null);
+      }
       this.clearSelection();
     }
   }
@@ -128,7 +143,7 @@ export class CanvasComponent {
   onDrop(e: DragEvent, targetCell: CanvasCell): void {
     e.preventDefault();
     e.stopPropagation();
-    const moveData = e.dataTransfer?.getData('application/x-canvas-move');
+    const moveData = e.dataTransfer?.getData("application/x-canvas-move");
     if (moveData) {
       try {
         const { fromCellId, widget } = JSON.parse(moveData) as { fromCellId: string; widget: WidgetInstance };
@@ -137,26 +152,30 @@ export class CanvasComponent {
       } catch {
         // bad payload, skip
       }
-      (e.currentTarget as HTMLElement)?.classList.remove('canvas-cell-drag-over');
+      (e.currentTarget as HTMLElement)?.classList.remove("canvas-cell-drag-over");
       return;
     }
-    const raw = (e.dataTransfer?.getData('application/widget-type') || e.dataTransfer?.getData('text/plain') || '').trim();
+    const raw = (
+      e.dataTransfer?.getData("application/widget-type") ||
+      e.dataTransfer?.getData("text/plain") ||
+      ""
+    ).trim();
     const type = raw.toLowerCase() as WidgetType;
-    if (!type || !['input', 'checkbox', 'radio', 'table', 'label'].includes(type)) return;
+    if (!type || !WIDGET_TYPES.includes(type)) return;
     if (!targetCell.isMergedOrigin) return;
     this.canvas.setWidgetAt(targetCell.rowIndex, targetCell.colIndex, type);
-    (e.currentTarget as HTMLElement)?.classList.remove('canvas-cell-drag-over');
+    (e.currentTarget as HTMLElement)?.classList.remove("canvas-cell-drag-over");
   }
 
   onDragOver(e: DragEvent): void {
     e.preventDefault();
-    const moveData = e.dataTransfer?.types.includes('application/x-canvas-move');
-    e.dataTransfer!.dropEffect = moveData ? 'move' : 'copy';
-    (e.currentTarget as HTMLElement)?.classList.add('canvas-cell-drag-over');
+    const moveData = e.dataTransfer?.types.includes("application/x-canvas-move");
+    e.dataTransfer!.dropEffect = moveData ? "move" : "copy";
+    (e.currentTarget as HTMLElement)?.classList.add("canvas-cell-drag-over");
   }
 
   onDragLeave(e: DragEvent): void {
-    (e.currentTarget as HTMLElement)?.classList.remove('canvas-cell-drag-over');
+    (e.currentTarget as HTMLElement)?.classList.remove("canvas-cell-drag-over");
   }
 
   shouldSkipCell(rowIndex: number, colIndex: number): boolean {
@@ -169,6 +188,11 @@ export class CanvasComponent {
 
   removeWidget(cellId: string): void {
     this.canvas.removeWidget(cellId);
+  }
+
+  onRadioOptionSelect(cellId: string, optionIndex: number): void {
+    this.canvas.setSelectedCell(cellId);
+    this.canvas.setSelectedOptionIndex(optionIndex);
   }
 
   updateNestedTable(cellId: string, widgetId: string, state: NestedTableState): void {
@@ -195,9 +219,45 @@ export class CanvasComponent {
   }
 
   saveLayout(): void {
-    const el = this.canvasAreaRef()?.nativeElement;
-    if (el) {
-      console.log(el.innerHTML);
-    }
+    const container = document.body.querySelector(".canvas-wrapper") as HTMLElement | null;
+    if (!container) return;
+    const clone = container.cloneNode(true) as HTMLElement;
+    const targets = this.canvas.getBindingTargetsFromState();
+    this.applyBindingsToClone(clone, targets);
+    console.log(clone);
+  }
+
+  /**
+   * Apply binding targets to a cloned container so saved HTML shows value="{{ propertyName }}" on controls.
+   * Finds .widget and .widget-cell in DOM order (same as getBindingTargetsFromState) and sets value attributes.
+   */
+  private applyBindingsToClone(
+    clone: HTMLElement,
+    targets: Array<{ valueBinding?: string; optionBindings?: string[] }>,
+  ): void {
+    const mainWidgets = Array.from(
+      clone.querySelectorAll<HTMLElement>(".canvas-scroll .widget:not(.widget--no-padding)"),
+    );
+    const nestedCells = Array.from(clone.querySelectorAll<HTMLElement>(".widget-cell"));
+    const widgetElements = [...mainWidgets, ...nestedCells];
+
+    widgetElements.forEach((el, i) => {
+      const target = targets[i];
+      if (!target) return;
+
+      if (target.valueBinding) {
+        const valueInput = el.querySelector<HTMLInputElement>(
+          ".widget-input, .widget-checkbox-input, .widget-label-only",
+        );
+        if (valueInput) valueInput.setAttribute("value", target.valueBinding);
+      }
+
+      if (target.optionBindings?.length) {
+        const radioInputs = el.querySelectorAll<HTMLInputElement>('.widget-radio-item input[type="radio"]');
+        radioInputs.forEach((input, j) => {
+          if (target.optionBindings![j]) input.setAttribute("value", target.optionBindings![j]);
+        });
+      }
+    });
   }
 }

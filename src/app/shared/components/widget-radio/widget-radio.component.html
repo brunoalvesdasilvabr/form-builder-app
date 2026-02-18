@@ -1,0 +1,46 @@
+@if (widget(); as w) {
+  <div class="widget-radio-field">
+    <input
+      type="text"
+      class="widget-radio-group-label"
+      [value]="w.label ?? ''"
+      (input)="onLabelInput($any($event.target).value)"
+      placeholder="Group label"
+    />
+    <div class="widget-radio-group">
+      @for (opt of (w.options ?? ['Option 1', 'Option 2']); track $index) {
+        <div class="widget-radio-item" (click)="onRadioOptionClick($index)">
+          <input
+            type="radio"
+            [name]="w.id"
+            [value]="opt"
+            [ngModel]="bindingContext.getValue(w.valueBinding)"
+            (ngModelChange)="bindingContext.setValue(w.valueBinding, $event)"
+          />
+          <input
+            type="text"
+            class="widget-radio-option-input"
+            [value]="opt"
+            (click)="$event.stopPropagation()"
+            (input)="onOptionChange(w.options ?? [], $index, $any($event.target).value)"
+          />
+          <button
+            type="button"
+            class="widget-radio-option-remove"
+            (click)="removeOption(w.options ?? [], $index); $event.stopPropagation()"
+            title="Remove option"
+          >
+            ×
+          </button>
+        </div>
+      }
+      <button
+        type="button"
+        class="widget-radio-option-add"
+        (click)="addOption(w.options ?? [])"
+      >
+        + Option
+      </button>
+    </div>
+  </div>
+}

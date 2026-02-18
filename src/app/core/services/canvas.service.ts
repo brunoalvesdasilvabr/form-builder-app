@@ -1,5 +1,6 @@
 import { Injectable, signal, computed } from '@angular/core';
-import type { CanvasState, CanvasRow, CanvasCell, WidgetInstance, WidgetType, NestedTableState, NestedTableRow, NestedTableCell } from '../../shared/models/canvas.model';
+import type { CanvasState, CanvasRow, CanvasCell, WidgetInstance, WidgetType, NestedTableState, NestedTableRow, NestedTableCell, BindableProperty } from '../../shared/models/canvas.model';
+import { WIDGET_LABELS } from '../../shared/models/canvas.model';
 import * as gridMerge from '../../shared/utils/grid-merge.util';
 
 function generateId(): string {
@@ -15,6 +16,50 @@ export class CanvasService {
   });
 
   readonly rows = computed(() => this.state().rows);
+
+  /** Cell id when user clicks a cell with a widget (opens right panel) */
+  readonly selectedCellId = signal<string | null>(null);
+
+  readonly selectedCell = computed(() => {
+    const id = this.selectedCellId();
+    if (!id) return null;
+    for (const row of this.state().rows) {
+      const cell = row.cells.find((c) => c.id === id);
+      if (cell) return cell;
+    }
+    return null;
+  });
+
+  /** For radio: which option is selected in the right panel (when user clicked that option) */
+  readonly selectedOptionIndex = signal<number | null>(null);
+
+  /** Available properties for binding dropdown; value is used as {{ value }} in component input/value. */
+  readonly bindableProperties: BindableProperty[] = [
+    { value: 'listValue1', label: 'List Value 1' },
+    { value: 'listValue2', label: 'List Value 2' },
+    { value: 'listValue3', label: 'List Value 3' },
+    { value: 'listValue4', label: 'List Value 4' },
+    { value: 'listValue5', label: 'List Value 5' },
+  ];
+
+  setSelectedCell(cellId: string | null): void {
+    this.selectedCellId.set(cellId);
+    this.selectedOptionIndex.set(null);
+  }
+
+  setSelectedOptionIndex(index: number | null): void {
+    this.selectedOptionIndex.set(index);
+  }
+
+  updateCellClass(cellId: string, className: string): void {
+    const rows = this.state().rows.map((row) => ({
+      ...row,
+      cells: row.cells.map((c) =>
+        c.id === cellId ? { ...c, className: className.trim() || undefined } : c
+      ),
+    }));
+    this.state.set({ rows });
+  }
 
   createRow(rowIndex: number, colCount: number): CanvasRow {
     const cells: CanvasCell[] = [];
@@ -119,7 +164,7 @@ export class CanvasService {
         const widget: WidgetInstance = {
           id: generateId(),
           type,
-          label: label ?? (type === 'input' ? 'Label' : type === 'checkbox' ? 'Checkbox' : type === 'radio' ? 'Choose one' : type === 'label' ? 'Label' : undefined),
+          label: label ?? (type === 'radio' ? 'Choose one' : WIDGET_LABELS[type]),
           options: options ?? (type === 'radio' ? ['Option 1', 'Option 2'] : undefined),
           placeholder: type === 'input' ? 'Enter text...' : undefined,
         };
@@ -162,13 +207,46 @@ export class CanvasService {
       ...row,
       cells: row.cells.map((c) => {
         if (c.id !== cellId || !c.widget || c.widget.id !== widgetId) return c;
-        return { ...c, widget: { ...c.widget, options } };
+        const prev = c.widget.optionBindings ?? [];
+        const optionBindings: string[] = options.map((_, i) => prev[i] ?? '');
+        return { ...c, widget: { ...c.widget, options, optionBindings } };
+      }),
+    }));
+    this.state.set({ rows });
+  }
+
+  updateValueBinding(cellId: string, widgetId: string, propertyName: string): void {
+    const binding = propertyName ? `{{ ${propertyName} }}` : undefined;
+    const rows = this.state().rows.map((row) => ({
+      ...row,
+      cells: row.cells.map((c) => {
+        if (c.id !== cellId || !c.widget || c.widget.id !== widgetId) return c;
+        return { ...c, widget: { ...c.widget, valueBinding: binding } };
+      }),
+    }));
+    this.state.set({ rows });
+  }
+
+  updateOptionBinding(cellId: string, widgetId: string, optionIndex: number, propertyName: string): void {
+    const binding = propertyName ? `{{ ${propertyName} }}` : '';
+    const rows = this.state().rows.map((row) => ({
+      ...row,
+      cells: row.cells.map((c) => {
+        if (c.id !== cellId || !c.widget || c.widget.id !== widgetId) return c;
+        const opts = c.widget.options ?? [];
+        const prev = c.widget.optionBindings ?? [];
+        const optionBindings: string[] = opts.map((_, i) => (i === optionIndex ? binding : (prev[i] ?? '')));
+        return { ...c, widget: { ...c.widget, optionBindings } };
       }),
     }));
     this.state.set({ rows });
   }
 
   removeWidget(cellId: string): void {
+    if (this.selectedCellId() === cellId) {
+      this.selectedCellId.set(null);
+      this.selectedOptionIndex.set(null);
+    }
     const rows = this.state().rows.map((row) => ({
       ...row,
       cells: row.cells.map((c) =>
@@ -243,5 +321,33 @@ export class CanvasService {
       rowIndex,
       colIndex
     );
+  }
+
+  /** Collect binding targets from state (valueBinding / optionBindings) for all non-table widgets in DOM order. */
+  getBindingTargetsFromState(): Array<{ valueBinding?: string; optionBindings?: string[] }> {
+    const targets: Array<{ valueBinding?: string; optionBindings?: string[] }> = [];
+    for (const row of this.state().rows) {
+      for (const cell of row.cells) {
+        if (!cell.widget) continue;
+        if (cell.widget.type === 'table') {
+          const nested = cell.widget.nestedTable?.rows ?? [];
+          for (const nRow of nested) {
+            for (const nCell of nRow.cells) {
+              if (!nCell.widget || nCell.widget.type === 'table') continue;
+              targets.push({
+                valueBinding: nCell.widget.valueBinding,
+                optionBindings: nCell.widget.optionBindings?.length ? nCell.widget.optionBindings : undefined,
+              });
+            }
+          }
+          continue;
+        }
+        targets.push({
+          valueBinding: cell.widget.valueBinding,
+          optionBindings: cell.widget.optionBindings?.length ? cell.widget.optionBindings : undefined,
+        });
+      }
+    }
+    return targets;
   }
 }

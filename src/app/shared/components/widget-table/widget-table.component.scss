@@ -1,0 +1,15 @@
+:host {
+  display: block;
+  width: 100%;
+  min-height: 140px;
+  max-width: 100%;
+}
+
+:host ::ng-deep app-embedded-table,
+:host ::ng-deep .embedded-table-wrap,
+:host ::ng-deep .embedded-table-scroll,
+:host ::ng-deep .embedded-table {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}

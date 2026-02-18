@@ -1,0 +1,6 @@
+@if (widget(); as w) {
+  <app-embedded-table
+    [widget]="w"
+    (nestedTableChange)="nestedTableChange.emit($event)"
+  />
+}

@@ -23,11 +23,10 @@
                 <!-- slot is part of a merged cell, origin td has the colspan/rowspan -->
               } @else {
                 <td
-                  class="canvas-cell"
-                  [class.canvas-cell-selected]="isSelected(cell.rowIndex, cell.colIndex)"
+                  [class]="'canvas-cell' + (cell.className ? ' ' + cell.className : '') + (isSelected(cell.rowIndex, cell.colIndex) ? ' canvas-cell-selected' : '')"
                   [attr.colspan]="getSpan(cell.rowIndex, cell.colIndex).colSpan > 1 ? getSpan(cell.rowIndex, cell.colIndex).colSpan : null"
                   [attr.rowspan]="getSpan(cell.rowIndex, cell.colIndex).rowSpan > 1 ? getSpan(cell.rowIndex, cell.colIndex).rowSpan : null"
-                  (click)="onCellClick($event, cell.rowIndex, cell.colIndex)"
+                  (click)="onCellClick($event, cell.rowIndex, cell.colIndex, cell)"
                   (contextmenu)="onCellContextMenu($event, cell.rowIndex, cell.colIndex)"
                   (drop)="onDrop($event, cell)"
                   (dragover)="onDragOver($event)"
@@ -41,6 +40,7 @@
                       (nestedTableChange)="updateNestedTable(cell.id, cell.widget.id, $event)"
                       (labelChange)="updateWidgetLabel(cell.id, cell.widget.id, $event)"
                       (optionsChange)="updateWidgetOptions(cell.id, cell.widget.id, $event)"
+                      (optionSelect)="onRadioOptionSelect(cell.id, $event)"
                     />
                   } @else {
                     <div class="canvas-cell-placeholder">Drop component</div>

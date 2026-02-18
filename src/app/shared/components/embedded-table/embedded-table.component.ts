@@ -15,6 +15,7 @@ import type {
   NestedTableRow,
   NestedTableCell,
 } from '../../models/canvas.model';
+import { WIDGET_TYPES, WIDGET_LABELS } from '../../models/canvas.model';
 import * as gridMerge from '../../utils/grid-merge.util';
 
 const NESTED_MOVE_DATA_TYPE = 'application/x-nested-move';
@@ -165,14 +166,14 @@ export class EmbeddedTableComponent {
     }
     const type = (e.dataTransfer?.getData('application/widget-type') ||
       e.dataTransfer?.getData('text/plain')) as WidgetType;
-    if (!type || !['input', 'checkbox', 'radio', 'table', 'label'].includes(type))
+    if (!type || !WIDGET_TYPES.includes(type))
       return;
     const s = this.state();
     if (!s) return;
     const newWidget: WidgetInstance = {
       id: generateId(),
       type,
-      label: type === 'input' ? 'Label' : type === 'checkbox' ? 'Checkbox' : type === 'radio' ? 'Choose one' : type === 'label' ? 'Label' : undefined,
+      label: type === 'radio' ? 'Choose one' : WIDGET_LABELS[type],
       placeholder: type === 'input' ? 'Enter text...' : undefined,
       options: type === 'radio' ? ['Option 1', 'Option 2'] : undefined,
     };
@@ -217,6 +218,7 @@ export class EmbeddedTableComponent {
   }
 
   onDragLeave(e: DragEvent): void {
+    e.stopPropagation();
     (e.currentTarget as HTMLElement)?.classList.remove('embedded-cell-drag-over');
   }
 
@@ -261,8 +263,9 @@ export class EmbeddedTableComponent {
     return this.selectionCells().has(`${rowIndex},${colIndex}`);
   }
 
-  // same as canvas: ctrl+click to build selection, right-click merged to unmerge
+  // same as canvas: ctrl+click to build selection, right-click merged to unmerge. Stop propagation so inner table owns selection (parent table/canvas doesn't receive click).
   onCellClick(e: MouseEvent, rowIndex: number, colIndex: number): void {
+    e.stopPropagation();
     if (e.ctrlKey) {
       const key = `${rowIndex},${colIndex}`;
       const set = this.selectionCells();
@@ -303,16 +306,15 @@ export class EmbeddedTableComponent {
     if (!range || !this.canMerge()) return;
     const s = this.state();
     if (!s) return;
-    this.state.set({
-      rows: gridMerge.mergeCells(
-        s.rows as gridMerge.MergeableRow[],
-        range.r0,
-        range.c0,
-        range.r1,
-        range.c1
-      ) as unknown as NestedTableRow[],
-    });
-    this.emitState();
+    const mergedRows = gridMerge.mergeCells(
+      s.rows as gridMerge.MergeableRow[],
+      range.r0,
+      range.c0,
+      range.r1,
+      range.c1
+    ) as unknown as NestedTableRow[];
+    this.state.set({ rows: mergedRows });
+    this.nestedTableChange.emit({ rows: mergedRows });
     this.clearMergeSelection();
   }
 
@@ -336,6 +338,7 @@ export class EmbeddedTableComponent {
   }
 
   onCellContextMenu(e: MouseEvent, rowIndex: number, colIndex: number): void {
+    e.stopPropagation();
     if (!this.isMergedCell(rowIndex, colIndex)) return;
     e.preventDefault();
     this.unmergeAt(rowIndex, colIndex);
@@ -387,6 +390,21 @@ export class EmbeddedTableComponent {
       cells: row.cells.map((c) =>
         c.id === cellId && c.widget
           ? { ...c, widget: { ...c.widget, options } }
+          : c
+      ),
+    }));
+    this.state.set({ rows });
+    this.emitState();
+  }
+
+  onCellNestedTableChange(cellId: string, widgetId: string, nestedState: NestedTableState): void {
+    const s = this.state();
+    if (!s) return;
+    const rows = s.rows.map((row) => ({
+      ...row,
+      cells: row.cells.map((c) =>
+        c.id === cellId && c.widget && c.widget.id === widgetId
+          ? { ...c, widget: { ...c.widget, nestedTable: nestedState } }
           : c
       ),
     }));

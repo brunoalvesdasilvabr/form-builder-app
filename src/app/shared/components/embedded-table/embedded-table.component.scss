@@ -33,6 +33,10 @@
   border-collapse: collapse;
   font-size: 0.85rem;
   box-sizing: border-box;
+
+  tbody tr {
+    height: 44px; /* fixed row height so rowspan cells get correct total height */
+  }
 }
 
 .embedded-cell {
@@ -90,6 +94,12 @@
 .embedded-table-wrap:hover .embedded-sidebar {
   opacity: 1;
   pointer-events: auto;
+}
+
+/* When a nested table is hovered, hide this table's sidebar so only the hovered table shows + − Merge */
+.embedded-table-wrap:has(.embedded-table-wrap:hover) > .embedded-sidebar {
+  opacity: 0;
+  pointer-events: none;
 }
 
 .embedded-btn {
