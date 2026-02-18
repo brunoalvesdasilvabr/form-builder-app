@@ -103,6 +103,14 @@ export class AdminComponent {
     return base;
   }
 
+  /** Hint text showing what is bound and the value= template (e.g. "Bound to: Input — value={{ listValue1 }}"). */
+  getBindingHint(cell: CanvasCell): string {
+    const label = this.getBindingTargetLabel(cell);
+    const prop = this.getCurrentBindingProperty(cell);
+    if (!prop) return `Bound to: ${label}`;
+    return `Bound to: ${label} — value={{ ${prop} }}`;
+  }
+
   /** Get the current binding as a property name (e.g. "listValue1") for the dropdown. */
   getCurrentBindingProperty(cell: CanvasCell): string {
     const w = cell.widget;

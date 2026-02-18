@@ -39,7 +39,7 @@
                   <option [value]="prop.value">{{ prop.label }}</option>
                 }
               </select>
-              <p class="admin-right-panel-hint">Bound to: {{ getBindingTargetLabel(cell) }}</p>
+              <p class="admin-right-panel-hint">{{ getBindingHint(cell) }}</p>
             </div>
           }
           <button type="button" class="admin-right-panel-apply" (click)="applyChanges()">Apply</button>

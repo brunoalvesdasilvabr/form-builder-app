@@ -247,7 +247,7 @@ export class CanvasComponent {
 
       if (target.valueBinding) {
         const valueInput = el.querySelector<HTMLInputElement>(
-          ".widget-input, .widget-checkbox-input, .widget-label-only",
+          ".widget-input-control, .widget-checkbox-control, .widget-label-control",
         );
         if (valueInput) valueInput.setAttribute("value", target.valueBinding);
       }
