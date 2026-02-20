@@ -13,10 +13,10 @@
         <div class="widget-radio-item" (click)="onRadioOptionClick($index)" [attr.data-class-target]="'option-' + $index" [ngClass]="getElementClassObj('option-' + $index)">
           <input
             type="radio"
-            [name]="w.id"
+            [attr.name]="'radio-' + w.id"
             [value]="opt"
-            [ngModel]="bindingContext.getValue(w.valueBinding)"
-            (ngModelChange)="bindingContext.setValue(w.valueBinding, $event)"
+            [ngModel]="getSelectedValue(w)"
+            (ngModelChange)="onRadioSelect(w, $event)"
           />
           <input
             type="text"

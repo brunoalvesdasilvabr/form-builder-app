@@ -40,3 +40,20 @@ input, button, select, textarea {
   font-family: inherit;
   font-size: inherit;
 }
+
+/* Hide dashed hover outlines in preview modal only */
+.preview-modal-layout {
+  .canvas-cell:hover,
+  .embedded-cell:hover,
+  app-widget-renderer:hover,
+  app-widget-input:hover,
+  app-widget-checkbox:hover,
+  app-widget-radio:hover,
+  app-widget-label:hover,
+  app-widget-table:hover,
+  app-widget-cell-renderer:hover,
+  [data-class-target]:hover,
+  .widget-table-wrap:hover {
+    outline: none !important;
+  }
+}
