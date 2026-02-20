@@ -1,4 +1,4 @@
-import { Component, input, output } from '@angular/core';
+import { Component, input, output, HostBinding, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { WidgetInputComponent } from '../widget-input/widget-input.component';
 import { WidgetCheckboxComponent } from '../widget-checkbox/widget-checkbox.component';
@@ -28,7 +28,17 @@ export class WidgetCellRendererComponent {
   labelChange = output<string>();
   optionsChange = output<string[]>();
 
-  onDragStartNested(e: DragEvent): void {
+  @HostBinding('class.widget-cell') readonly hasWidgetCellClass = true;
+  @HostBinding('attr.draggable') get draggable(): string | null {
+    return this.cellId() ? 'true' : null;
+  }
+  @HostBinding('class.widget-cell-dragging') private isDragging = false;
+
+  @HostListener('click', ['$event']) onHostClick(e: MouseEvent): void {
+    e.stopPropagation();
+  }
+
+  @HostListener('dragstart', ['$event']) onDragStart(e: DragEvent): void {
     const id = this.cellId();
     if (!id || !e.dataTransfer) return;
     e.dataTransfer.effectAllowed = 'move';
@@ -36,11 +46,11 @@ export class WidgetCellRendererComponent {
       fromCellId: id,
       widget: this.widget(),
     }));
-    (e.target as HTMLElement)?.classList.add('widget-cell-dragging');
+    this.isDragging = true;
   }
 
-  onDragEndNested(e: DragEvent): void {
-    (e.target as HTMLElement)?.classList.remove('widget-cell-dragging');
+  @HostListener('dragend') onDragEnd(): void {
+    this.isDragging = false;
   }
 
   onRemove(e: Event): void {

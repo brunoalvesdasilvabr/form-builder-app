@@ -1,12 +1,5 @@
 @if (widget(); as w) {
-  <div
-    class="widget-cell"
-    (click)="$event.stopPropagation()"
-    [attr.draggable]="cellId() !== undefined"
-    (dragstart)="cellId() !== undefined && onDragStartNested($event)"
-    (dragend)="onDragEndNested($event)"
-  >
-    @switch (w.type) {
+  @switch (w.type) {
       @case ('input') {
         <app-widget-input
           [widget]="w"
@@ -35,7 +28,6 @@
           (labelChange)="labelChange.emit($event)"
         />
       }
-    }
-    <button type="button" class="widget-cell-remove" (click)="onRemove($event)" title="Remove">×</button>
-  </div>
+  }
+  <button type="button" class="widget-cell-remove" (click)="onRemove($event)" title="Remove">×</button>
 }

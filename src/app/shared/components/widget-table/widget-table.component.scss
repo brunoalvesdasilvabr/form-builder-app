@@ -3,6 +3,27 @@
   width: 100%;
   min-height: 140px;
   max-width: 100%;
+
+  &:hover {
+    outline: 2px dashed var(--accent);
+    outline-offset: 2px;
+  }
+}
+
+.widget-table-wrap {
+  display: block;
+  width: 100%;
+  min-height: 140px;
+  max-width: 100%;
+
+  &:hover {
+    outline: 2px dashed var(--accent);
+    outline-offset: 2px;
+  }
+}
+
+:host:has(.widget-table-wrap:hover) {
+  outline: none;
 }
 
 :host ::ng-deep app-embedded-table,

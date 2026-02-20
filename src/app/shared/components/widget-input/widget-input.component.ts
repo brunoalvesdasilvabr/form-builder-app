@@ -1,4 +1,4 @@
-import { Component, input, output, inject } from '@angular/core';
+import { Component, input, output, inject, HostBinding } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { BindingContextService } from '../../../core/services/binding-context.service';
@@ -16,6 +16,16 @@ export class WidgetInputComponent {
 
   widget = input.required<WidgetInstance>();
   labelChange = output<string>();
+
+  @HostBinding('class') get hostClass(): string {
+    return this.widget()?.innerClassName?.trim() ?? '';
+  }
+
+  getElementClassObj(key: string): Record<string, boolean> {
+    const ec = this.widget()?.elementClasses;
+    const val = ec?.[key];
+    return val ? { [val]: true } : {};
+  }
 
   onLabelInput(value: string): void {
     this.labelChange.emit(value);

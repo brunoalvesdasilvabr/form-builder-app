@@ -1,6 +1,12 @@
 @if (widget(); as w) {
-  <app-embedded-table
-    [widget]="w"
-    (nestedTableChange)="nestedTableChange.emit($event)"
-  />
+  <div
+    class="widget-table-wrap"
+    data-class-target="table"
+    [ngClass]="getElementClassObj('table')"
+  >
+    <app-embedded-table
+      [widget]="w"
+      (nestedTableChange)="nestedTableChange.emit($event)"
+    />
+  </div>
 }

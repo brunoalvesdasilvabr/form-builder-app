@@ -1,7 +1,10 @@
 import { Component, inject, signal, computed, viewChild, ElementRef } from "@angular/core";
 import { CommonModule } from "@angular/common";
+import { MatDialog } from "@angular/material/dialog";
+import { stripBuilderChrome, copyFormValues } from "../../../../shared/utils/preview-html.util";
 import { CanvasService } from "../../../../core/services/canvas.service";
 import { WidgetRendererComponent } from "../../../../shared/components/widget-renderer/widget-renderer.component";
+import { PreviewModalComponent } from "../../../../shared/components/preview-modal/preview-modal.component";
 import type { CanvasCell, WidgetType, NestedTableState, WidgetInstance } from "../../../../shared/models/canvas.model";
 import { WIDGET_TYPES } from "../../../../shared/models/canvas.model";
 
@@ -14,6 +17,7 @@ import { WIDGET_TYPES } from "../../../../shared/models/canvas.model";
 })
 export class CanvasComponent {
   private readonly canvas = inject(CanvasService);
+  private readonly dialog = inject(MatDialog);
 
   private readonly canvasAreaRef = viewChild<ElementRef<HTMLElement>>("canvasArea");
 
@@ -87,10 +91,21 @@ export class CanvasComponent {
       next.add(key);
       this.selectionCells.set(next);
     } else {
-      if (cell.widget && cell.widget.type !== 'table') {
-        this.canvas.setSelectedCell(cell.id);
-      } else {
+      if (cell.widget && cell.widget.type === 'table') {
         this.canvas.setSelectedCell(null);
+      } else {
+        const el = e.target as Element;
+        const elementTarget = el?.closest?.('[data-class-target]')?.getAttribute?.('data-class-target');
+        if (elementTarget) {
+          this.canvas.setSelectedCell(cell.id, 'element', elementTarget);
+        } else if (el?.closest?.('app-widget-input') || el?.closest?.('app-widget-checkbox') ||
+            el?.closest?.('app-widget-radio') || el?.closest?.('app-widget-label') || el?.closest?.('app-widget-table')) {
+          this.canvas.setSelectedCell(cell.id, 'widget-inner');
+        } else if (el?.closest?.('app-widget-renderer')) {
+          this.canvas.setSelectedCell(cell.id, 'widget');
+        } else {
+          this.canvas.setSelectedCell(cell.id, 'cell');
+        }
       }
       this.clearSelection();
     }
@@ -218,13 +233,40 @@ export class CanvasComponent {
     this.unmergeAt(rowIndex, colIndex);
   }
 
-  saveLayout(): void {
+  /** Returns the raw HTML string of the canvas layout (with bindings applied). Same source as Save layout. */
+  getLayoutHtml(): string {
     const container = document.body.querySelector(".canvas-wrapper") as HTMLElement | null;
-    if (!container) return;
+    if (!container) return '';
     const clone = container.cloneNode(true) as HTMLElement;
     const targets = this.canvas.getBindingTargetsFromState();
     this.applyBindingsToClone(clone, targets);
-    console.log(clone);
+    return clone.outerHTML;
+  }
+
+  saveLayout(): void {
+    const html = this.getLayoutHtml();
+    if (html) console.log(html);
+  }
+
+  /** Returns HTML with builder chrome stripped for preview/export. */
+  getPreviewHtml(): string {
+    const container = document.body.querySelector(".canvas-wrapper") as HTMLElement | null;
+    if (!container) return '';
+    const clone = container.cloneNode(true) as HTMLElement;
+    copyFormValues(container, clone);
+    stripBuilderChrome(clone, { stripAngular: false }); // keep ng attrs so component styles match
+    const targets = this.canvas.getBindingTargetsFromState();
+    this.applyBindingsToClone(clone, targets);
+    return clone.outerHTML;
+  }
+
+  openPreview(): void {
+    const html = this.getPreviewHtml();
+    this.dialog.open(PreviewModalComponent, {
+      data: { title: 'HTML Preview', html },
+      width: '90vw',
+      maxWidth: '800px',
+    });
   }
 
   /**

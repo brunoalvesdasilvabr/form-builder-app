@@ -1,18 +1,20 @@
 @if (widget(); as w) {
-  <div class="widget-checkbox-field">
-    <input
-      type="checkbox"
-      class="widget-checkbox-control"
-      [id]="w.id"
-      [ngModel]="bindingContext.getValue(w.valueBinding) === 'true'"
-      (ngModelChange)="bindingContext.setValue(w.valueBinding, $event ? 'true' : 'false')"
-    />
-    <input
-      type="text"
-      class="widget-checkbox-label"
-      [value]="w.label ?? ''"
-      (input)="onLabelInput($any($event.target).value)"
-      placeholder="Checkbox label"
-    />
-  </div>
+  <input
+    type="checkbox"
+    class="widget-checkbox-control"
+    data-class-target="checkbox"
+    [ngClass]="getElementClassObj('checkbox')"
+    [id]="w.id"
+    [ngModel]="bindingContext.getValue(w.valueBinding) === 'true'"
+    (ngModelChange)="bindingContext.setValue(w.valueBinding, $event ? 'true' : 'false')"
+  />
+  <input
+    type="text"
+    class="widget-checkbox-label"
+    data-class-target="label"
+    [ngClass]="getElementClassObj('label')"
+    [value]="w.label ?? ''"
+    (input)="onLabelInput($any($event.target).value)"
+    placeholder="Checkbox label"
+  />
 }

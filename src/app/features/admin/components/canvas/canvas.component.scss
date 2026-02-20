@@ -78,7 +78,6 @@
   }
 }
 
-
 .canvas-scroll {
   flex: 1;
   overflow: auto;
@@ -103,7 +102,12 @@
   background: var(--bg-cell);
 
   &:hover {
-    background: var(--bg-cell-hover);
+    outline: 2px dashed var(--accent);
+    outline-offset: -2px;
+  }
+
+  &:has(app-widget-renderer:hover) {
+    outline: none;
   }
 
   > * {

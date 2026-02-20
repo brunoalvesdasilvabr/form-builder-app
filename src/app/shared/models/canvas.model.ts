@@ -58,6 +58,12 @@ export interface WidgetInstance {
   valueBinding?: string;
   /** Per-option value bindings for radio, e.g. ["{{ listValue1 }}", "{{ listValue2 }}"] */
   optionBindings?: string[];
+  /** Optional CSS class(es) applied to app-widget-renderer host when user clicked the widget wrapper */
+  className?: string;
+  /** Optional CSS class(es) applied to the inner component (app-widget-input etc.) when user clicked it */
+  innerClassName?: string;
+  /** Classes for specific child elements; key = data-class-target value (e.g. 'label', 'control', 'option-0') */
+  elementClasses?: Record<string, string>;
 }
 
 export interface CanvasCell {

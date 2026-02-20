@@ -1,0 +1,13 @@
+<h2 mat-dialog-title>{{ title }}</h2>
+<mat-dialog-content>
+  <p class="preview-modal-hint">Rendered layout from the canvas HTML (as it appears at this moment):</p>
+  <div class="preview-modal-layout" [innerHTML]="sanitizedHtml"></div>
+  <details class="preview-modal-source">
+    <summary>View raw HTML</summary>
+    <pre class="preview-modal-code"><code>{{ html }}</code></pre>
+  </details>
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button type="button" class="btn btn-secondary" (click)="copyToClipboard()">Copy HTML</button>
+  <button type="button" class="btn btn-primary" (click)="close()">Close</button>
+</mat-dialog-actions>

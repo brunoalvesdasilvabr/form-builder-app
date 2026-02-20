@@ -1,0 +1,214 @@
+.btn {
+  padding: 0.5rem 0.9rem;
+  border-radius: 6px;
+  font-weight: 500;
+  font-size: 0.85rem;
+  cursor: pointer;
+  border: none;
+  transition: background 0.15s;
+
+  &.btn-primary {
+    background: var(--accent);
+    color: white;
+
+    &:hover:not(:disabled) {
+      background: var(--accent-hover);
+    }
+  }
+
+  &.btn-secondary {
+    background: var(--bg-main);
+    color: var(--text);
+    border: 1px solid var(--border);
+
+    &:hover:not(:disabled) {
+      background: var(--bg-cell-hover);
+    }
+  }
+}
+
+.preview-modal-hint {
+  margin: 0 0 0.75rem;
+  color: var(--text-muted, #6b7280);
+  font-size: 0.875rem;
+}
+
+.preview-modal-layout {
+  max-height: 50vh;
+  overflow: auto;
+  padding: 1rem;
+  background: var(--bg-main, #f5f5f7);
+  border: 1px solid var(--border, #e0e0e4);
+  border-radius: var(--radius, 8px);
+  margin-bottom: 1rem;
+
+  .canvas-wrapper {
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-panel);
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    overflow: hidden;
+  }
+
+  .canvas-scroll {
+    overflow: auto;
+    padding: 1rem;
+  }
+
+  .canvas-table {
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
+    background: var(--bg-main);
+    border-radius: var(--radius);
+  }
+
+  .canvas-cell {
+    min-width: 140px;
+    min-height: 60px;
+    padding: 0;
+    vertical-align: top;
+    border: 1px solid var(--border);
+    background: var(--bg-cell);
+
+    > * {
+      display: block;
+      width: 100%;
+      min-width: 0;
+    }
+  }
+
+  .canvas-cell-placeholder {
+    min-height: 56px;
+    padding: 0.75rem;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+  }
+
+  /* Embedded table (nested) – component styles don't apply to innerHTML */
+  .embedded-table-wrap {
+    display: block;
+    width: 100%;
+    min-height: 120px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg-cell);
+  }
+  .embedded-table-scroll {
+    width: 100%;
+    overflow: auto;
+  }
+  .embedded-table {
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+
+    tbody tr {
+      height: 44px;
+    }
+  }
+  .embedded-cell {
+    min-width: 80px;
+    min-height: 44px;
+    padding: 0.35rem;
+    vertical-align: top;
+    border: 1px solid var(--border);
+    background: var(--bg-main);
+  }
+  .embedded-cell-placeholder {
+    min-height: 36px;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+  }
+
+  app-widget-renderer,
+  app-widget-input,
+  app-widget-checkbox,
+  app-widget-radio,
+  app-widget-label,
+  app-widget-table,
+  app-widget-cell-renderer {
+    display: block;
+  }
+
+  app-widget-renderer {
+    min-height: 2rem;
+    padding: 0.5rem;
+    box-sizing: border-box;
+  }
+
+  app-widget-cell-renderer {
+    min-height: 2rem;
+    padding: 0.35rem;
+  }
+
+  .widget-input-label,
+  .widget-checkbox-label,
+  .widget-label-control,
+  .widget-radio-group-label {
+    display: block;
+    margin-bottom: 0.25rem;
+  }
+
+  .widget-radio-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .widget-radio-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  input,
+  button,
+  select,
+  label {
+    font-family: inherit;
+    font-size: inherit;
+  }
+}
+
+.preview-modal-source {
+  margin-top: 0.5rem;
+
+  summary {
+    cursor: pointer;
+    font-size: 0.875rem;
+    color: var(--text-muted, #6b7280);
+  }
+
+  .preview-modal-code {
+    margin-top: 0.5rem;
+  }
+}
+
+.preview-modal-code {
+  margin: 0;
+  padding: 1rem;
+  background: var(--bg-cell, #fafafa);
+  border: 1px solid var(--border, #e0e0e4);
+  border-radius: var(--radius, 8px);
+  font-family: var(--font-mono, monospace);
+  font-size: 0.8rem;
+  overflow: auto;
+  max-height: 60vh;
+  white-space: pre-wrap;
+  word-break: break-all;
+
+  code {
+    font-family: inherit;
+  }
+}

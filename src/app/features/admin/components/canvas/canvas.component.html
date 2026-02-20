@@ -8,9 +8,10 @@
       @if (canMerge()) {
         <button type="button" class="btn btn-secondary" (click)="mergeSelection()">Merge selected</button>
       }
+      <button type="button" class="btn btn-secondary" (click)="openPreview()" title="Preview canvas HTML">Preview</button>
       <button type="button" class="btn btn-secondary" (click)="saveLayout()" title="Log canvas HTML">Save layout</button>
     </div>
-    <p class="canvas-toolbar-hint">Ctrl+click cells to select range, then Merge. Ctrl+click selected cell to unselect it. Right‑click merged cell to unmerge.</p>
+    <p class="canvas-toolbar-hint">Ctrl+click two corners (e.g. top-left then bottom-right) to select a rectangle—cells inside merged regions are included automatically. Ctrl+click a selected cell to unselect it. Right‑click merged cell to unmerge.</p>
   </div>
 
   <div class="canvas-scroll" #canvasArea>

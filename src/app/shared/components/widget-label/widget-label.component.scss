@@ -1,12 +1,22 @@
 :host {
-  display: block;
-  width: 100%;
-}
-
-.widget-label-field {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
+  width: 100%;
+
+  &:hover {
+    outline: 2px dashed var(--accent);
+    outline-offset: 2px;
+  }
+
+  &:has([data-class-target]:hover) {
+    outline: none;
+  }
+}
+
+[data-class-target]:hover {
+  outline: 2px dashed var(--accent);
+  outline-offset: 2px;
 }
 
 .widget-label-control {

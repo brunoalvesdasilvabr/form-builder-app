@@ -1,9 +1,5 @@
 :host {
   display: block;
-  width: 100%;
-}
-
-.widget {
   position: relative;
   width: 100%;
   min-height: 2rem;
@@ -13,17 +9,30 @@
   &.widget--no-padding {
     padding: 0;
   }
-}
 
-.widget[draggable="true"] {
-  cursor: grab;
-  &:active {
-    cursor: grabbing;
+  &[draggable="true"] {
+    cursor: grab;
+    &:active {
+      cursor: grabbing;
+    }
   }
-}
 
-.widget-dragging {
-  opacity: 0.7;
+  &.widget-dragging {
+    opacity: 0.7;
+  }
+
+  &:hover {
+    outline: 2px dashed var(--accent);
+    outline-offset: 2px;
+  }
+
+  &:has(app-widget-input:hover),
+  &:has(app-widget-checkbox:hover),
+  &:has(app-widget-radio:hover),
+  &:has(app-widget-label:hover),
+  &:has(app-widget-table:hover) {
+    outline: none;
+  }
 }
 
 .widget-remove {
@@ -44,7 +53,7 @@
   pointer-events: none;
   transition: opacity 0.15s ease;
 
-  .widget:hover & {
+  :host:hover & {
     opacity: 0.9;
     pointer-events: auto;
   }
@@ -53,13 +62,13 @@
     opacity: 1;
   }
 
-  .widget--no-padding & {
+  :host.widget--no-padding & {
     right: auto;
     left: 0.25rem;
   }
 }
 
-.widget app-widget-table {
+:host ::ng-deep app-widget-table {
   display: block;
   width: 100%;
   min-height: 140px;

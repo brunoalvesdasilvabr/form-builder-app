@@ -16,14 +16,16 @@
           <button type="button" class="admin-right-panel-close" (click)="closePanel()" title="Close panel">×</button>
         </div>
         <div class="admin-right-panel-body">
-          <label class="admin-right-panel-label" for="cell-class-input">Class binding</label>
+          <label class="admin-right-panel-label" for="cell-class-input">
+            Class binding ({{ getClassTargetLabel() }})
+          </label>
           <input
             id="cell-class-input"
             type="text"
             class="admin-right-panel-input"
             [ngModel]="pendingClass()"
             (ngModelChange)="pendingClass.set($event)"
-            placeholder="type the class you want to bind to this component"
+            [placeholder]="'Class for the ' + getClassTargetLabel()"
           />
           @if (cell.widget && cell.widget.type !== 'table') {
             <div class="admin-right-panel-field">

@@ -17,6 +17,8 @@ export class AdminComponent {
   private readonly canvas = inject(CanvasService);
 
   readonly selectedCell = this.canvas.selectedCell;
+  readonly selectedTarget = this.canvas.selectedTarget;
+  readonly selectedElementKey = this.canvas.selectedElementKey;
   readonly bindableProperties = this.canvas.bindableProperties;
   readonly selectedOptionIndex = this.canvas.selectedOptionIndex;
 
@@ -33,8 +35,18 @@ export class AdminComponent {
   constructor() {
     effect(() => {
       const cell = this.selectedCell();
+      const target = this.selectedTarget();
+      const elementKey = this.selectedElementKey();
       if (cell) {
-        this.initialClass = cell.className ?? '';
+        if (target === 'element' && elementKey && cell.widget?.elementClasses) {
+          this.initialClass = cell.widget.elementClasses[elementKey] ?? '';
+        } else if (target === 'widget' && cell.widget) {
+          this.initialClass = cell.widget.className ?? '';
+        } else if (target === 'widget-inner' && cell.widget) {
+          this.initialClass = cell.widget.innerClassName ?? '';
+        } else {
+          this.initialClass = cell.className ?? '';
+        }
         this.initialProperty = this.getCurrentBindingProperty(cell);
         this.pendingClass.set(this.initialClass);
         this.pendingProperty.set(this.initialProperty);
@@ -56,8 +68,19 @@ export class AdminComponent {
     const propertyChanged = this.pendingProperty() !== this.initialProperty;
 
     if (classChanged) {
-      this.canvas.updateCellClass(cell.id, this.pendingClass());
-      messages.push('Your class was bound to the component.');
+      const target = this.selectedTarget();
+      const elementKey = this.selectedElementKey();
+      if (target === 'element' && elementKey && cell.widget) {
+        this.canvas.updateWidgetElementClass(cell.id, cell.widget.id, elementKey, this.pendingClass());
+      } else if (target === 'widget' && cell.widget) {
+        this.canvas.updateWidgetClass(cell.id, cell.widget.id, this.pendingClass());
+      } else if (target === 'widget-inner' && cell.widget) {
+        this.canvas.updateWidgetInnerClass(cell.id, cell.widget.id, this.pendingClass());
+      } else {
+        this.canvas.updateCellClass(cell.id, this.pendingClass());
+      }
+      const targetLabel = this.getClassTargetLabel();
+      messages.push(`Your class was bound to the ${targetLabel}.`);
       this.initialClass = this.pendingClass();
     }
     if (propertyChanged) {
@@ -80,6 +103,16 @@ export class AdminComponent {
     } else {
       this.canvas.updateValueBinding(cell.id, w.id, propertyValue);
     }
+  }
+
+  /** Label for which element gets the class (cell, component wrapper, component, or child element). */
+  getClassTargetLabel(): string {
+    const t = this.selectedTarget();
+    const key = this.selectedElementKey();
+    if (t === 'cell') return 'cell';
+    if (t === 'widget') return 'component wrapper';
+    if (t === 'element' && key) return `element (${key})`;
+    return 'component';
   }
 
   /** Human-readable label for what the property binding applies to. */

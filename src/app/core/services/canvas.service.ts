@@ -17,8 +17,12 @@ export class CanvasService {
 
   readonly rows = computed(() => this.state().rows);
 
-  /** Cell id when user clicks a cell with a widget (opens right panel) */
+  /** Cell id when user clicks a cell (opens right panel) */
   readonly selectedCellId = signal<string | null>(null);
+  /** What was clicked: 'cell' = td, 'widget' = app-widget-renderer host, 'widget-inner' = inner component, 'element' = child element */
+  readonly selectedTarget = signal<'cell' | 'widget' | 'widget-inner' | 'element'>('cell');
+  /** When selectedTarget is 'element', the data-class-target key (e.g. 'label', 'control', 'option-0') */
+  readonly selectedElementKey = signal<string | null>(null);
 
   readonly selectedCell = computed(() => {
     const id = this.selectedCellId();
@@ -42,8 +46,14 @@ export class CanvasService {
     { value: 'listValue5', label: 'List Value 5' },
   ];
 
-  setSelectedCell(cellId: string | null): void {
+  setSelectedCell(
+    cellId: string | null,
+    target: 'cell' | 'widget' | 'widget-inner' | 'element' = 'cell',
+    elementKey?: string
+  ): void {
     this.selectedCellId.set(cellId);
+    this.selectedTarget.set(target);
+    this.selectedElementKey.set(target === 'element' ? (elementKey ?? null) : null);
     this.selectedOptionIndex.set(null);
   }
 
@@ -57,6 +67,53 @@ export class CanvasService {
       cells: row.cells.map((c) =>
         c.id === cellId ? { ...c, className: className.trim() || undefined } : c
       ),
+    }));
+    this.state.set({ rows });
+  }
+
+  updateWidgetClass(cellId: string, widgetId: string, className: string): void {
+    const rows = this.state().rows.map((row) => ({
+      ...row,
+      cells: row.cells.map((c) => {
+        if (c.id !== cellId || !c.widget || c.widget.id !== widgetId) return c;
+        return {
+          ...c,
+          widget: { ...c.widget, className: className.trim() || undefined },
+        };
+      }),
+    }));
+    this.state.set({ rows });
+  }
+
+  updateWidgetInnerClass(cellId: string, widgetId: string, className: string): void {
+    const rows = this.state().rows.map((row) => ({
+      ...row,
+      cells: row.cells.map((c) => {
+        if (c.id !== cellId || !c.widget || c.widget.id !== widgetId) return c;
+        return {
+          ...c,
+          widget: { ...c.widget, innerClassName: className.trim() || undefined },
+        };
+      }),
+    }));
+    this.state.set({ rows });
+  }
+
+  updateWidgetElementClass(cellId: string, widgetId: string, elementKey: string, className: string): void {
+    const rows = this.state().rows.map((row) => ({
+      ...row,
+      cells: row.cells.map((c) => {
+        if (c.id !== cellId || !c.widget || c.widget.id !== widgetId) return c;
+        const prev = c.widget.elementClasses ?? {};
+        const next = { ...prev };
+        const val = className.trim();
+        if (val) next[elementKey] = val;
+        else delete next[elementKey];
+        return {
+          ...c,
+          widget: { ...c.widget, elementClasses: Object.keys(next).length ? next : undefined },
+        };
+      }),
     }));
     this.state.set({ rows });
   }
@@ -289,21 +346,6 @@ export class CanvasService {
         colIndex
       ) as unknown as CanvasRow[],
     });
-  }
-
-  getOriginForCell(cell: CanvasCell): CanvasCell | null {
-    return this.getOriginCell(cell.rowIndex, cell.colIndex);
-  }
-
-  isCellHiddenByMerge(rowIndex: number, colIndex: number): boolean {
-    const origin = this.getOriginCell(rowIndex, colIndex);
-    if (!origin) return true;
-    return !origin.isMergedOrigin || (origin.rowIndex === rowIndex && origin.colIndex === colIndex);
-  }
-
-  isOrigin(rowIndex: number, colIndex: number): boolean {
-    const cell = this.getCell(rowIndex, colIndex);
-    return cell?.isMergedOrigin ?? false;
   }
 
   getSpan(rowIndex: number, colIndex: number): { colSpan: number; rowSpan: number } {

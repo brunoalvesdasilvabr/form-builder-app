@@ -1,21 +1,23 @@
 @if (widget(); as w) {
-  <div class="widget-label-field">
-    @if (w.valueBinding) {
-      <input
-        type="text"
-        class="widget-label-control"
-        [ngModel]="bindingContext.getValue(w.valueBinding)"
-        (ngModelChange)="bindingContext.setValue(w.valueBinding, $event)"
-        placeholder="Label text"
-      />
-    } @else {
-      <input
-        type="text"
-        class="widget-label-control"
-        [value]="w.label ?? ''"
-        (input)="onLabelInput($any($event.target).value)"
-        placeholder="Label text"
-      />
-    }
-  </div>
+  @if (w.valueBinding) {
+    <input
+      type="text"
+      class="widget-label-control"
+      data-class-target="control"
+      [ngClass]="getElementClassObj('control')"
+      [ngModel]="bindingContext.getValue(w.valueBinding)"
+      (ngModelChange)="bindingContext.setValue(w.valueBinding, $event)"
+      placeholder="Label text"
+    />
+  } @else {
+    <input
+      type="text"
+      class="widget-label-control"
+      data-class-target="control"
+      [ngClass]="getElementClassObj('control')"
+      [value]="w.label ?? ''"
+      (input)="onLabelInput($any($event.target).value)"
+      placeholder="Label text"
+    />
+  }
 }

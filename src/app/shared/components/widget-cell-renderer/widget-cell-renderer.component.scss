@@ -1,19 +1,20 @@
-.widget-cell {
+:host {
+  display: block;
   position: relative;
   width: 100%;
   min-height: 2rem;
   padding: 0.35rem;
-}
 
-.widget-cell[draggable="true"] {
-  cursor: grab;
-  &:active {
-    cursor: grabbing;
+  &[draggable="true"] {
+    cursor: grab;
+    &:active {
+      cursor: grabbing;
+    }
   }
-}
 
-.widget-cell-dragging {
-  opacity: 0.7;
+  &.widget-cell-dragging {
+    opacity: 0.7;
+  }
 }
 
 .widget-cell-remove {
@@ -34,7 +35,7 @@
   pointer-events: none;
   transition: opacity 0.15s ease;
 
-  .widget-cell:hover & {
+  :host:hover & {
     opacity: 0.9;
     pointer-events: auto;
   }
