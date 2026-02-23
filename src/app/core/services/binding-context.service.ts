@@ -1,5 +1,6 @@
 import { Injectable, signal, inject } from '@angular/core';
 import { CanvasService } from './canvas.service';
+import { parseBindingProperty } from '../../shared/utils/binding.util';
 
 /** Holds the current values for each bindable property from the dropdown (array of objects). Components use the selected property's value as the ngModel variable. */
 @Injectable({ providedIn: 'root' })
@@ -17,9 +18,8 @@ export class BindingContextService {
 
   /** Parse "{{ listValue1 }}" to "listValue1", or return null if not a binding string. */
   parseBindingKey(binding: string | undefined): string | null {
-    if (!binding) return null;
-    const m = binding.match(/^\{\{\s*(\S+)\s*\}\}$/);
-    return m ? m[1] : null;
+    const key = parseBindingProperty(binding);
+    return key || null;
   }
 
   /** Get the current value for the given binding (e.g. "{{ listValue1 }}" -> value of listValue1). */

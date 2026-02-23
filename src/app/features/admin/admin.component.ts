@@ -5,6 +5,7 @@ import { PaletteComponent } from './components/palette/palette.component';
 import { CanvasComponent } from './components/canvas/canvas.component';
 import { CanvasService } from '../../core/services/canvas.service';
 import type { CanvasCell } from '../../shared/models/canvas.model';
+import { parseBindingProperty } from '../../shared/utils/binding.util';
 
 @Component({
   selector: 'app-admin',
@@ -150,14 +151,8 @@ export class AdminComponent {
     if (!w) return '';
     if (w.type === 'radio' && this.selectedOptionIndex() !== null) {
       const binding = w.optionBindings?.[this.selectedOptionIndex()!];
-      return this.parseBindingProperty(binding);
+      return parseBindingProperty(binding);
     }
-    return this.parseBindingProperty(w.valueBinding);
-  }
-
-  private parseBindingProperty(binding: string | undefined): string {
-    if (!binding) return '';
-    const m = binding.match(/^\{\{\s*(\S+)\s*\}\}$/);
-    return m ? m[1] : '';
+    return parseBindingProperty(w.valueBinding);
   }
 }

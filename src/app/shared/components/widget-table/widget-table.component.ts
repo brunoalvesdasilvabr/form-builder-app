@@ -2,6 +2,7 @@ import { Component, input, output, HostBinding } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { EmbeddedTableComponent } from '../embedded-table/embedded-table.component';
 import type { WidgetInstance, NestedTableState } from '../../models/canvas.model';
+import { getElementClassObj } from '../../utils/element-class.util';
 
 @Component({
   selector: 'app-widget-table',
@@ -19,8 +20,7 @@ export class WidgetTableComponent {
   }
 
   getElementClassObj(key: string): Record<string, boolean> {
-    const ec = this.widget()?.elementClasses;
-    const val = ec?.[key];
-    return val ? { [val]: true } : {};
+    return getElementClassObj(this.widget(), key);
   }
+
 }

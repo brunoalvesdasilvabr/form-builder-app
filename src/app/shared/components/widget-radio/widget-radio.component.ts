@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { BindingContextService } from '../../../core/services/binding-context.service';
 import type { WidgetInstance } from '../../models/canvas.model';
+import { getElementClassObj } from '../../utils/element-class.util';
 
 @Component({
   selector: 'app-widget-radio',
@@ -24,9 +25,7 @@ export class WidgetRadioComponent {
   }
 
   getElementClassObj(key: string): Record<string, boolean> {
-    const ec = this.widget()?.elementClasses;
-    const val = ec?.[key];
-    return val ? { [val]: true } : {};
+    return getElementClassObj(this.widget(), key);
   }
 
   onLabelInput(value: string): void {

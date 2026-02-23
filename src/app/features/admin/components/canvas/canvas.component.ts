@@ -1,95 +1,50 @@
 import { Component, inject, signal, computed, viewChild, ElementRef } from "@angular/core";
 import { CommonModule } from "@angular/common";
+import { FormsModule } from "@angular/forms";
 import { MatDialog } from "@angular/material/dialog";
 import { stripBuilderChrome, copyFormValues } from "../../../../shared/utils/preview-html.util";
 import { CanvasService } from "../../../../core/services/canvas.service";
+import { SavedLayoutsService } from "../../../../core/services/saved-layouts.service";
 import { WidgetRendererComponent } from "../../../../shared/components/widget-renderer/widget-renderer.component";
 import { PreviewModalComponent } from "../../../../shared/components/preview-modal/preview-modal.component";
+import { LayoutNameDialogComponent } from "../../../../shared/components/layout-name-dialog/layout-name-dialog.component";
 import type { CanvasCell, WidgetType, NestedTableState, WidgetInstance } from "../../../../shared/models/canvas.model";
 import { WIDGET_TYPES } from "../../../../shared/models/canvas.model";
+import { computeMergeRange, canMergeFromRange, updateSelectionForCtrlClick } from "../../../../shared/utils/grid-selection.util";
 
 @Component({
   selector: "app-canvas",
   standalone: true,
-  imports: [CommonModule, WidgetRendererComponent],
+  imports: [CommonModule, FormsModule, WidgetRendererComponent],
   templateUrl: "./canvas.component.html",
   styleUrl: "./canvas.component.scss",
 })
 export class CanvasComponent {
   private readonly canvas = inject(CanvasService);
+  private readonly savedLayouts = inject(SavedLayoutsService);
   private readonly dialog = inject(MatDialog);
+
+  readonly layouts = this.savedLayouts.layouts;
+  readonly selectedLayoutId = this.savedLayouts.selectedLayoutId;
+  readonly hasLayouts = this.savedLayouts.hasLayouts;
 
   private readonly canvasAreaRef = viewChild<ElementRef<HTMLElement>>("canvasArea");
 
   readonly rows = this.canvas.rows;
 
-  readonly selectionCells = signal<Set<string>>(new Set()); // "row,col" keys, merge only if they form a rectangle
+  readonly selectionCells = signal<string[]>([]); // "row,col" keys, merge only if they form a rectangle
 
-  readonly mergeRange = computed(() => {
-    const set = this.selectionCells();
-    if (set.size === 0) return null;
-    let minR = Infinity,
-      maxR = -Infinity,
-      minC = Infinity,
-      maxC = -Infinity;
-    set.forEach((key) => {
-      const [r, c] = key.split(",").map(Number);
-      minR = Math.min(minR, r);
-      maxR = Math.max(maxR, r);
-      minC = Math.min(minC, c);
-      maxC = Math.max(maxC, c);
-    });
-    for (let r = minR; r <= maxR; r++) {
-      for (let c = minC; c <= maxC; c++) {
-        if (!set.has(`${r},${c}`)) return null;
-      }
-    }
-    return { r0: minR, r1: maxR, c0: minC, c1: maxC };
-  });
-
-  readonly canMerge = computed(() => {
-    const range = this.mergeRange();
-    if (!range) return false;
-    const { r0, r1, c0, c1 } = range;
-    return r0 < r1 || c0 < c1;
-  });
+  readonly mergeRange = computed(() => computeMergeRange(this.selectionCells()));
+  readonly canMerge = computed(() => canMergeFromRange(this.mergeRange()));
 
   isSelected(rowIndex: number, colIndex: number): boolean {
-    return this.selectionCells().has(`${rowIndex},${colIndex}`);
+    return this.selectionCells().includes(`${rowIndex},${colIndex}`);
   }
 
   // ctrl+click = add/remove from selection (or fill rect if 1 cell selected). no ctrl = clear or open right panel if cell has widget. unmerge = right-click merged cell
   onCellClick(e: MouseEvent, rowIndex: number, colIndex: number, cell: CanvasCell): void {
     if (e.ctrlKey) {
-      const key = `${rowIndex},${colIndex}`;
-      const set = this.selectionCells();
-      if (set.has(key)) {
-        const next = new Set(set);
-        next.delete(key);
-        this.selectionCells.set(next);
-        return;
-      }
-      if (set.size === 0) {
-        this.selectionCells.set(new Set([key]));
-        return;
-      }
-      if (set.size === 1) {
-        const [first] = set;
-        const [r0, c0] = first.split(",").map(Number);
-        const r1 = rowIndex,
-          c1 = colIndex;
-        const loR = Math.min(r0, r1),
-          hiR = Math.max(r0, r1),
-          loC = Math.min(c0, c1),
-          hiC = Math.max(c0, c1);
-        const rect = new Set<string>();
-        for (let r = loR; r <= hiR; r++) for (let c = loC; c <= hiC; c++) rect.add(`${r},${c}`);
-        this.selectionCells.set(rect);
-        return;
-      }
-      const next = new Set(set);
-      next.add(key);
-      this.selectionCells.set(next);
+      this.selectionCells.set(updateSelectionForCtrlClick(this.selectionCells(), rowIndex, colIndex));
     } else {
       if (cell.widget && cell.widget.type === 'table') {
         this.canvas.setSelectedCell(null);
@@ -112,7 +67,7 @@ export class CanvasComponent {
   }
 
   clearSelection(): void {
-    this.selectionCells.set(new Set());
+    this.selectionCells.set([]);
   }
 
   readonly canRemoveRow = computed(() => (this.canvas.rows()?.length ?? 0) > 1);
@@ -147,7 +102,7 @@ export class CanvasComponent {
   }
 
   hasSelection(): boolean {
-    return this.selectionCells().size > 0;
+    return this.selectionCells().length > 0;
   }
 
   unmergeAt(rowIndex: number, colIndex: number): void {
@@ -244,8 +199,34 @@ export class CanvasComponent {
   }
 
   saveLayout(): void {
-    const html = this.getLayoutHtml();
-    if (html) console.log(html);
+    const selected = this.savedLayouts.selectedLayout();
+    const dialogRef = this.dialog.open(LayoutNameDialogComponent, {
+      data: {
+        title: 'Save layout',
+        defaultValue: selected?.name ?? '',
+        layoutId: selected?.id ?? null,
+      },
+      width: '400px',
+    });
+    dialogRef.afterClosed().subscribe((result: { name: string; layoutId: string | null } | undefined) => {
+      if (!result) return;
+      const state = this.canvas.getState();
+      if (result.layoutId) {
+        this.savedLayouts.updateLayout(result.layoutId, state, result.name);
+      } else {
+        this.savedLayouts.addLayout(result.name, state);
+      }
+    });
+  }
+
+  onLayoutSelect(layoutId: string | null): void {
+    this.savedLayouts.selectLayout(layoutId);
+    if (layoutId) {
+      const layout = this.savedLayouts.getLayoutById(layoutId);
+      if (layout) this.canvas.loadState(layout.state);
+    } else {
+      this.canvas.loadState(this.canvas.getDefaultState());
+    }
   }
 
   /** Returns HTML with builder chrome stripped for preview/export. */

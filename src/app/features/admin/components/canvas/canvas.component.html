@@ -1,6 +1,17 @@
 <div class="canvas-wrapper">
   <div class="canvas-toolbar">
     <div class="canvas-toolbar-buttons">
+      <select
+        class="canvas-toolbar-select"
+        [ngModel]="selectedLayoutId()"
+        (ngModelChange)="onLayoutSelect($event)"
+        title="Switch layout"
+      >
+        <option [ngValue]="null">— New layout —</option>
+        @for (layout of layouts(); track layout.id) {
+          <option [ngValue]="layout.id">{{ layout.name }}</option>
+        }
+      </select>
       <button type="button" class="btn btn-primary" (click)="addColumn()" title="Add column">+ Col</button>
       <button type="button" class="btn btn-danger" (click)="removeColumn()" [disabled]="!canRemoveColumn()" title="Remove column">− Col</button>
       <button type="button" class="btn btn-primary" (click)="addRow()" title="Add row">+ Row</button>

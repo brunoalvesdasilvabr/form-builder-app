@@ -17,12 +17,10 @@ import type {
 } from '../../models/canvas.model';
 import { WIDGET_TYPES, WIDGET_LABELS } from '../../models/canvas.model';
 import * as gridMerge from '../../utils/grid-merge.util';
+import { generateId } from '../../utils/id.util';
+import { computeMergeRange, canMergeFromRange, updateSelectionForCtrlClick } from '../../utils/grid-selection.util';
 
 const NESTED_MOVE_DATA_TYPE = 'application/x-nested-move';
-
-function generateId(): string {
-  return `nested-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-}
 
 const EMBEDDED_TABLE_IMPORTS = [CommonModule, WidgetCellRendererComponent];
 
@@ -68,7 +66,7 @@ export class EmbeddedTableComponent {
       const cells: NestedTableCell[] = [];
       for (let c = 0; c < 2; c++) {
         cells.push({
-          id: generateId(),
+          id: generateId('nested'),
           rowIndex: r,
           colIndex: c,
           widget: null,
@@ -77,7 +75,7 @@ export class EmbeddedTableComponent {
           isMergedOrigin: true,
         });
       }
-      rows.push({ id: generateId(), cells });
+      rows.push({ id: generateId('nested'), cells });
     }
     return { rows };
   }
@@ -94,7 +92,7 @@ export class EmbeddedTableComponent {
     const newCells: NestedTableCell[] = [];
     for (let c = 0; c < colCount; c++) {
       newCells.push({
-        id: generateId(),
+        id: generateId('nested'),
         rowIndex: s.rows.length,
         colIndex: c,
         widget: null,
@@ -124,7 +122,7 @@ export class EmbeddedTableComponent {
       cells: [
         ...row.cells,
         {
-          id: generateId(),
+          id: generateId('nested'),
           rowIndex: ri,
           colIndex: row.cells.length,
           widget: null,
@@ -171,7 +169,7 @@ export class EmbeddedTableComponent {
     const s = this.state();
     if (!s) return;
     const newWidget: WidgetInstance = {
-      id: generateId(),
+      id: generateId('nested'),
       type,
       label: type === 'radio' ? 'Choose one' : WIDGET_LABELS[type],
       placeholder: type === 'input' ? 'Enter text...' : undefined,
@@ -235,70 +233,27 @@ export class EmbeddedTableComponent {
     this.emitState();
   }
 
-  readonly selectionCells = signal<Set<string>>(new Set()); // "row,col", merge only when it's a full rectangle
+  readonly selectionCells = signal<string[]>([]); // "row,col", merge only when it's a full rectangle
 
-  readonly mergeRange = computed(() => {
-    const set = this.selectionCells();
-    if (set.size === 0) return null;
-    let minR = Infinity, maxR = -Infinity, minC = Infinity, maxC = -Infinity;
-    set.forEach((key) => {
-      const [r, c] = key.split(',').map(Number);
-      minR = Math.min(minR, r); maxR = Math.max(maxR, r);
-      minC = Math.min(minC, c); maxC = Math.max(maxC, c);
-    });
-    for (let r = minR; r <= maxR; r++) {
-      for (let c = minC; c <= maxC; c++) {
-        if (!set.has(`${r},${c}`)) return null;
-      }
-    }
-    return { r0: minR, r1: maxR, c0: minC, c1: maxC };
-  });
-
-  readonly canMerge = computed(() => {
-    const range = this.mergeRange();
-    return range != null && (range.r0 < range.r1 || range.c0 < range.c1);
-  });
+  readonly mergeRange = computed(() => computeMergeRange(this.selectionCells()));
+  readonly canMerge = computed(() => canMergeFromRange(this.mergeRange()));
 
   isSelected(rowIndex: number, colIndex: number): boolean {
-    return this.selectionCells().has(`${rowIndex},${colIndex}`);
+    return this.selectionCells().includes(`${rowIndex},${colIndex}`);
   }
 
   // same as canvas: ctrl+click to build selection, right-click merged to unmerge. Stop propagation so inner table owns selection (parent table/canvas doesn't receive click).
   onCellClick(e: MouseEvent, rowIndex: number, colIndex: number): void {
     e.stopPropagation();
     if (e.ctrlKey) {
-      const key = `${rowIndex},${colIndex}`;
-      const set = this.selectionCells();
-      if (set.has(key)) {
-        const next = new Set(set);
-        next.delete(key);
-        this.selectionCells.set(next);
-        return;
-      }
-      if (set.size === 0) {
-        this.selectionCells.set(new Set([key]));
-        return;
-      }
-      if (set.size === 1) {
-        const [first] = set;
-        const [r0, c0] = first.split(',').map(Number);
-        const r1 = rowIndex, c1 = colIndex;
-        const loR = Math.min(r0, r1), hiR = Math.max(r0, r1), loC = Math.min(c0, c1), hiC = Math.max(c0, c1);
-        const rect = new Set<string>();
-        for (let r = loR; r <= hiR; r++) for (let c = loC; c <= hiC; c++) rect.add(`${r},${c}`);
-        this.selectionCells.set(rect);
-        return;
-      }
-      const next = new Set(set);
-      next.add(key);
-      this.selectionCells.set(next);
+      this.selectionCells.set(updateSelectionForCtrlClick(this.selectionCells(), rowIndex, colIndex));
     } else {
       this.clearMergeSelection();
     }
   }
 
   clearMergeSelection(): void {
-    this.selectionCells.set(new Set());
+    this.selectionCells.set([]);
   }
 
   mergeSelection(): void {

@@ -1,0 +1,17 @@
+<h2 mat-dialog-title>{{ title }}</h2>
+<mat-dialog-content>
+  <label class="layout-name-label" for="layout-name-input">Layout name</label>
+  <input
+    id="layout-name-input"
+    type="text"
+    class="layout-name-input"
+    [value]="name()"
+    (input)="onNameInput($any($event.target).value)"
+    placeholder="My layout"
+    (keydown.enter)="save()"
+  />
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-button (click)="cancel()">Cancel</button>
+  <button mat-raised-button color="primary" (click)="save()">Save</button>
+</mat-dialog-actions>

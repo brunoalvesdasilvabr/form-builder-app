@@ -2,10 +2,7 @@ import { Injectable, signal, computed } from '@angular/core';
 import type { CanvasState, CanvasRow, CanvasCell, WidgetInstance, WidgetType, NestedTableState, NestedTableRow, NestedTableCell, BindableProperty } from '../../shared/models/canvas.model';
 import { WIDGET_LABELS } from '../../shared/models/canvas.model';
 import * as gridMerge from '../../shared/utils/grid-merge.util';
-
-function generateId(): string {
-  return `id-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-}
+import { generateId } from '../../shared/utils/id.util';
 
 @Injectable({ providedIn: 'root' })
 export class CanvasService {
@@ -122,7 +119,7 @@ export class CanvasService {
     const cells: CanvasCell[] = [];
     for (let c = 0; c < colCount; c++) {
       cells.push({
-        id: generateId(),
+        id: generateId('id'),
         rowIndex,
         colIndex: c,
         widget: null,
@@ -131,7 +128,7 @@ export class CanvasService {
         isMergedOrigin: true,
       });
     }
-    return { id: generateId(), cells };
+    return { id: generateId('id'), cells };
   }
 
   addRow(): void {
@@ -147,7 +144,7 @@ export class CanvasService {
       cells: [
         ...row.cells,
         {
-          id: generateId(),
+          id: generateId('id'),
           rowIndex: ri,
           colIndex: row.cells.length,
           widget: null,
@@ -199,7 +196,7 @@ export class CanvasService {
       const cells: NestedTableCell[] = [];
       for (let c = 0; c < 2; c++) {
         cells.push({
-          id: generateId(),
+          id: generateId('id'),
           rowIndex: r,
           colIndex: c,
           widget: null,
@@ -208,7 +205,7 @@ export class CanvasService {
           isMergedOrigin: true,
         });
       }
-      rows.push({ id: generateId(), cells });
+      rows.push({ id: generateId('id'), cells });
     }
     return { rows };
   }
@@ -219,7 +216,7 @@ export class CanvasService {
       cells: r.cells.map((cell, ci) => {
         if (ri !== rowIndex || ci !== colIndex) return cell;
         const widget: WidgetInstance = {
-          id: generateId(),
+          id: generateId('id'),
           type,
           label: label ?? (type === 'radio' ? 'Choose one' : WIDGET_LABELS[type]),
           options: options ?? (type === 'radio' ? ['Option 1', 'Option 2'] : undefined),
@@ -363,6 +360,23 @@ export class CanvasService {
       rowIndex,
       colIndex
     );
+  }
+
+  /** Returns a deep copy of the current canvas state for saving. */
+  getState(): CanvasState {
+    return JSON.parse(JSON.stringify(this.state()));
+  }
+
+  /** Loads a canvas state (replaces current). Clears selection. */
+  loadState(state: CanvasState): void {
+    this.state.set(JSON.parse(JSON.stringify(state)));
+    this.selectedCellId.set(null);
+    this.selectedOptionIndex.set(null);
+  }
+
+  /** Returns a fresh default canvas state (one row, three cells). */
+  getDefaultState(): CanvasState {
+    return { rows: [this.createRow(0, 3)] };
   }
 
   /** Collect binding targets from state (valueBinding / optionBindings) for all non-table widgets in DOM order. */

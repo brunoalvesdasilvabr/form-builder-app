@@ -2,6 +2,7 @@ import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { MatDialogModule, MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
+import { MatButtonModule } from '@angular/material/button';
 
 export interface PreviewModalData {
   title?: string;
@@ -11,7 +12,7 @@ export interface PreviewModalData {
 @Component({
   selector: 'app-preview-modal',
   standalone: true,
-  imports: [CommonModule, MatDialogModule],
+  imports: [CommonModule, MatDialogModule, MatButtonModule],
   templateUrl: './preview-modal.component.html',
   styleUrl: './preview-modal.component.scss',
 })
