@@ -18,6 +18,7 @@ export class AdminComponent {
   private readonly canvas = inject(CanvasService);
 
   readonly selectedCell = this.canvas.selectedCell;
+  readonly selectedNestedPath = this.canvas.selectedNestedPath;
   readonly selectedTarget = this.canvas.selectedTarget;
   readonly selectedElementKey = this.canvas.selectedElementKey;
   readonly bindableProperties = this.canvas.bindableProperties;
@@ -46,7 +47,7 @@ export class AdminComponent {
         } else if (target === 'widget-inner' && cell.widget) {
           this.initialClass = cell.widget.innerClassName ?? '';
         } else {
-          this.initialClass = cell.className ?? '';
+          this.initialClass = (cell as { className?: string }).className ?? '';
         }
         this.initialProperty = this.getCurrentBindingProperty(cell);
         this.pendingClass.set(this.initialClass);
@@ -67,18 +68,32 @@ export class AdminComponent {
     const messages: string[] = [];
     const classChanged = this.pendingClass() !== this.initialClass;
     const propertyChanged = this.pendingProperty() !== this.initialProperty;
+    const nested = this.selectedNestedPath();
 
     if (classChanged) {
       const target = this.selectedTarget();
       const elementKey = this.selectedElementKey();
-      if (target === 'element' && elementKey && cell.widget) {
-        this.canvas.updateWidgetElementClass(cell.id, cell.widget.id, elementKey, this.pendingClass());
-      } else if (target === 'widget' && cell.widget) {
-        this.canvas.updateWidgetClass(cell.id, cell.widget.id, this.pendingClass());
-      } else if (target === 'widget-inner' && cell.widget) {
-        this.canvas.updateWidgetInnerClass(cell.id, cell.widget.id, this.pendingClass());
+      if (nested) {
+        const { parentCellId, parentWidgetId, nestedCellId } = nested;
+        if (target === 'element' && elementKey && cell.widget) {
+          this.canvas.updateNestedWidgetElementClass(parentCellId, parentWidgetId, nestedCellId, cell.widget.id, elementKey, this.pendingClass());
+        } else if (target === 'widget' && cell.widget) {
+          this.canvas.updateNestedWidgetClass(parentCellId, parentWidgetId, nestedCellId, cell.widget.id, this.pendingClass());
+        } else if (target === 'widget-inner' && cell.widget) {
+          this.canvas.updateNestedWidgetInnerClass(parentCellId, parentWidgetId, nestedCellId, cell.widget.id, this.pendingClass());
+        } else {
+          this.canvas.updateNestedCellClass(parentCellId, parentWidgetId, nestedCellId, this.pendingClass());
+        }
       } else {
-        this.canvas.updateCellClass(cell.id, this.pendingClass());
+        if (target === 'element' && elementKey && cell.widget) {
+          this.canvas.updateWidgetElementClass(cell.id, cell.widget.id, elementKey, this.pendingClass());
+        } else if (target === 'widget' && cell.widget) {
+          this.canvas.updateWidgetClass(cell.id, cell.widget.id, this.pendingClass());
+        } else if (target === 'widget-inner' && cell.widget) {
+          this.canvas.updateWidgetInnerClass(cell.id, cell.widget.id, this.pendingClass());
+        } else {
+          this.canvas.updateCellClass(cell.id, this.pendingClass());
+        }
       }
       const targetLabel = this.getClassTargetLabel();
       messages.push(`Your class was bound to the ${targetLabel}.`);
@@ -99,10 +114,20 @@ export class AdminComponent {
   private applyPropertyBinding(cell: CanvasCell, propertyValue: string): void {
     const w = cell.widget;
     if (!w) return;
-    if (w.type === 'radio' && this.selectedOptionIndex() !== null) {
-      this.canvas.updateOptionBinding(cell.id, w.id, this.selectedOptionIndex()!, propertyValue);
+    const nested = this.selectedNestedPath();
+    if (nested) {
+      const { parentCellId, parentWidgetId, nestedCellId } = nested;
+      if (w.type === 'radio' && this.selectedOptionIndex() !== null) {
+        this.canvas.updateNestedOptionBinding(parentCellId, parentWidgetId, nestedCellId, w.id, this.selectedOptionIndex()!, propertyValue);
+      } else {
+        this.canvas.updateNestedValueBinding(parentCellId, parentWidgetId, nestedCellId, w.id, propertyValue);
+      }
     } else {
-      this.canvas.updateValueBinding(cell.id, w.id, propertyValue);
+      if (w.type === 'radio' && this.selectedOptionIndex() !== null) {
+        this.canvas.updateOptionBinding(cell.id, w.id, this.selectedOptionIndex()!, propertyValue);
+      } else {
+        this.canvas.updateValueBinding(cell.id, w.id, propertyValue);
+      }
     }
   }
 

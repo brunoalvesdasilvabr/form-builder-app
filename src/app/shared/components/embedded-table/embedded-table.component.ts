@@ -5,6 +5,7 @@ import {
   signal,
   computed,
   effect,
+  inject,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { WidgetCellRendererComponent } from '../widget-cell-renderer/widget-cell-renderer.component';
@@ -19,6 +20,7 @@ import { WIDGET_TYPES, WIDGET_LABELS } from '../../models/canvas.model';
 import * as gridMerge from '../../utils/grid-merge.util';
 import { generateId } from '../../utils/id.util';
 import { computeMergeRange, canMergeFromRange, updateSelectionForCtrlClick } from '../../utils/grid-selection.util';
+import { CanvasService } from '../../../core/services/canvas.service';
 
 const NESTED_MOVE_DATA_TYPE = 'application/x-nested-move';
 
@@ -33,7 +35,11 @@ const EMBEDDED_TABLE_IMPORTS = [CommonModule, WidgetCellRendererComponent];
 })
 export class EmbeddedTableComponent {
   widget = input.required<WidgetInstance>();
+  parentCellId = input<string | undefined>(undefined);
+  parentWidgetId = input<string | undefined>(undefined);
   nestedTableChange = output<NestedTableState>();
+
+  private readonly canvas = inject(CanvasService);
 
   private readonly state = signal<NestedTableState | null>(null);
 
@@ -243,12 +249,37 @@ export class EmbeddedTableComponent {
   }
 
   // same as canvas: ctrl+click to build selection, right-click merged to unmerge. Stop propagation so inner table owns selection (parent table/canvas doesn't receive click).
-  onCellClick(e: MouseEvent, rowIndex: number, colIndex: number): void {
+  onCellClick(e: MouseEvent, rowIndex: number, colIndex: number, cell: NestedTableCell): void {
     e.stopPropagation();
     if (e.ctrlKey) {
       this.selectionCells.set(updateSelectionForCtrlClick(this.selectionCells(), rowIndex, colIndex));
     } else {
       this.clearMergeSelection();
+      const parentCellId = this.parentCellId();
+      const parentWidgetId = this.parentWidgetId();
+      if (parentCellId && parentWidgetId && cell.widget && cell.widget.type !== 'table') {
+        const el = e.target as Element;
+        const elementTarget = el?.closest?.('[data-class-target]')?.getAttribute?.('data-class-target');
+        if (elementTarget) {
+          this.canvas.setSelectedNestedCell(parentCellId, parentWidgetId, cell.id, 'element', elementTarget);
+        } else if (
+          el?.closest?.('app-widget-input') ||
+          el?.closest?.('app-widget-checkbox') ||
+          el?.closest?.('app-widget-radio') ||
+          el?.closest?.('app-widget-label')
+        ) {
+          this.canvas.setSelectedNestedCell(parentCellId, parentWidgetId, cell.id, 'widget-inner');
+        } else if (el?.closest?.('app-widget-cell-renderer')) {
+          this.canvas.setSelectedNestedCell(parentCellId, parentWidgetId, cell.id, 'widget');
+        } else {
+          this.canvas.setSelectedNestedCell(parentCellId, parentWidgetId, cell.id, 'cell');
+        }
+      } else if (parentCellId && parentWidgetId && cell.widget) {
+        // table widget: don't open panel (same as canvas)
+      } else if (parentCellId && parentWidgetId) {
+        // empty cell
+        this.canvas.setSelectedNestedCell(parentCellId, parentWidgetId, cell.id, 'cell');
+      }
     }
   }
 
@@ -335,6 +366,15 @@ export class EmbeddedTableComponent {
     }));
     this.state.set({ rows });
     this.emitState();
+  }
+
+  onCellOptionSelect(cell: NestedTableCell, optionIndex: number): void {
+    const parentCellId = this.parentCellId();
+    const parentWidgetId = this.parentWidgetId();
+    if (parentCellId && parentWidgetId && cell.widget) {
+      this.canvas.setSelectedNestedCell(parentCellId, parentWidgetId, cell.id, 'widget-inner');
+      this.canvas.setSelectedOptionIndex(optionIndex);
+    }
   }
 
   onCellWidgetOptionsChange(cellId: string, options: string[]): void {

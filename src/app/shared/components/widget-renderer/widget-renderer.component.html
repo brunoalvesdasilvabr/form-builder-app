@@ -20,6 +20,7 @@
       @case ('table') {
         <app-widget-table
           [widget]="w"
+          [parentCellId]="cellId()"
           (nestedTableChange)="nestedTableChange.emit($event)"
         />
       }

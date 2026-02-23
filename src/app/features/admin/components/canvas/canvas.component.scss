@@ -93,6 +93,16 @@
   flex: 1;
   overflow: auto;
   padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.canvas-table-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
 }
 
 .canvas-table {

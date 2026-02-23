@@ -16,12 +16,25 @@ export class CanvasService {
 
   /** Cell id when user clicks a cell (opens right panel) */
   readonly selectedCellId = signal<string | null>(null);
+  /** Nested cell selection: parent canvas cell + table widget + nested cell id */
+  readonly selectedNestedPath = signal<{ parentCellId: string; parentWidgetId: string; nestedCellId: string } | null>(null);
   /** What was clicked: 'cell' = td, 'widget' = app-widget-renderer host, 'widget-inner' = inner component, 'element' = child element */
   readonly selectedTarget = signal<'cell' | 'widget' | 'widget-inner' | 'element'>('cell');
   /** When selectedTarget is 'element', the data-class-target key (e.g. 'label', 'control', 'option-0') */
   readonly selectedElementKey = signal<string | null>(null);
 
   readonly selectedCell = computed(() => {
+    const nested = this.selectedNestedPath();
+    if (nested) {
+      const parent = this.state().rows.flatMap((r) => r.cells).find((c) => c.id === nested.parentCellId);
+      const table = parent?.widget?.type === 'table' ? parent.widget : null;
+      const nestedRows = table?.nestedTable?.rows ?? [];
+      for (const row of nestedRows) {
+        const cell = row.cells.find((c) => c.id === nested.nestedCellId);
+        if (cell) return cell as unknown as CanvasCell;
+      }
+      return null;
+    }
     const id = this.selectedCellId();
     if (!id) return null;
     for (const row of this.state().rows) {
@@ -49,6 +62,21 @@ export class CanvasService {
     elementKey?: string
   ): void {
     this.selectedCellId.set(cellId);
+    this.selectedNestedPath.set(null);
+    this.selectedTarget.set(target);
+    this.selectedElementKey.set(target === 'element' ? (elementKey ?? null) : null);
+    this.selectedOptionIndex.set(null);
+  }
+
+  setSelectedNestedCell(
+    parentCellId: string,
+    parentWidgetId: string,
+    nestedCellId: string,
+    target: 'cell' | 'widget' | 'widget-inner' | 'element' = 'cell',
+    elementKey?: string
+  ): void {
+    this.selectedCellId.set(null);
+    this.selectedNestedPath.set({ parentCellId, parentWidgetId, nestedCellId });
     this.selectedTarget.set(target);
     this.selectedElementKey.set(target === 'element' ? (elementKey ?? null) : null);
     this.selectedOptionIndex.set(null);
@@ -113,6 +141,146 @@ export class CanvasService {
       }),
     }));
     this.state.set({ rows });
+  }
+
+  /** Updates for nested table cells (inside a table widget). */
+  updateNestedCellClass(parentCellId: string, parentWidgetId: string, nestedCellId: string, className: string): void {
+    this.state.update((s) => {
+      const rows = s.rows.map((row) => ({
+        ...row,
+        cells: row.cells.map((c) => {
+          if (c.id !== parentCellId || !c.widget || c.widget.id !== parentWidgetId || c.widget.type !== 'table') return c;
+          const nested = c.widget.nestedTable;
+          if (!nested?.rows) return c;
+          const nestedRows = nested.rows.map((r) => ({
+            ...r,
+            cells: r.cells.map((nc) => nc.id === nestedCellId ? { ...nc, className: className.trim() || undefined } : nc),
+          }));
+          return { ...c, widget: { ...c.widget, nestedTable: { rows: nestedRows } } };
+        }),
+      }));
+      return { rows };
+    });
+  }
+
+  updateNestedWidgetClass(parentCellId: string, parentWidgetId: string, nestedCellId: string, nestedWidgetId: string, className: string): void {
+    this.state.update((s) => {
+      const rows = s.rows.map((row) => ({
+        ...row,
+        cells: row.cells.map((c) => {
+          if (c.id !== parentCellId || !c.widget || c.widget.id !== parentWidgetId || c.widget.type !== 'table') return c;
+          const nested = c.widget.nestedTable;
+          if (!nested?.rows) return c;
+          const nestedRows = nested.rows.map((r) => ({
+            ...r,
+            cells: r.cells.map((nc) => {
+              if (nc.id !== nestedCellId || !nc.widget || nc.widget.id !== nestedWidgetId) return nc;
+              return { ...nc, widget: { ...nc.widget, className: className.trim() || undefined } };
+            }),
+          }));
+          return { ...c, widget: { ...c.widget, nestedTable: { rows: nestedRows } } };
+        }),
+      }));
+      return { rows };
+    });
+  }
+
+  updateNestedWidgetInnerClass(parentCellId: string, parentWidgetId: string, nestedCellId: string, nestedWidgetId: string, className: string): void {
+    this.state.update((s) => {
+      const rows = s.rows.map((row) => ({
+        ...row,
+        cells: row.cells.map((c) => {
+          if (c.id !== parentCellId || !c.widget || c.widget.id !== parentWidgetId || c.widget.type !== 'table') return c;
+          const nested = c.widget.nestedTable;
+          if (!nested?.rows) return c;
+          const nestedRows = nested.rows.map((r) => ({
+            ...r,
+            cells: r.cells.map((nc) => {
+              if (nc.id !== nestedCellId || !nc.widget || nc.widget.id !== nestedWidgetId) return nc;
+              return { ...nc, widget: { ...nc.widget, innerClassName: className.trim() || undefined } };
+            }),
+          }));
+          return { ...c, widget: { ...c.widget, nestedTable: { rows: nestedRows } } };
+        }),
+      }));
+      return { rows };
+    });
+  }
+
+  updateNestedWidgetElementClass(parentCellId: string, parentWidgetId: string, nestedCellId: string, nestedWidgetId: string, elementKey: string, className: string): void {
+    this.state.update((s) => {
+      const rows = s.rows.map((row) => ({
+        ...row,
+        cells: row.cells.map((c) => {
+          if (c.id !== parentCellId || !c.widget || c.widget.id !== parentWidgetId || c.widget.type !== 'table') return c;
+          const nested = c.widget.nestedTable;
+          if (!nested?.rows) return c;
+          const nestedRows = nested.rows.map((r) => ({
+            ...r,
+            cells: r.cells.map((nc) => {
+              if (nc.id !== nestedCellId || !nc.widget || nc.widget.id !== nestedWidgetId) return nc;
+              const prev = nc.widget.elementClasses ?? {};
+              const next = { ...prev };
+              const val = className.trim();
+              if (val) next[elementKey] = val;
+              else delete next[elementKey];
+              return { ...nc, widget: { ...nc.widget, elementClasses: Object.keys(next).length ? next : undefined } };
+            }),
+          }));
+          return { ...c, widget: { ...c.widget, nestedTable: { rows: nestedRows } } };
+        }),
+      }));
+      return { rows };
+    });
+  }
+
+  updateNestedValueBinding(parentCellId: string, parentWidgetId: string, nestedCellId: string, nestedWidgetId: string, propertyName: string): void {
+    const binding = propertyName ? `{{ ${propertyName} }}` : undefined;
+    this.state.update((s) => {
+      const rows = s.rows.map((row) => ({
+        ...row,
+        cells: row.cells.map((c) => {
+          if (c.id !== parentCellId || !c.widget || c.widget.id !== parentWidgetId || c.widget.type !== 'table') return c;
+          const nested = c.widget.nestedTable;
+          if (!nested?.rows) return c;
+          const nestedRows = nested.rows.map((r) => ({
+            ...r,
+            cells: r.cells.map((nc) => {
+              if (nc.id !== nestedCellId || !nc.widget || nc.widget.id !== nestedWidgetId) return nc;
+              return { ...nc, widget: { ...nc.widget, valueBinding: binding } };
+            }),
+          }));
+          return { ...c, widget: { ...c.widget, nestedTable: { rows: nestedRows } } };
+        }),
+      }));
+      return { rows };
+    });
+  }
+
+  updateNestedOptionBinding(parentCellId: string, parentWidgetId: string, nestedCellId: string, nestedWidgetId: string, optionIndex: number, propertyName: string): void {
+    const binding = propertyName ? `{{ ${propertyName} }}` : '';
+    this.state.update((s) => {
+      const rows = s.rows.map((row) => ({
+        ...row,
+        cells: row.cells.map((c) => {
+          if (c.id !== parentCellId || !c.widget || c.widget.id !== parentWidgetId || c.widget.type !== 'table') return c;
+          const nested = c.widget.nestedTable;
+          if (!nested?.rows) return c;
+          const nestedRows = nested.rows.map((r) => ({
+            ...r,
+            cells: r.cells.map((nc) => {
+              if (nc.id !== nestedCellId || !nc.widget || nc.widget.id !== nestedWidgetId) return nc;
+              const opts = nc.widget.options ?? [];
+              const prev = nc.widget.optionBindings ?? [];
+              const optionBindings = opts.map((_, i) => (i === optionIndex ? binding : (prev[i] ?? '')));
+              return { ...nc, widget: { ...nc.widget, optionBindings } };
+            }),
+          }));
+          return { ...c, widget: { ...c.widget, nestedTable: { rows: nestedRows } } };
+        }),
+      }));
+      return { rows };
+    });
   }
 
   createRow(rowIndex: number, colCount: number): CanvasRow {
@@ -371,6 +539,7 @@ export class CanvasService {
   loadState(state: CanvasState): void {
     this.state.set(JSON.parse(JSON.stringify(state)));
     this.selectedCellId.set(null);
+    this.selectedNestedPath.set(null);
     this.selectedOptionIndex.set(null);
   }
 

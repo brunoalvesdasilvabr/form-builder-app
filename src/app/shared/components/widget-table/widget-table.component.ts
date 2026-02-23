@@ -13,6 +13,7 @@ import { getElementClassObj } from '../../utils/element-class.util';
 })
 export class WidgetTableComponent {
   widget = input.required<WidgetInstance>();
+  parentCellId = input<string | undefined>(undefined);
   nestedTableChange = output<NestedTableState>();
 
   @HostBinding('class') get hostClass(): string {

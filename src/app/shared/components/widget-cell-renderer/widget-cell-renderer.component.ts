@@ -27,16 +27,13 @@ export class WidgetCellRendererComponent {
   removeWidget = output<void>();
   labelChange = output<string>();
   optionsChange = output<string[]>();
+  optionSelect = output<number>();
 
   @HostBinding('class.widget-cell') readonly hasWidgetCellClass = true;
   @HostBinding('attr.draggable') get draggable(): string | null {
     return this.cellId() ? 'true' : null;
   }
-  @HostBinding('class.widget-cell-dragging') private isDragging = false;
-
-  @HostListener('click', ['$event']) onHostClick(e: MouseEvent): void {
-    e.stopPropagation();
-  }
+  @HostBinding('class.widget-cell-dragging') isDragging = false;
 
   @HostListener('dragstart', ['$event']) onDragStart(e: DragEvent): void {
     const id = this.cellId();

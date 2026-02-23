@@ -34,6 +34,8 @@ export interface NestedTableCell {
   colSpan?: number;
   rowSpan?: number;
   isMergedOrigin?: boolean;
+  /** Optional CSS class(es) applied to the cell's td */
+  className?: string;
 }
 
 export interface NestedTableRow {

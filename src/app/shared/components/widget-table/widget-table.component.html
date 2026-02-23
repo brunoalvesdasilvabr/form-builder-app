@@ -6,6 +6,8 @@
   >
     <app-embedded-table
       [widget]="w"
+      [parentCellId]="parentCellId()"
+      [parentWidgetId]="w.id"
       (nestedTableChange)="nestedTableChange.emit($event)"
     />
   </div>
