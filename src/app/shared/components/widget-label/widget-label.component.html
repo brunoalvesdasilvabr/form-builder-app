@@ -1,23 +1,11 @@
 @if (widget(); as w) {
-  @if (w.valueBinding) {
-    <input
-      type="text"
-      class="widget-label-control"
-      data-class-target="control"
-      [ngClass]="getElementClassObj('control')"
-      [ngModel]="bindingContext.getValue(w.valueBinding)"
-      (ngModelChange)="bindingContext.setValue(w.valueBinding, $event)"
-      placeholder="Label text"
-    />
-  } @else {
-    <input
-      type="text"
-      class="widget-label-control"
-      data-class-target="control"
-      [ngClass]="getElementClassObj('control')"
-      [value]="w.label ?? ''"
-      (input)="onLabelInput($any($event.target).value)"
-      placeholder="Label text"
-    />
-  }
+  <label
+    #editableRef
+    class="widget-label-control"
+    data-class-target="control"
+    [ngClass]="getElementClassObj('control')"
+    contenteditable="true"
+    data-placeholder="Label text"
+    (blur)="onLabelBlur($event)"
+  ></label>
 }

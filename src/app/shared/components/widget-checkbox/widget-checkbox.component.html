@@ -5,8 +5,8 @@
     data-class-target="checkbox"
     [ngClass]="getElementClassObj('checkbox')"
     [id]="w.id"
-    [ngModel]="bindingContext.getValue(w.valueBinding) === 'true'"
-    (ngModelChange)="bindingContext.setValue(w.valueBinding, $event ? 'true' : 'false')"
+    [ngModel]="bindingContext.getValue(w.valueBinding, w.id) === 'true'"
+    (ngModelChange)="bindingContext.setValue(w.valueBinding, $event ? 'true' : 'false', w.id)"
   />
   <input
     type="text"

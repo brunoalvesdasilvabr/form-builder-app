@@ -1,20 +1,11 @@
 @if (widget(); as w) {
   <input
     type="text"
-    class="widget-input-label"
-    data-class-target="label"
-    [ngClass]="getElementClassObj('label')"
-    [value]="w.label ?? ''"
-    (input)="onLabelInput($any($event.target).value)"
-    placeholder="Label"
-  />
-  <input
-    type="text"
     class="widget-input-control"
     data-class-target="control"
     [ngClass]="getElementClassObj('control')"
-    [ngModel]="bindingContext.getValue(w.valueBinding)"
-    (ngModelChange)="bindingContext.setValue(w.valueBinding, $event)"
+    [ngModel]="bindingContext.getValue(w.valueBinding, w.id)"
+    (ngModelChange)="bindingContext.setValue(w.valueBinding, $event, w.id)"
     [placeholder]="w.placeholder ?? 'Enter text...'"
   />
 }

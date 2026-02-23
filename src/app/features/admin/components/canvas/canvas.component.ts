@@ -8,9 +8,19 @@ import { SavedLayoutsService } from "../../../../core/services/saved-layouts.ser
 import { WidgetRendererComponent } from "../../../../shared/components/widget-renderer/widget-renderer.component";
 import { PreviewModalComponent } from "../../../../shared/components/preview-modal/preview-modal.component";
 import { LayoutNameDialogComponent } from "../../../../shared/components/layout-name-dialog/layout-name-dialog.component";
-import type { CanvasCell, WidgetType, NestedTableState, WidgetInstance } from "../../../../shared/models/canvas.model";
+import type {
+  CanvasCell,
+  CanvasState,
+  WidgetType,
+  NestedTableState,
+  WidgetInstance,
+} from "../../../../shared/models/canvas.model";
 import { WIDGET_TYPES } from "../../../../shared/models/canvas.model";
-import { computeMergeRange, canMergeFromRange, updateSelectionForCtrlClick } from "../../../../shared/utils/grid-selection.util";
+import {
+  computeMergeRange,
+  canMergeFromRange,
+  updateSelectionForCtrlClick,
+} from "../../../../shared/utils/grid-selection.util";
 
 @Component({
   selector: "app-canvas",
@@ -46,20 +56,25 @@ export class CanvasComponent {
     if (e.ctrlKey) {
       this.selectionCells.set(updateSelectionForCtrlClick(this.selectionCells(), rowIndex, colIndex));
     } else {
-      if (cell.widget && cell.widget.type === 'table') {
+      if (cell.widget && cell.widget.type === "table") {
         this.canvas.setSelectedCell(null);
       } else {
         const el = e.target as Element;
-        const elementTarget = el?.closest?.('[data-class-target]')?.getAttribute?.('data-class-target');
+        const elementTarget = el?.closest?.("[data-class-target]")?.getAttribute?.("data-class-target");
         if (elementTarget) {
-          this.canvas.setSelectedCell(cell.id, 'element', elementTarget);
-        } else if (el?.closest?.('app-widget-input') || el?.closest?.('app-widget-checkbox') ||
-            el?.closest?.('app-widget-radio') || el?.closest?.('app-widget-label') || el?.closest?.('app-widget-table')) {
-          this.canvas.setSelectedCell(cell.id, 'widget-inner');
-        } else if (el?.closest?.('app-widget-renderer')) {
-          this.canvas.setSelectedCell(cell.id, 'widget');
+          this.canvas.setSelectedCell(cell.id, "element", elementTarget);
+        } else if (
+          el?.closest?.("app-widget-input") ||
+          el?.closest?.("app-widget-checkbox") ||
+          el?.closest?.("app-widget-radio") ||
+          el?.closest?.("app-widget-label") ||
+          el?.closest?.("app-widget-table")
+        ) {
+          this.canvas.setSelectedCell(cell.id, "widget-inner");
+        } else if (el?.closest?.("app-widget-renderer")) {
+          this.canvas.setSelectedCell(cell.id, "widget");
         } else {
-          this.canvas.setSelectedCell(cell.id, 'cell');
+          this.canvas.setSelectedCell(cell.id, "cell");
         }
       }
       this.clearSelection();
@@ -191,7 +206,7 @@ export class CanvasComponent {
   /** Returns the raw HTML string of the canvas layout (with bindings applied). Same source as Save layout. */
   getLayoutHtml(): string {
     const container = document.body.querySelector(".canvas-wrapper") as HTMLElement | null;
-    if (!container) return '';
+    if (!container) return "";
     const clone = container.cloneNode(true) as HTMLElement;
     const targets = this.canvas.getBindingTargetsFromState();
     this.applyBindingsToClone(clone, targets);
@@ -202,15 +217,26 @@ export class CanvasComponent {
     const selected = this.savedLayouts.selectedLayout();
     const dialogRef = this.dialog.open(LayoutNameDialogComponent, {
       data: {
-        title: 'Save layout',
-        defaultValue: selected?.name ?? '',
+        title: "Save layout",
+        defaultValue: selected?.name ?? "",
         layoutId: selected?.id ?? null,
       },
-      width: '400px',
+      width: "400px",
     });
     dialogRef.afterClosed().subscribe((result: { name: string; layoutId: string | null } | undefined) => {
       if (!result) return;
       const state = this.canvas.getState();
+      const previewClone = this.getPreviewClone();
+      const layoutId = result.layoutId ?? "new";
+      const layoutSaved = {
+        id: layoutId,
+        name: result.name.trim() || "Untitled",
+        state: JSON.parse(JSON.stringify(state)),
+        updatedAt: Date.now(),
+      };
+      console.log("[Save Layout] What gets saved to localStorage:", layoutSaved);
+      console.log("[Save Layout] Preview DOM (expand to inspect nesting, value=, class):", previewClone);
+      console.log("[Save Layout] Bindings & classes summary:", this.getBindingsAndClassesSummary(state));
       if (result.layoutId) {
         this.savedLayouts.updateLayout(result.layoutId, state, result.name);
       } else {
@@ -229,24 +255,88 @@ export class CanvasComponent {
     }
   }
 
-  /** Returns HTML with builder chrome stripped for preview/export. */
-  getPreviewHtml(): string {
+  /** Summary of valueBinding and class bindings from state for debug. */
+  private getBindingsAndClassesSummary(state: CanvasState): Array<{
+    path: string;
+    type: string;
+    cellClass?: string;
+    valueBinding?: string;
+    optionBindings?: string[];
+    widgetClass?: string;
+    innerClass?: string;
+    elementClasses?: Record<string, string>;
+  }> {
+    const out: Array<{
+      path: string;
+      type: string;
+      cellClass?: string;
+      valueBinding?: string;
+      optionBindings?: string[];
+      widgetClass?: string;
+      innerClass?: string;
+      elementClasses?: Record<string, string>;
+    }> = [];
+    for (const row of state.rows) {
+      for (const cell of row.cells) {
+        if (!cell.widget) continue;
+        if (cell.widget.type === "table") {
+          const nested = cell.widget.nestedTable?.rows ?? [];
+          for (let r = 0; r < nested.length; r++) {
+            for (let c = 0; c < nested[r].cells.length; c++) {
+              const n = nested[r].cells[c];
+              if (!n.widget) continue;
+              out.push({
+                path: `row${row.id}/table/r${r}c${c}`,
+                type: n.widget.type,
+                valueBinding: n.widget.valueBinding,
+                optionBindings: n.widget.optionBindings?.length ? n.widget.optionBindings : undefined,
+                widgetClass: n.widget.className,
+                innerClass: n.widget.innerClassName,
+                elementClasses: n.widget.elementClasses,
+              });
+            }
+          }
+          continue;
+        }
+        out.push({
+          path: `row${row.id}/cell${cell.id}`,
+          type: cell.widget.type,
+          cellClass: cell.className,
+          valueBinding: cell.widget.valueBinding,
+          optionBindings: cell.widget.optionBindings?.length ? cell.widget.optionBindings : undefined,
+          widgetClass: cell.widget.className,
+          innerClass: cell.widget.innerClassName,
+          elementClasses: cell.widget.elementClasses,
+        });
+      }
+    }
+    return out;
+  }
+
+  /** Returns clone of canvas DOM with chrome stripped and bindings applied (for debug/inspect). */
+  private getPreviewClone(): HTMLElement | null {
     const container = document.body.querySelector(".canvas-wrapper") as HTMLElement | null;
-    if (!container) return '';
+    if (!container) return null;
     const clone = container.cloneNode(true) as HTMLElement;
     copyFormValues(container, clone);
-    stripBuilderChrome(clone, { stripAngular: false }); // keep ng attrs so component styles match
+    stripBuilderChrome(clone, { stripAngular: false });
     const targets = this.canvas.getBindingTargetsFromState();
     this.applyBindingsToClone(clone, targets);
-    return clone.outerHTML;
+    return clone;
+  }
+
+  /** Returns HTML string with builder chrome stripped for preview/export. */
+  getPreviewHtml(): string {
+    const clone = this.getPreviewClone();
+    return clone?.outerHTML ?? "";
   }
 
   openPreview(): void {
     const html = this.getPreviewHtml();
     this.dialog.open(PreviewModalComponent, {
-      data: { title: 'HTML Preview', html },
-      width: '90vw',
-      maxWidth: '800px',
+      data: { title: "HTML Preview", html },
+      width: "90vw",
+      maxWidth: "800px",
     });
   }
 
@@ -254,11 +344,11 @@ export class CanvasComponent {
     const html = this.getPreviewHtml();
     if (!html) return;
     const layout = this.savedLayouts.selectedLayout();
-    const name = layout?.name?.replace(/[^a-z0-9-_]/gi, '-') || 'canvas';
+    const name = layout?.name?.replace(/[^a-z0-9-_]/gi, "-") || "canvas";
     const filename = `${name}.html`;
-    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
     a.download = filename;
     a.click();
@@ -267,27 +357,38 @@ export class CanvasComponent {
 
   /**
    * Apply binding targets to a cloned container so saved HTML shows value="{{ propertyName }}" on controls.
-   * Finds .widget and .widget-cell in DOM order (same as getBindingTargetsFromState) and sets value attributes.
+   * Collects widget elements in the same order as getBindingTargetsFromState (main cells then nested table cells inline).
    */
   private applyBindingsToClone(
     clone: HTMLElement,
     targets: Array<{ valueBinding?: string; optionBindings?: string[] }>,
   ): void {
-    const mainWidgets = Array.from(
-      clone.querySelectorAll<HTMLElement>(".canvas-scroll .widget:not(.widget--no-padding)"),
-    );
-    const nestedCells = Array.from(clone.querySelectorAll<HTMLElement>(".widget-cell"));
-    const widgetElements = [...mainWidgets, ...nestedCells];
+    const widgetElements: HTMLElement[] = [];
+    const tbody = clone.querySelector(".canvas-scroll .canvas-table tbody");
+    if (!tbody) return;
+    const trs = Array.from(tbody.querySelectorAll(":scope > tr"));
+    for (const tr of trs) {
+      const tds = Array.from(tr.querySelectorAll(":scope > td"));
+      for (const td of tds) {
+        const child = td.firstElementChild as HTMLElement | null;
+        if (!child) continue;
+        if (child.classList.contains("widget") && !child.classList.contains("widget--no-padding")) {
+          widgetElements.push(child);
+        } else {
+          Array.from(td.querySelectorAll(".widget-cell")).forEach((el) => widgetElements.push(el as HTMLElement));
+        }
+      }
+    }
 
     widgetElements.forEach((el, i) => {
       const target = targets[i];
       if (!target) return;
 
       if (target.valueBinding) {
-        const valueInput = el.querySelector<HTMLInputElement>(
-          ".widget-input-control, .widget-checkbox-control, .widget-label-control",
-        );
+        const valueInput = el.querySelector<HTMLInputElement>(".widget-input-control, .widget-checkbox-control");
+        const labelEl = el.querySelector<HTMLLabelElement>(".widget-label-control");
         if (valueInput) valueInput.setAttribute("value", target.valueBinding);
+        if (labelEl) labelEl.textContent = target.valueBinding;
       }
 
       if (target.optionBindings?.length) {

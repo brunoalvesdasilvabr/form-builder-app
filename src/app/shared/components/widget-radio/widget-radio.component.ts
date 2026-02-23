@@ -54,12 +54,12 @@ export class WidgetRadioComponent {
 
   /** Single selected value for the group (ensures mutual exclusivity). */
   getSelectedValue(w: WidgetInstance): string {
-    if (w.valueBinding) return this.bindingContext.getValue(w.valueBinding);
+    if (w.valueBinding) return this.bindingContext.getValue(w.valueBinding, w.id);
     const ob = w.optionBindings;
     const opts = w.options ?? ['Option 1', 'Option 2'];
     if (ob?.length) {
       for (let i = 0; i < opts.length; i++) {
-        const v = this.bindingContext.getValue(ob[i]);
+        const v = this.bindingContext.getValue(ob[i], w.id);
         if (v === opts[i]) return opts[i];
       }
     }
@@ -68,13 +68,15 @@ export class WidgetRadioComponent {
 
   onRadioSelect(w: WidgetInstance, value: string): void {
     if (w.valueBinding) {
-      this.bindingContext.setValue(w.valueBinding, value);
+      this.bindingContext.setValue(w.valueBinding, value, w.id);
       return;
     }
     const ob = w.optionBindings;
     const opts = w.options ?? ['Option 1', 'Option 2'];
     if (ob?.length) {
-      opts.forEach((opt, i) => this.bindingContext.setValue(ob[i], opt === value ? value : ''));
+      opts.forEach((opt, i) =>
+        this.bindingContext.setValue(ob[i], opt === value ? value : '', w.id)
+      );
     }
   }
 }

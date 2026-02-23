@@ -16,7 +16,6 @@ export class WidgetInputComponent {
   protected readonly bindingContext = inject(BindingContextService);
 
   widget = input.required<WidgetInstance>();
-  labelChange = output<string>();
 
   @HostBinding('class') get hostClass(): string {
     return this.widget()?.innerClassName?.trim() ?? '';
@@ -24,9 +23,5 @@ export class WidgetInputComponent {
 
   getElementClassObj(key: string): Record<string, boolean> {
     return getElementClassObj(this.widget(), key);
-  }
-
-  onLabelInput(value: string): void {
-    this.labelChange.emit(value);
   }
 }

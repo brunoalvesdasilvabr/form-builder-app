@@ -20,6 +20,7 @@
 }
 
 .widget-label-control {
+  display: block;
   font-size: 0.8rem;
   color: var(--text);
   font-weight: 500;
@@ -28,15 +29,19 @@
   border: 1px solid transparent;
   border-radius: 4px;
   width: 100%;
+  min-height: 1.5em;
 
-  &:hover,
-  &:focus {
-    border-color: var(--border);
-    background: var(--bg-main);
-    outline: none;
-  }
+  &[contenteditable='true'] {
+    &:hover,
+    &:focus {
+      border-color: var(--border);
+      background: var(--bg-main);
+      outline: none;
+    }
 
-  &::placeholder {
-    color: var(--text-muted);
+    &:empty::before {
+      content: attr(data-placeholder);
+      color: var(--text-muted);
+    }
   }
 }

@@ -1,10 +1,7 @@
 @if (widget(); as w) {
   @switch (w.type) {
       @case ('input') {
-        <app-widget-input
-          [widget]="w"
-          (labelChange)="labelChange.emit($event)"
-        />
+        <app-widget-input [widget]="w" />
       }
       @case ('checkbox') {
         <app-widget-checkbox

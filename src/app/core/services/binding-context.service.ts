@@ -2,13 +2,19 @@ import { Injectable, signal, inject } from '@angular/core';
 import { CanvasService } from './canvas.service';
 import { parseBindingProperty } from '../../shared/utils/binding.util';
 
-/** Holds the current values for each bindable property from the dropdown (array of objects). Components use the selected property's value as the ngModel variable. */
+/**
+ * Holds values for bindable properties. In the builder, each widget instance has its own
+ * value for the same binding key (e.g. two labels bound to listValue3 can show different text).
+ * Export still uses {{ listValue3 }}; independence is only for builder preview.
+ */
 @Injectable({ providedIn: 'root' })
 export class BindingContextService {
   private readonly canvas = inject(CanvasService);
 
-  /** Current value for each binding key; keys come from bindableProperties[].value. */
+  /** Global value per binding key (fallback / runtime). */
   readonly bindingValues = signal<Record<string, string>>(this.getInitialValues());
+  /** Per-widget-instance values in builder: key = `${propKey}_${widgetId}`. */
+  private readonly instanceValues = signal<Record<string, string>>({});
 
   private getInitialValues(): Record<string, string> {
     return Object.fromEntries(
@@ -22,17 +28,32 @@ export class BindingContextService {
     return key || null;
   }
 
-  /** Get the current value for the given binding (e.g. "{{ listValue1 }}" -> value of listValue1). */
-  getValue(binding: string | undefined): string {
+  private instanceKey(propKey: string, widgetId: string): string {
+    return `${propKey}__${widgetId}`;
+  }
+
+  /** Get value for the binding. Pass widgetId for per-instance value in builder. */
+  getValue(binding: string | undefined, widgetId?: string): string {
     const key = this.parseBindingKey(binding);
     if (!key) return '';
+    if (widgetId) {
+      const inst = this.instanceValues()[this.instanceKey(key, widgetId)];
+      if (inst !== undefined) return inst;
+    }
     return this.bindingValues()[key] ?? '';
   }
 
-  /** Set the value for the given binding variable. */
-  setValue(binding: string | undefined, value: string): void {
+  /** Set value for the binding. Pass widgetId for per-instance value in builder. */
+  setValue(binding: string | undefined, value: string, widgetId?: string): void {
     const key = this.parseBindingKey(binding);
     if (!key) return;
+    if (widgetId) {
+      this.instanceValues.update((prev) => ({
+        ...prev,
+        [this.instanceKey(key, widgetId)]: value,
+      }));
+      return;
+    }
     this.bindingValues.update((prev) => ({ ...prev, [key]: value }));
   }
 }
