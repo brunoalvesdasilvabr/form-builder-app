@@ -250,6 +250,21 @@ export class CanvasComponent {
     });
   }
 
+  downloadCanvasHtml(): void {
+    const html = this.getPreviewHtml();
+    if (!html) return;
+    const layout = this.savedLayouts.selectedLayout();
+    const name = layout?.name?.replace(/[^a-z0-9-_]/gi, '-') || 'canvas';
+    const filename = `${name}.html`;
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   /**
    * Apply binding targets to a cloned container so saved HTML shows value="{{ propertyName }}" on controls.
    * Finds .widget and .widget-cell in DOM order (same as getBindingTargetsFromState) and sets value attributes.
