@@ -19,7 +19,7 @@
     <p class="canvas-toolbar-hint">Ctrl+click two corners (e.g. top-left then bottom-right) to select a rectangle—cells inside merged regions are included automatically. Ctrl+click a selected cell to unselect it. Right‑click merged cell to unmerge.</p>
   </div>
 
-  <div class="canvas-scroll" #canvasArea>
+  <div class="canvas-content">
     <div class="canvas-table-toolbar">
       <button type="button" class="btn btn-primary" (click)="addColumn()" title="Add column">+ Col</button>
       <button type="button" class="btn btn-danger" (click)="removeColumn()" [disabled]="!canRemoveColumn()" title="Remove column">− Col</button>

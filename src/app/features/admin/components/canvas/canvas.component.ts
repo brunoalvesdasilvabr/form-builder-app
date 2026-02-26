@@ -1,4 +1,4 @@
-import { Component, inject, signal, computed, viewChild, ElementRef } from "@angular/core";
+import { Component, inject, signal, computed } from "@angular/core";
 import { CommonModule } from "@angular/common";
 import { FormsModule } from "@angular/forms";
 import { MatDialog } from "@angular/material/dialog";
@@ -36,9 +36,6 @@ export class CanvasComponent {
 
   readonly layouts = this.savedLayouts.layouts;
   readonly selectedLayoutId = this.savedLayouts.selectedLayoutId;
-  readonly hasLayouts = this.savedLayouts.hasLayouts;
-
-  private readonly canvasAreaRef = viewChild<ElementRef<HTMLElement>>("canvasArea");
 
   readonly rows = this.canvas.rows;
 
@@ -203,16 +200,6 @@ export class CanvasComponent {
     this.unmergeAt(rowIndex, colIndex);
   }
 
-  /** Returns the raw HTML string of the canvas layout (with bindings applied). Same source as Save layout. */
-  getLayoutHtml(): string {
-    const container = document.body.querySelector(".canvas-wrapper") as HTMLElement | null;
-    if (!container) return "";
-    const clone = container.cloneNode(true) as HTMLElement;
-    const targets = this.canvas.getBindingTargetsFromState();
-    this.applyBindingsToClone(clone, targets);
-    return clone.outerHTML;
-  }
-
   saveLayout(): void {
     const selected = this.savedLayouts.selectedLayout();
     const dialogRef = this.dialog.open(LayoutNameDialogComponent, {
@@ -325,10 +312,12 @@ export class CanvasComponent {
     return clone;
   }
 
-  /** Returns HTML string with builder chrome stripped for preview/export. */
+  /** Returns HTML string with builder chrome stripped for preview/export. Only the table element is returned (no wrapper divs). */
   getPreviewHtml(): string {
     const clone = this.getPreviewClone();
-    return clone?.outerHTML ?? "";
+    if (!clone) return "";
+    const table = clone.querySelector(".canvas-content .canvas-table");
+    return table ? (table as HTMLElement).outerHTML : clone.outerHTML;
   }
 
   openPreview(): void {
@@ -364,7 +353,7 @@ export class CanvasComponent {
     targets: Array<{ valueBinding?: string; optionBindings?: string[] }>,
   ): void {
     const widgetElements: HTMLElement[] = [];
-    const tbody = clone.querySelector(".canvas-scroll .canvas-table tbody");
+    const tbody = clone.querySelector(".canvas-content .canvas-table tbody");
     if (!tbody) return;
     const trs = Array.from(tbody.querySelectorAll(":scope > tr"));
     for (const tr of trs) {

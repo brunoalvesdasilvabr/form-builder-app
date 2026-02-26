@@ -29,6 +29,7 @@
 
 .embedded-table {
   width: 100%;
+  max-width: 100%;
   table-layout: fixed;
   border-collapse: collapse;
   font-size: 0.85rem;
@@ -40,12 +41,18 @@
 }
 
 .embedded-cell {
-  min-width: 80px;
+  min-width: 0;
+  width: 1%;
   min-height: 44px;
   padding: 0.35rem;
   vertical-align: top;
   border: 1px solid var(--border);
   background: var(--bg-main);
+
+  > * {
+    min-width: 0;
+    overflow: hidden;
+  }
 
   &:hover {
     outline: 2px dashed var(--accent);

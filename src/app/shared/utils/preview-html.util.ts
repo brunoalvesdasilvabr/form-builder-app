@@ -5,6 +5,7 @@
  */
 const BUILDER_ELEMENT_SELECTORS = [
   '.canvas-toolbar',
+  '.canvas-table-toolbar',
   '.embedded-sidebar',
   '.widget-remove',
   '.widget-cell-remove',
@@ -23,9 +24,9 @@ const ANGULAR_ATTR_PATTERN = /^(_ngcontent|_nghost|ng-reflect|ng-version|ng-)[-_
 
 /**
  * Removes Angular-specific attributes (e.g. _ngcontent-*, _nghost-*, ng-reflect-*).
- * Keeps ng-* classes to preserve layout. Mutates the root in place. Reusable.
+ * Keeps ng-* classes to preserve layout. Mutates the root in place.
  */
-export function stripAngularAttributes(root: HTMLElement): void {
+function stripAngularAttributes(root: HTMLElement): void {
   const walk = (el: Element) => {
     el.getAttributeNames().forEach((name) => {
       if (ANGULAR_ATTR_PATTERN.test(name) || name.startsWith('_ng')) el.removeAttribute(name);

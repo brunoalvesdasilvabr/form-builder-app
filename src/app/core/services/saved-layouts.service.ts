@@ -26,8 +26,6 @@ export class SavedLayoutsService {
     return list.find((l) => l.id === id) ?? null;
   });
 
-  readonly hasLayouts = computed(() => this.layoutsSignal().length > 0);
-
   constructor() {
     this.loadFromStorage();
   }
