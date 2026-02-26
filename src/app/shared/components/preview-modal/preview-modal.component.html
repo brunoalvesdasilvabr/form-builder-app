@@ -1,7 +1,9 @@
 <h2 mat-dialog-title>{{ title }}</h2>
 <mat-dialog-content>
   <p class="preview-modal-hint">Rendered layout from the canvas HTML (as it appears at this moment):</p>
-  <div class="preview-modal-layout" [innerHTML]="sanitizedHtml"></div>
+  <div class="preview-modal-layout">
+    <div class="preview-modal-layout-inner" [innerHTML]="sanitizedHtml"></div>
+  </div>
   <details class="preview-modal-source">
     <summary>View raw HTML</summary>
     <pre class="preview-modal-code"><code>{{ html }}</code></pre>
