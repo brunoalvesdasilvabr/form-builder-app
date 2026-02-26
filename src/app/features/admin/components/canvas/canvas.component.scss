@@ -121,6 +121,7 @@
   vertical-align: top;
   border: 1px solid var(--border);
   background: var(--bg-cell);
+  overflow: hidden;
 
   &:hover {
     outline: 2px dashed var(--accent);
@@ -136,6 +137,19 @@
     width: 100%;
     min-width: 0;
     overflow: hidden;
+  }
+
+  /* One line + ellipsis: use cell width, never grow height (::ng-deep pierces into child components) */
+  ::ng-deep .widget-label-control,
+  ::ng-deep [contenteditable="true"],
+  ::ng-deep .widget-input-control,
+  ::ng-deep .widget-checkbox-label,
+  ::ng-deep .widget-radio-group-label {
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    max-height: 2.5em !important;
+    line-height: 1.4 !important;
   }
 }
 

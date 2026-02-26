@@ -67,12 +67,23 @@
     vertical-align: top;
     border: 1px solid var(--border);
     background: var(--bg-cell);
+    overflow: hidden;
 
     > * {
       display: block;
       width: 100%;
       min-width: 0;
       overflow: hidden;
+    }
+
+    .widget-label-control,
+    [contenteditable="true"],
+    .widget-input-control,
+    .widget-checkbox-label,
+    .widget-radio-group-label {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
   }
 
@@ -101,9 +112,9 @@
     overflow: auto;
   }
   .embedded-table {
-    width: 100%;
-    max-width: 100%;
-    table-layout: fixed;
+    width: auto;
+    min-width: 100%;
+    table-layout: auto;
     border-collapse: collapse;
     font-size: 0.85rem;
 
@@ -112,17 +123,26 @@
     }
   }
   .embedded-cell {
-    min-width: 0;
-    width: 1%;
+    min-width: 48px;
     min-height: 44px;
+    max-height: 44px;
     padding: 0.35rem;
     vertical-align: top;
     border: 1px solid var(--border);
     background: var(--bg-main);
+    overflow: hidden;
 
     > * {
       min-width: 0;
-      overflow: hidden;
+      overflow: visible;
+    }
+
+    .widget-label-control,
+    [contenteditable="true"],
+    .widget-input-control,
+    .widget-checkbox-label,
+    .widget-radio-group-label {
+      white-space: nowrap;
     }
   }
   .embedded-cell-placeholder {
