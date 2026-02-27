@@ -139,7 +139,7 @@
     overflow: hidden;
   }
 
-  /* One line + ellipsis: use cell width, never grow height (::ng-deep pierces into child components) */
+  /* One line + ellipsis: use cell width, never grow (::ng-deep pierces into child components) */
   ::ng-deep .widget-label-control,
   ::ng-deep [contenteditable="true"],
   ::ng-deep .widget-input-control,

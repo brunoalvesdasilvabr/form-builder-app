@@ -55,15 +55,46 @@
     overflow: visible;
   }
 
-  /* One line, no ellipsis: column grows to fit text; height stays fixed (::ng-deep pierces into child components) */
+  /* Label: one line, no ellipsis – column can grow when typing */
   ::ng-deep .widget-label-control,
-  ::ng-deep [contenteditable="true"],
-  ::ng-deep .widget-input-control,
-  ::ng-deep .widget-checkbox-label,
-  ::ng-deep .widget-radio-group-label {
+  ::ng-deep [contenteditable="true"] {
     white-space: nowrap !important;
     max-height: 2em !important;
     line-height: 1.4 !important;
+  }
+
+  /* Input, radio, checkbox: zero intrinsic width – take 100% of cell, never grow cell when dropped */
+  ::ng-deep app-widget-input,
+  ::ng-deep app-widget-radio,
+  ::ng-deep app-widget-checkbox {
+    width: 0 !important;
+    min-width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box;
+  }
+  /* Input: 100% of cell when dropped; no ellipsis when typing – column grows with content */
+  ::ng-deep .widget-input-control {
+    width: 0 !important;
+    min-width: 100% !important;
+    overflow: visible !important;
+    text-overflow: unset !important;
+    box-sizing: border-box;
+    field-sizing: content; /* input grows with typed text (Chrome 123+, Safari 26.2+) */
+  }
+  /* Checkbox/radio: label and group – no intrinsic width */
+  ::ng-deep .widget-checkbox-label,
+  ::ng-deep .widget-radio-group-label {
+    width: 0 !important;
+    min-width: 100% !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    box-sizing: border-box;
+  }
+  ::ng-deep .widget-radio-group {
+    width: 0 !important;
+    min-width: 100% !important;
+    box-sizing: border-box;
   }
 
   &:hover {
