@@ -40,8 +40,8 @@ export class AdminComponent {
       const target = this.selectedTarget();
       const elementKey = this.selectedElementKey();
       if (cell) {
-        if (target === 'element' && elementKey && cell.widget?.elementClasses) {
-          this.initialClass = cell.widget.elementClasses[elementKey] ?? '';
+        if (target === 'element' && elementKey) {
+          this.initialClass = cell.widget?.elementClasses?.[elementKey] ?? '';
         } else if (target === 'widget' && cell.widget) {
           this.initialClass = cell.widget.className ?? '';
         } else if (target === 'widget-inner' && cell.widget) {

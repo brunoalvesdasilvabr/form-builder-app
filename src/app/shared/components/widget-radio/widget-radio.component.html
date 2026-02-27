@@ -24,7 +24,6 @@
             [attr.data-class-target]="'option-' + $index + '-input'"
             [ngClass]="getElementClassObj('option-' + $index + '-input')"
             [value]="opt"
-            (click)="$event.stopPropagation()"
             (input)="onOptionChange(w.options ?? [], $index, $any($event.target).value)"
           />
           <button
