@@ -1,14 +1,18 @@
 @if (widget(); as w) {
-  <input
-    type="checkbox"
-    class="widget-checkbox-control"
-    data-class-target="checkbox"
-    [ngClass]="getElementClassObj('checkbox')"
-    [id]="w.id"
-    [ngModel]="bindingContext.getValue(w.valueBinding, w.id) === 'true'"
-    (ngModelChange)="bindingContext.setValue(w.valueBinding, $event ? 'true' : 'false', w.id)"
-  />
-  <input
+  <div class="widget-checkbox-wrapper">
+    <input
+      type="checkbox"
+      [attr.name]="w.formControlName || w.id"
+      class="widget-checkbox-control"
+      data-class-target="checkbox"
+      [ngClass]="getElementClassObj('checkbox')"
+      [id]="w.id"
+      [attr.data-form-control-name]="w.formControlName ?? null"
+      [attr.data-property-binding]="getPropertyBinding(w.valueBinding) ?? null"
+      [attr.data-error-condition]="w.errorCondition ?? null"
+      [attr.data-error-message]="w.errorMessage ?? null"
+    />
+    <input
     type="text"
     class="widget-checkbox-label"
     data-class-target="label"
@@ -17,4 +21,12 @@
     (input)="onLabelInput($any($event.target).value)"
     placeholder="Checkbox label"
   />
+    @if (w.errorMessage) {
+      <span
+        class="widget-error-message"
+        [attr.data-error-condition]="w.errorCondition ?? null"
+        [attr.data-error-message]="w.errorMessage"
+      >{{ w.errorMessage }}</span>
+    }
+  </div>
 }

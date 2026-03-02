@@ -3,6 +3,12 @@
   flex-direction: column;
   gap: 0.35rem;
   width: 100%;
+}
+
+.widget-input-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
 
   &:hover {
     outline: 2px dashed var(--accent);
@@ -17,6 +23,11 @@
 [data-class-target]:hover {
   outline: 2px dashed var(--accent);
   outline-offset: 2px;
+}
+
+.widget-error-message {
+  font-size: 0.8rem;
+  color: var(--danger, #dc2626);
 }
 
 .widget-input-control {

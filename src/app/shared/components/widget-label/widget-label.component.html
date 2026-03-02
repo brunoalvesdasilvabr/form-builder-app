@@ -3,6 +3,7 @@
     #editableRef
     class="widget-label-control"
     data-class-target="control"
+    [attr.data-property-binding]="getPropertyBinding(w.valueBinding) ?? null"
     [ngClass]="getElementClassObj('control')"
     contenteditable="true"
     data-placeholder="Label text"

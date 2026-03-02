@@ -1,11 +1,27 @@
 @if (widget(); as w) {
-  <input
-    type="text"
-    class="widget-input-control"
-    data-class-target="control"
-    [ngClass]="getElementClassObj('control')"
-    [ngModel]="bindingContext.getValue(w.valueBinding, w.id)"
-    (ngModelChange)="bindingContext.setValue(w.valueBinding, $event, w.id)"
-    [placeholder]="w.placeholder ?? 'Enter text...'"
-  />
+  <div class="widget-input-wrapper">
+    <input
+      type="text"
+      [attr.name]="w.formControlName || w.id"
+      class="widget-input-control"
+      data-class-target="control"
+      [ngClass]="getElementClassObj('control')"
+      [attr.data-form-control-name]="w.formControlName ?? null"
+      [attr.data-property-binding]="getPropertyBinding(w.valueBinding) ?? null"
+      [attr.data-error-condition]="w.errorCondition ?? null"
+      [attr.data-error-message]="w.errorMessage ?? null"
+      [attr.data-minlength]="w.minLength ?? null"
+      [attr.data-maxlength]="w.maxLength ?? null"
+      [attr.data-min]="w.min ?? null"
+      [attr.data-max]="w.max ?? null"
+      [placeholder]="w.placeholder ?? 'Enter text...'"
+    />
+    @if (w.errorMessage) {
+      <span
+        class="widget-error-message"
+        [attr.data-error-condition]="w.errorCondition ?? null"
+        [attr.data-error-message]="w.errorMessage"
+      >{{ w.errorMessage }}</span>
+    }
+  </div>
 }

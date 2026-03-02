@@ -1,11 +1,20 @@
-import { Component, inject, signal, effect } from '@angular/core';
+import { Component, inject, signal, effect, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { PaletteComponent } from './components/palette/palette.component';
 import { CanvasComponent } from './components/canvas/canvas.component';
 import { CanvasService } from '../../core/services/canvas.service';
+import { SavedLayoutsService } from '../../core/services/saved-layouts.service';
 import type { CanvasCell } from '../../shared/models/canvas.model';
 import { parseBindingProperty } from '../../shared/utils/binding.util';
+import {
+  ERROR_CONDITION_SNIPPETS,
+  type ErrorConditionSnippet,
+} from '../../shared/constants/error-condition.constants';
+
+function slugify(s: string): string {
+  return s.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_-]/g, '') || 'form';
+}
 
 @Component({
   selector: 'app-admin',
@@ -16,6 +25,7 @@ import { parseBindingProperty } from '../../shared/utils/binding.util';
 })
 export class AdminComponent {
   private readonly canvas = inject(CanvasService);
+  private readonly savedLayouts = inject(SavedLayoutsService);
 
   readonly selectedCell = this.canvas.selectedCell;
   readonly selectedNestedPath = this.canvas.selectedNestedPath;
@@ -27,9 +37,33 @@ export class AdminComponent {
   /** Pending values in the form (not applied until Apply is clicked). */
   readonly pendingClass = signal('');
   readonly pendingProperty = signal('');
+  readonly pendingFormControlName = signal('');
+  readonly pendingErrorMessage = signal('');
+  readonly pendingErrorCondition = signal('');
+  readonly pendingMinLength = signal('');
+  readonly pendingMaxLength = signal('');
+  readonly pendingMin = signal('');
+  readonly pendingMax = signal('');
+  /** Selected index for "Insert rule" dropdown (reset after insert so user can continue typing). */
+  readonly insertSnippetChoice = signal<string>('');
   /** Snapshot when panel opened / last apply (to detect what changed). */
   private initialClass = '';
   private initialProperty = '';
+  private initialFormControlName = '';
+  private initialErrorMessage = '';
+  private initialErrorCondition = '';
+  private initialMinLength = '';
+  private initialMaxLength = '';
+  private initialMin = '';
+  private initialMax = '';
+
+  readonly errorConditionSnippets = ERROR_CONDITION_SNIPPETS;
+
+  /** Form group name from layout (slugified) for snippet placeholders */
+  readonly formGroupName = computed(() => {
+    const layout = this.savedLayouts.selectedLayout();
+    return slugify(layout?.name?.trim() ?? 'form');
+  });
 
   /** Notifications to show after Apply (e.g. "Your class was bound to the component"). */
   readonly notificationMessages = signal<string[]>([]);
@@ -50,8 +84,30 @@ export class AdminComponent {
           this.initialClass = (cell as { className?: string }).className ?? '';
         }
         this.initialProperty = this.getCurrentBindingProperty(cell);
+        this.initialFormControlName = (cell.widget && ['input', 'checkbox', 'radio'].includes(cell.widget.type))
+          ? (cell.widget.formControlName ?? '')
+          : '';
+        this.initialErrorMessage = (cell.widget && ['input', 'checkbox', 'radio'].includes(cell.widget.type))
+          ? (cell.widget.errorMessage ?? '')
+          : '';
+        this.initialErrorCondition = (cell.widget && ['input', 'checkbox', 'radio'].includes(cell.widget.type))
+          ? (cell.widget.errorCondition ?? '')
+          : '';
+        const w = cell.widget;
+        this.initialMinLength = w?.type === 'input' && w.minLength != null ? String(w.minLength) : '';
+        this.initialMaxLength = w?.type === 'input' && w.maxLength != null ? String(w.maxLength) : '';
+        this.initialMin = w?.type === 'input' && w.min != null ? String(w.min) : '';
+        this.initialMax = w?.type === 'input' && w.max != null ? String(w.max) : '';
         this.pendingClass.set(this.initialClass);
         this.pendingProperty.set(this.initialProperty);
+        this.pendingFormControlName.set(this.initialFormControlName);
+        this.pendingErrorMessage.set(this.initialErrorMessage);
+        this.pendingErrorCondition.set(this.initialErrorCondition);
+        this.pendingMinLength.set(this.initialMinLength);
+        this.pendingMaxLength.set(this.initialMaxLength);
+        this.pendingMin.set(this.initialMin);
+        this.pendingMax.set(this.initialMax);
+        this.insertSnippetChoice.set('');
       }
     });
   }
@@ -68,6 +124,13 @@ export class AdminComponent {
     const messages: string[] = [];
     const classChanged = this.pendingClass() !== this.initialClass;
     const propertyChanged = this.pendingProperty() !== this.initialProperty;
+    const formControlNameChanged = this.pendingFormControlName() !== this.initialFormControlName;
+    const errorMessageChanged = this.pendingErrorMessage() !== this.initialErrorMessage;
+    const errorConditionChanged = this.pendingErrorCondition() !== this.initialErrorCondition;
+    const minLengthChanged = this.pendingMinLength() !== this.initialMinLength;
+    const maxLengthChanged = this.pendingMaxLength() !== this.initialMaxLength;
+    const minChanged = this.pendingMin() !== this.initialMin;
+    const maxChanged = this.pendingMax() !== this.initialMax;
     const nested = this.selectedNestedPath();
 
     if (classChanged) {
@@ -104,10 +167,109 @@ export class AdminComponent {
       messages.push('Your property was bound to the component.');
       this.initialProperty = this.pendingProperty();
     }
+    if (formControlNameChanged && cell.widget && ['input', 'checkbox', 'radio'].includes(cell.widget.type)) {
+      this.applyFormControlName(cell);
+      messages.push('Control name (data-form-control-name) was applied.');
+      this.initialFormControlName = this.pendingFormControlName();
+    }
+    if ((errorMessageChanged || errorConditionChanged) && cell.widget && ['input', 'checkbox', 'radio'].includes(cell.widget.type)) {
+      this.applyErrorFields(cell);
+      messages.push('Error message and visibility rule were applied.');
+      this.initialErrorMessage = this.pendingErrorMessage();
+      this.initialErrorCondition = this.pendingErrorCondition();
+    }
+    if ((minLengthChanged || maxLengthChanged || minChanged || maxChanged) && cell.widget && cell.widget.type === 'input') {
+      this.applyValidatorValues(cell);
+      messages.push('Validation min/max values were applied.');
+      this.initialMinLength = this.pendingMinLength();
+      this.initialMaxLength = this.pendingMaxLength();
+      this.initialMin = this.pendingMin();
+      this.initialMax = this.pendingMax();
+    }
 
     if (messages.length) {
       this.notificationMessages.set(messages);
       setTimeout(() => this.notificationMessages.set([]), 4000);
+    }
+  }
+
+  getSnippetPreview(snippet: { template: string; usesGroup?: boolean }): string {
+    const ctrl = this.pendingFormControlName().trim() || 'controlName';
+    const form = this.formGroupName();
+    const grp = form;
+    let expr = snippet.template.replace(/\{form\}/g, form);
+    expr = expr.replace(/\{ctrl\}/g, ctrl);
+    expr = expr.replace(/\{grp\}/g, grp);
+    return expr;
+  }
+
+  /** Insert chosen snippet into the error rule input; user can then continue typing. Final string is bound to data-error-condition on Apply. */
+  onInsertErrorSnippet(indexStr: string): void {
+    if (indexStr === '' || indexStr == null) return;
+    const i = Number(indexStr);
+    const snippet = this.errorConditionSnippets[i] as ErrorConditionSnippet | undefined;
+    if (!snippet) return;
+    const inserted = this.getSnippetPreview(snippet);
+    const current = (this.pendingErrorCondition() || '').trim();
+    const next = current ? `${current} && ${inserted}` : inserted;
+    this.pendingErrorCondition.set(next);
+    this.insertSnippetChoice.set('');
+  }
+
+  private parseOptionalNumber(s: string | number): number | undefined {
+    if (typeof s === 'number') return Number.isNaN(s) ? undefined : s;
+    const n = Number(String(s).trim());
+    return String(s).trim() !== '' && !Number.isNaN(n) ? n : undefined;
+  }
+
+  private applyValidatorValues(cell: CanvasCell): void {
+    const w = cell.widget;
+    if (!w || w.type !== 'input') return;
+    const nested = this.selectedNestedPath();
+    const minLength = this.parseOptionalNumber(this.pendingMinLength());
+    const maxLength = this.parseOptionalNumber(this.pendingMaxLength());
+    const min = this.parseOptionalNumber(this.pendingMin());
+    const max = this.parseOptionalNumber(this.pendingMax());
+    if (nested) {
+      const { parentCellId, parentWidgetId, nestedCellId } = nested;
+      this.canvas.updateNestedWidgetMinLength(parentCellId, parentWidgetId, nestedCellId, w.id, minLength);
+      this.canvas.updateNestedWidgetMaxLength(parentCellId, parentWidgetId, nestedCellId, w.id, maxLength);
+      this.canvas.updateNestedWidgetMin(parentCellId, parentWidgetId, nestedCellId, w.id, min);
+      this.canvas.updateNestedWidgetMax(parentCellId, parentWidgetId, nestedCellId, w.id, max);
+    } else {
+      this.canvas.updateWidgetMinLength(cell.id, w.id, minLength);
+      this.canvas.updateWidgetMaxLength(cell.id, w.id, maxLength);
+      this.canvas.updateWidgetMin(cell.id, w.id, min);
+      this.canvas.updateWidgetMax(cell.id, w.id, max);
+    }
+  }
+
+  private applyErrorFields(cell: CanvasCell): void {
+    const w = cell.widget;
+    if (!w || !['input', 'checkbox', 'radio'].includes(w.type)) return;
+    const nested = this.selectedNestedPath();
+    const msg = this.pendingErrorMessage().trim() || undefined;
+    const cond = this.pendingErrorCondition().trim() || undefined;
+    if (nested) {
+      const { parentCellId, parentWidgetId, nestedCellId } = nested;
+      this.canvas.updateNestedWidgetErrorMessage(parentCellId, parentWidgetId, nestedCellId, w.id, msg ?? '');
+      this.canvas.updateNestedWidgetErrorCondition(parentCellId, parentWidgetId, nestedCellId, w.id, cond ?? '');
+    } else {
+      this.canvas.updateWidgetErrorMessage(cell.id, w.id, msg ?? '');
+      this.canvas.updateWidgetErrorCondition(cell.id, w.id, cond ?? '');
+    }
+  }
+
+  private applyFormControlName(cell: CanvasCell): void {
+    const w = cell.widget;
+    if (!w || !['input', 'checkbox', 'radio'].includes(w.type)) return;
+    const nested = this.selectedNestedPath();
+    const name = this.pendingFormControlName().trim() || undefined;
+    if (nested) {
+      const { parentCellId, parentWidgetId, nestedCellId } = nested;
+      this.canvas.updateNestedWidgetFormControlName(parentCellId, parentWidgetId, nestedCellId, w.id, name ?? '');
+    } else {
+      this.canvas.updateWidgetFormControlName(cell.id, w.id, name ?? '');
     }
   }
 
@@ -168,6 +330,39 @@ export class AdminComponent {
     const prop = this.getCurrentBindingProperty(cell);
     if (!prop) return `Bound to: ${label}`;
     return `Bound to: ${label} — value={{ ${prop} }}`;
+  }
+
+  /** Error condition string to use for visibility (pending or saved). */
+  getEffectiveErrorCondition(cell: CanvasCell | null): string {
+    if (!cell?.widget) return '';
+    return (this.pendingErrorCondition() || cell.widget.errorCondition || '').trim();
+  }
+
+  /** True if the condition references any validator that needs a value (minlength, maxlength, min, max). */
+  showValidatorValuesSection(cell: CanvasCell | null): boolean {
+    const cond = this.getEffectiveErrorCondition(cell);
+    return (
+      cond.includes('minlength') ||
+      cond.includes('maxlength') ||
+      /\[\s*['"]min['"]\s*\]/.test(cond) ||
+      /\[\s*['"]max['"]\s*\]/.test(cond)
+    );
+  }
+
+  showMinLengthInput(cell: CanvasCell | null): boolean {
+    return this.getEffectiveErrorCondition(cell).includes('minlength');
+  }
+
+  showMaxLengthInput(cell: CanvasCell | null): boolean {
+    return this.getEffectiveErrorCondition(cell).includes('maxlength');
+  }
+
+  showMinInput(cell: CanvasCell | null): boolean {
+    return /\[\s*['"]min['"]\s*\]/.test(this.getEffectiveErrorCondition(cell));
+  }
+
+  showMaxInput(cell: CanvasCell | null): boolean {
+    return /\[\s*['"]max['"]\s*\]/.test(this.getEffectiveErrorCondition(cell));
   }
 
   /** Get the current binding as a property name (e.g. "listValue1") for the dropdown. */

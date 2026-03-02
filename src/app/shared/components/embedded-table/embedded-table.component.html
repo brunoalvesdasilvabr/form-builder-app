@@ -14,7 +14,6 @@
                   [attr.colspan]="getSpan(cell.rowIndex, cell.colIndex).colSpan > 1 ? getSpan(cell.rowIndex, cell.colIndex).colSpan : null"
                   [attr.rowspan]="getSpan(cell.rowIndex, cell.colIndex).rowSpan > 1 ? getSpan(cell.rowIndex, cell.colIndex).rowSpan : null"
                   (click)="onCellClick($event, cell.rowIndex, cell.colIndex, cell)"
-                  (contextmenu)="onCellContextMenu($event, cell.rowIndex, cell.colIndex)"
                   (drop)="onDrop($event, cell)"
                   (dragover)="onDragOver($event)"
                   (dragleave)="onDragLeave($event)"

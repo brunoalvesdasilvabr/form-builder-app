@@ -4,6 +4,8 @@ import { WIDGET_LABELS } from '../../shared/models/canvas.model';
 import * as gridMerge from '../../shared/utils/grid-merge.util';
 import { generateId } from '../../shared/utils/id.util';
 
+const UNDO_LIMIT = 50;
+
 @Injectable({ providedIn: 'root' })
 export class CanvasService {
   private readonly state = signal<CanvasState>({
@@ -12,7 +14,29 @@ export class CanvasService {
     ],
   });
 
+  private undoStack: CanvasState[] = [];
+  readonly canUndo = signal(false);
+
   readonly rows = computed(() => this.state().rows);
+
+  private pushHistory(): void {
+    this.undoStack.push(this.getState());
+    if (this.undoStack.length > UNDO_LIMIT) this.undoStack.shift();
+    this.canUndo.set(this.undoStack.length > 0);
+  }
+
+  undo(): boolean {
+    if (this.undoStack.length === 0) return false;
+    const prev = this.undoStack.pop()!;
+    this.loadState(prev);
+    this.canUndo.set(this.undoStack.length > 0);
+    return true;
+  }
+
+  clearUndoHistory(): void {
+    this.undoStack = [];
+    this.canUndo.set(false);
+  }
 
   /** Cell id when user clicks a cell (opens right panel) */
   readonly selectedCellId = signal<string | null>(null);
@@ -87,6 +111,7 @@ export class CanvasService {
   }
 
   updateCellClass(cellId: string, className: string): void {
+    this.pushHistory();
     const rows = this.state().rows.map((row) => ({
       ...row,
       cells: row.cells.map((c) =>
@@ -97,6 +122,7 @@ export class CanvasService {
   }
 
   updateWidgetClass(cellId: string, widgetId: string, className: string): void {
+    this.pushHistory();
     const rows = this.state().rows.map((row) => ({
       ...row,
       cells: row.cells.map((c) => {
@@ -111,6 +137,7 @@ export class CanvasService {
   }
 
   updateWidgetInnerClass(cellId: string, widgetId: string, className: string): void {
+    this.pushHistory();
     const rows = this.state().rows.map((row) => ({
       ...row,
       cells: row.cells.map((c) => {
@@ -125,6 +152,7 @@ export class CanvasService {
   }
 
   updateWidgetElementClass(cellId: string, widgetId: string, elementKey: string, className: string): void {
+    this.pushHistory();
     const rows = this.state().rows.map((row) => ({
       ...row,
       cells: row.cells.map((c) => {
@@ -145,6 +173,7 @@ export class CanvasService {
 
   /** Updates for nested table cells (inside a table widget). */
   updateNestedCellClass(parentCellId: string, parentWidgetId: string, nestedCellId: string, className: string): void {
+    this.pushHistory();
     this.state.update((s) => {
       const rows = s.rows.map((row) => ({
         ...row,
@@ -164,6 +193,7 @@ export class CanvasService {
   }
 
   updateNestedWidgetClass(parentCellId: string, parentWidgetId: string, nestedCellId: string, nestedWidgetId: string, className: string): void {
+    this.pushHistory();
     this.state.update((s) => {
       const rows = s.rows.map((row) => ({
         ...row,
@@ -186,6 +216,7 @@ export class CanvasService {
   }
 
   updateNestedWidgetInnerClass(parentCellId: string, parentWidgetId: string, nestedCellId: string, nestedWidgetId: string, className: string): void {
+    this.pushHistory();
     this.state.update((s) => {
       const rows = s.rows.map((row) => ({
         ...row,
@@ -208,6 +239,7 @@ export class CanvasService {
   }
 
   updateNestedWidgetElementClass(parentCellId: string, parentWidgetId: string, nestedCellId: string, nestedWidgetId: string, elementKey: string, className: string): void {
+    this.pushHistory();
     this.state.update((s) => {
       const rows = s.rows.map((row) => ({
         ...row,
@@ -235,6 +267,7 @@ export class CanvasService {
   }
 
   updateNestedValueBinding(parentCellId: string, parentWidgetId: string, nestedCellId: string, nestedWidgetId: string, propertyName: string): void {
+    this.pushHistory();
     const binding = propertyName ? `{{ ${propertyName} }}` : undefined;
     this.state.update((s) => {
       const rows = s.rows.map((row) => ({
@@ -258,6 +291,7 @@ export class CanvasService {
   }
 
   updateNestedOptionBinding(parentCellId: string, parentWidgetId: string, nestedCellId: string, nestedWidgetId: string, optionIndex: number, propertyName: string): void {
+    this.pushHistory();
     const binding = propertyName ? `{{ ${propertyName} }}` : '';
     this.state.update((s) => {
       const rows = s.rows.map((row) => ({
@@ -283,6 +317,238 @@ export class CanvasService {
     });
   }
 
+  updateWidgetFormControlName(cellId: string, widgetId: string, formControlName: string): void {
+    this.pushHistory();
+    const val = formControlName.trim() || undefined;
+    const rows = this.state().rows.map((row) => ({
+      ...row,
+      cells: row.cells.map((c) => {
+        if (c.id !== cellId || !c.widget || c.widget.id !== widgetId) return c;
+        return { ...c, widget: { ...c.widget, formControlName: val } };
+      }),
+    }));
+    this.state.set({ rows });
+  }
+
+  updateNestedWidgetFormControlName(
+    parentCellId: string,
+    parentWidgetId: string,
+    nestedCellId: string,
+    nestedWidgetId: string,
+    formControlName: string
+  ): void {
+    this.pushHistory();
+    const val = formControlName.trim() || undefined;
+    this.state.update((s) => {
+      const rows = s.rows.map((row) => ({
+        ...row,
+        cells: row.cells.map((c) => {
+          if (c.id !== parentCellId || !c.widget || c.widget.id !== parentWidgetId || c.widget.type !== 'table') return c;
+          const nested = c.widget.nestedTable;
+          if (!nested?.rows) return c;
+          const nestedRows = nested.rows.map((r) => ({
+            ...r,
+            cells: r.cells.map((nc) => {
+              if (nc.id !== nestedCellId || !nc.widget || nc.widget.id !== nestedWidgetId) return nc;
+              return { ...nc, widget: { ...nc.widget, formControlName: val } };
+            }),
+          }));
+          return { ...c, widget: { ...c.widget, nestedTable: { rows: nestedRows } } };
+        }),
+      }));
+      return { rows };
+    });
+  }
+
+  updateWidgetErrorCondition(cellId: string, widgetId: string, errorCondition: string): void {
+    this.pushHistory();
+    const val = errorCondition.trim() || undefined;
+    const rows = this.state().rows.map((row) => ({
+      ...row,
+      cells: row.cells.map((c) => {
+        if (c.id !== cellId || !c.widget || c.widget.id !== widgetId) return c;
+        return { ...c, widget: { ...c.widget, errorCondition: val } };
+      }),
+    }));
+    this.state.set({ rows });
+  }
+
+  updateWidgetErrorMessage(cellId: string, widgetId: string, errorMessage: string): void {
+    this.pushHistory();
+    const val = errorMessage.trim() || undefined;
+    const rows = this.state().rows.map((row) => ({
+      ...row,
+      cells: row.cells.map((c) => {
+        if (c.id !== cellId || !c.widget || c.widget.id !== widgetId) return c;
+        return { ...c, widget: { ...c.widget, errorMessage: val } };
+      }),
+    }));
+    this.state.set({ rows });
+  }
+
+  updateNestedWidgetErrorCondition(
+    parentCellId: string,
+    parentWidgetId: string,
+    nestedCellId: string,
+    nestedWidgetId: string,
+    errorCondition: string
+  ): void {
+    this.pushHistory();
+    const val = errorCondition.trim() || undefined;
+    this.state.update((s) => {
+      const rows = s.rows.map((row) => ({
+        ...row,
+        cells: row.cells.map((c) => {
+          if (c.id !== parentCellId || !c.widget || c.widget.id !== parentWidgetId || c.widget.type !== 'table') return c;
+          const nested = c.widget.nestedTable;
+          if (!nested?.rows) return c;
+          const nestedRows = nested.rows.map((r) => ({
+            ...r,
+            cells: r.cells.map((nc) => {
+              if (nc.id !== nestedCellId || !nc.widget || nc.widget.id !== nestedWidgetId) return nc;
+              return { ...nc, widget: { ...nc.widget, errorCondition: val } };
+            }),
+          }));
+          return { ...c, widget: { ...c.widget, nestedTable: { rows: nestedRows } } };
+        }),
+      }));
+      return { rows };
+    });
+  }
+
+  updateNestedWidgetErrorMessage(
+    parentCellId: string,
+    parentWidgetId: string,
+    nestedCellId: string,
+    nestedWidgetId: string,
+    errorMessage: string
+  ): void {
+    this.pushHistory();
+    const val = errorMessage.trim() || undefined;
+    this.state.update((s) => {
+      const rows = s.rows.map((row) => ({
+        ...row,
+        cells: row.cells.map((c) => {
+          if (c.id !== parentCellId || !c.widget || c.widget.id !== parentWidgetId || c.widget.type !== 'table') return c;
+          const nested = c.widget.nestedTable;
+          if (!nested?.rows) return c;
+          const nestedRows = nested.rows.map((r) => ({
+            ...r,
+            cells: r.cells.map((nc) => {
+              if (nc.id !== nestedCellId || !nc.widget || nc.widget.id !== nestedWidgetId) return nc;
+              return { ...nc, widget: { ...nc.widget, errorMessage: val } };
+            }),
+          }));
+          return { ...c, widget: { ...c.widget, nestedTable: { rows: nestedRows } } };
+        }),
+      }));
+      return { rows };
+    });
+  }
+
+  private updateWidgetValidatorValue(
+    cellId: string,
+    widgetId: string,
+    key: 'minLength' | 'maxLength' | 'min' | 'max',
+    value: number | undefined
+  ): void {
+    this.pushHistory();
+    const rows = this.state().rows.map((row) => ({
+      ...row,
+      cells: row.cells.map((c) => {
+        if (c.id !== cellId || !c.widget || c.widget.id !== widgetId) return c;
+        return { ...c, widget: { ...c.widget, [key]: value } };
+      }),
+    }));
+    this.state.set({ rows });
+  }
+
+  updateWidgetMinLength(cellId: string, widgetId: string, value: number | undefined): void {
+    this.updateWidgetValidatorValue(cellId, widgetId, 'minLength', value);
+  }
+
+  updateWidgetMaxLength(cellId: string, widgetId: string, value: number | undefined): void {
+    this.updateWidgetValidatorValue(cellId, widgetId, 'maxLength', value);
+  }
+
+  updateWidgetMin(cellId: string, widgetId: string, value: number | undefined): void {
+    this.updateWidgetValidatorValue(cellId, widgetId, 'min', value);
+  }
+
+  updateWidgetMax(cellId: string, widgetId: string, value: number | undefined): void {
+    this.updateWidgetValidatorValue(cellId, widgetId, 'max', value);
+  }
+
+  private updateNestedWidgetValidatorValue(
+    parentCellId: string,
+    parentWidgetId: string,
+    nestedCellId: string,
+    nestedWidgetId: string,
+    key: 'minLength' | 'maxLength' | 'min' | 'max',
+    value: number | undefined
+  ): void {
+    this.pushHistory();
+    this.state.update((s) => {
+      const rows = s.rows.map((row) => ({
+        ...row,
+        cells: row.cells.map((c) => {
+          if (c.id !== parentCellId || !c.widget || c.widget.id !== parentWidgetId || c.widget.type !== 'table') return c;
+          const nested = c.widget.nestedTable;
+          if (!nested?.rows) return c;
+          const nestedRows = nested.rows.map((r) => ({
+            ...r,
+            cells: r.cells.map((nc) => {
+              if (nc.id !== nestedCellId || !nc.widget || nc.widget.id !== nestedWidgetId) return nc;
+              return { ...nc, widget: { ...nc.widget, [key]: value } };
+            }),
+          }));
+          return { ...c, widget: { ...c.widget, nestedTable: { rows: nestedRows } } };
+        }),
+      }));
+      return { rows };
+    });
+  }
+
+  updateNestedWidgetMinLength(
+    parentCellId: string,
+    parentWidgetId: string,
+    nestedCellId: string,
+    nestedWidgetId: string,
+    value: number | undefined
+  ): void {
+    this.updateNestedWidgetValidatorValue(parentCellId, parentWidgetId, nestedCellId, nestedWidgetId, 'minLength', value);
+  }
+
+  updateNestedWidgetMaxLength(
+    parentCellId: string,
+    parentWidgetId: string,
+    nestedCellId: string,
+    nestedWidgetId: string,
+    value: number | undefined
+  ): void {
+    this.updateNestedWidgetValidatorValue(parentCellId, parentWidgetId, nestedCellId, nestedWidgetId, 'maxLength', value);
+  }
+
+  updateNestedWidgetMin(
+    parentCellId: string,
+    parentWidgetId: string,
+    nestedCellId: string,
+    nestedWidgetId: string,
+    value: number | undefined
+  ): void {
+    this.updateNestedWidgetValidatorValue(parentCellId, parentWidgetId, nestedCellId, nestedWidgetId, 'min', value);
+  }
+
+  updateNestedWidgetMax(
+    parentCellId: string,
+    parentWidgetId: string,
+    nestedCellId: string,
+    nestedWidgetId: string,
+    value: number | undefined
+  ): void {
+    this.updateNestedWidgetValidatorValue(parentCellId, parentWidgetId, nestedCellId, nestedWidgetId, 'max', value);
+  }
+
   createRow(rowIndex: number, colCount: number): CanvasRow {
     const cells: CanvasCell[] = [];
     for (let c = 0; c < colCount; c++) {
@@ -300,6 +566,7 @@ export class CanvasService {
   }
 
   addRow(): void {
+    this.pushHistory();
     const rows = [...this.state().rows];
     const colCount = rows[0]?.cells.length ?? 3;
     rows.push(this.createRow(rows.length, colCount));
@@ -307,6 +574,7 @@ export class CanvasService {
   }
 
   addColumn(): void {
+    this.pushHistory();
     const rows = this.state().rows.map((row, ri) => ({
       ...row,
       cells: [
@@ -326,12 +594,14 @@ export class CanvasService {
   }
 
   removeRow(): void {
+    this.pushHistory();
     const rows = this.state().rows;
     if (rows.length <= 1) return;
     this.state.set({ rows: rows.slice(0, -1) });
   }
 
   removeColumn(): void {
+    this.pushHistory();
     const rows = this.state().rows;
     if (!rows.length || rows[0].cells.length <= 1) return;
     this.state.set({
@@ -379,6 +649,7 @@ export class CanvasService {
   }
 
   setWidgetAt(rowIndex: number, colIndex: number, type: WidgetType, label?: string, options?: string[]): void {
+    this.pushHistory();
     const rows = this.state().rows.map((r, ri) => ({
       ...r,
       cells: r.cells.map((cell, ci) => {
@@ -400,6 +671,7 @@ export class CanvasService {
   }
 
   updateNestedTable(cellId: string, widgetId: string, state: NestedTableState): void {
+    this.pushHistory();
     const rows = this.state().rows.map((row) => ({
       ...row,
       cells: row.cells.map((c) => {
@@ -414,6 +686,7 @@ export class CanvasService {
   }
 
   updateWidgetLabel(cellId: string, widgetId: string, label: string): void {
+    this.pushHistory();
     const rows = this.state().rows.map((row) => ({
       ...row,
       cells: row.cells.map((c) => {
@@ -425,6 +698,7 @@ export class CanvasService {
   }
 
   updateWidgetOptions(cellId: string, widgetId: string, options: string[]): void {
+    this.pushHistory();
     const rows = this.state().rows.map((row) => ({
       ...row,
       cells: row.cells.map((c) => {
@@ -438,6 +712,7 @@ export class CanvasService {
   }
 
   updateValueBinding(cellId: string, widgetId: string, propertyName: string): void {
+    this.pushHistory();
     const binding = propertyName ? `{{ ${propertyName} }}` : undefined;
     const rows = this.state().rows.map((row) => ({
       ...row,
@@ -450,6 +725,7 @@ export class CanvasService {
   }
 
   updateOptionBinding(cellId: string, widgetId: string, optionIndex: number, propertyName: string): void {
+    this.pushHistory();
     const binding = propertyName ? `{{ ${propertyName} }}` : '';
     const rows = this.state().rows.map((row) => ({
       ...row,
@@ -465,6 +741,7 @@ export class CanvasService {
   }
 
   removeWidget(cellId: string): void {
+    this.pushHistory();
     if (this.selectedCellId() === cellId) {
       this.selectedCellId.set(null);
       this.selectedOptionIndex.set(null);
@@ -480,6 +757,7 @@ export class CanvasService {
 
   moveWidget(fromCellId: string, toCellId: string, widget: WidgetInstance): void {
     if (fromCellId === toCellId) return;
+    this.pushHistory();
     const rows = this.state().rows.map((row) => ({
       ...row,
       cells: row.cells.map((c) => {
@@ -492,6 +770,7 @@ export class CanvasService {
   }
 
   mergeCells(originRow: number, originCol: number, endRow: number, endCol: number): void {
+    this.pushHistory();
     this.state.set({
       rows: gridMerge.mergeCells(
         this.state().rows as gridMerge.MergeableRow[],

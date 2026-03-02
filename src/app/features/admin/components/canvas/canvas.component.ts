@@ -1,10 +1,13 @@
-import { Component, inject, signal, computed } from "@angular/core";
+import { Component, inject, signal, computed, ChangeDetectorRef } from "@angular/core";
 import { CommonModule } from "@angular/common";
 import { FormsModule } from "@angular/forms";
 import { MatDialog } from "@angular/material/dialog";
+import { MatButtonModule } from "@angular/material/button";
+import { MatIconModule } from "@angular/material/icon";
 import { stripBuilderChrome, copyFormValues } from "../../../../shared/utils/preview-html.util";
 import { CanvasService } from "../../../../core/services/canvas.service";
 import { SavedLayoutsService } from "../../../../core/services/saved-layouts.service";
+import { LayoutGuardService } from "../../../../core/services/layout-guard.service";
 import { WidgetRendererComponent } from "../../../../shared/components/widget-renderer/widget-renderer.component";
 import { PreviewModalComponent } from "../../../../shared/components/preview-modal/preview-modal.component";
 import { LayoutNameDialogComponent } from "../../../../shared/components/layout-name-dialog/layout-name-dialog.component";
@@ -21,23 +24,27 @@ import {
   canMergeFromRange,
   updateSelectionForCtrlClick,
 } from "../../../../shared/utils/grid-selection.util";
+import { FormLayoutNameDirective } from "../../../../shared/directives/form-layout-name.directive";
 
 @Component({
   selector: "app-canvas",
   standalone: true,
-  imports: [CommonModule, FormsModule, WidgetRendererComponent],
+  imports: [CommonModule, FormsModule, MatButtonModule, MatIconModule, WidgetRendererComponent, FormLayoutNameDirective],
   templateUrl: "./canvas.component.html",
   styleUrl: "./canvas.component.scss",
 })
 export class CanvasComponent {
   private readonly canvas = inject(CanvasService);
+  private readonly cdr = inject(ChangeDetectorRef);
   private readonly savedLayouts = inject(SavedLayoutsService);
+  private readonly layoutGuard = inject(LayoutGuardService);
   private readonly dialog = inject(MatDialog);
 
   readonly layouts = this.savedLayouts.layouts;
   readonly selectedLayoutId = this.savedLayouts.selectedLayoutId;
 
   readonly rows = this.canvas.rows;
+  readonly canUndo = this.canvas.canUndo;
 
   readonly selectionCells = signal<string[]>([]); // "row,col" keys, merge only if they form a rectangle
 
@@ -48,7 +55,7 @@ export class CanvasComponent {
     return this.selectionCells().includes(`${rowIndex},${colIndex}`);
   }
 
-  // ctrl+click = add/remove from selection (or fill rect if 1 cell selected). no ctrl = clear or open right panel if cell has widget. unmerge = right-click merged cell
+  // ctrl+click = add/remove from selection (no unmerge). no ctrl = clear or open right panel
   onCellClick(e: MouseEvent, rowIndex: number, colIndex: number, cell: CanvasCell): void {
     if (e.ctrlKey) {
       this.selectionCells.set(updateSelectionForCtrlClick(this.selectionCells(), rowIndex, colIndex));
@@ -56,22 +63,35 @@ export class CanvasComponent {
       if (cell.widget && cell.widget.type === "table") {
         this.canvas.setSelectedCell(null);
       } else {
-        const el = e.target as Element;
-        const elementTarget = el?.closest?.("[data-class-target]")?.getAttribute?.("data-class-target");
-        if (elementTarget) {
-          this.canvas.setSelectedCell(cell.id, "element", elementTarget);
-        } else if (
-          el?.closest?.("app-widget-input") ||
-          el?.closest?.("app-widget-checkbox") ||
-          el?.closest?.("app-widget-radio") ||
-          el?.closest?.("app-widget-label") ||
-          el?.closest?.("app-widget-table")
-        ) {
-          this.canvas.setSelectedCell(cell.id, "widget-inner");
-        } else if (el?.closest?.("app-widget-renderer")) {
-          this.canvas.setSelectedCell(cell.id, "widget");
+        const hasFormControl = cell.widget && ["input", "checkbox", "radio"].includes(cell.widget.type);
+        const doSelect = () => {
+          const el = e.target as Element;
+          const elementTarget = el?.closest?.("[data-class-target]")?.getAttribute?.("data-class-target");
+          if (elementTarget) {
+            this.canvas.setSelectedCell(cell.id, "element", elementTarget);
+          } else if (
+            el?.closest?.("app-widget-input") ||
+            el?.closest?.("app-widget-checkbox") ||
+            el?.closest?.("app-widget-radio") ||
+            el?.closest?.("app-widget-label") ||
+            el?.closest?.("app-widget-table")
+          ) {
+            this.canvas.setSelectedCell(cell.id, "widget-inner");
+          } else if (el?.closest?.("app-widget-renderer")) {
+            this.canvas.setSelectedCell(cell.id, "widget");
+          } else {
+            this.canvas.setSelectedCell(cell.id, "cell");
+          }
+        };
+        if (hasFormControl && !this.layoutGuard.hasLayoutNamed()) {
+          this.layoutGuard.ensureLayoutNamed().then((ok) => {
+            if (ok) {
+              doSelect();
+              this.cdr.detectChanges();
+            }
+          });
         } else {
-          this.canvas.setSelectedCell(cell.id, "cell");
+          doSelect();
         }
       }
       this.clearSelection();
@@ -115,11 +135,6 @@ export class CanvasComponent {
 
   hasSelection(): boolean {
     return this.selectionCells().length > 0;
-  }
-
-  unmergeAt(rowIndex: number, colIndex: number): void {
-    this.canvas.unmergeCell(rowIndex, colIndex);
-    this.clearSelection();
   }
 
   onDrop(e: DragEvent, targetCell: CanvasCell): void {
@@ -194,12 +209,6 @@ export class CanvasComponent {
     return span.colSpan > 1 || span.rowSpan > 1;
   }
 
-  onCellContextMenu(e: MouseEvent, rowIndex: number, colIndex: number): void {
-    if (!this.isMergedCell(rowIndex, colIndex)) return;
-    e.preventDefault();
-    this.unmergeAt(rowIndex, colIndex);
-  }
-
   saveLayout(): void {
     const selected = this.savedLayouts.selectedLayout();
     const dialogRef = this.dialog.open(LayoutNameDialogComponent, {
@@ -213,33 +222,42 @@ export class CanvasComponent {
     dialogRef.afterClosed().subscribe((result: { name: string; layoutId: string | null } | undefined) => {
       if (!result) return;
       const state = this.canvas.getState();
-      const previewClone = this.getPreviewClone();
+      const name = result.name.trim() || "Untitled";
+      if (result.layoutId) {
+        this.savedLayouts.updateLayout(result.layoutId, state, name);
+      } else {
+        this.savedLayouts.addLayout(name, state);
+      }
+      this.cdr.detectChanges();
       const layoutId = result.layoutId ?? "new";
       const layoutSaved = {
         id: layoutId,
-        name: result.name.trim() || "Untitled",
+        name,
         state: JSON.parse(JSON.stringify(state)),
         updatedAt: Date.now(),
       };
       console.log("[Save Layout] What gets saved to localStorage:", layoutSaved);
-      console.log("[Save Layout] Preview DOM (expand to inspect nesting, value=, class):", previewClone);
+      console.log("[Save Layout] Preview DOM (expand to inspect nesting, value=, class):", this.getPreviewClone());
       console.log("[Save Layout] Bindings & classes summary:", this.getBindingsAndClassesSummary(state));
-      if (result.layoutId) {
-        this.savedLayouts.updateLayout(result.layoutId, state, result.name);
-      } else {
-        this.savedLayouts.addLayout(result.name, state);
-      }
     });
   }
 
   onLayoutSelect(layoutId: string | null): void {
     this.savedLayouts.selectLayout(layoutId);
+    this.canvas.clearUndoHistory();
     if (layoutId) {
       const layout = this.savedLayouts.getLayoutById(layoutId);
-      if (layout) this.canvas.loadState(layout.state);
+      if (layout) {
+        this.canvas.loadState(layout.state);
+      }
     } else {
       this.canvas.loadState(this.canvas.getDefaultState());
     }
+  }
+
+  undo(): void {
+    this.canvas.undo();
+    this.clearSelection();
   }
 
   /** Summary of valueBinding and class bindings from state for debug. */
@@ -300,24 +318,24 @@ export class CanvasComponent {
     return out;
   }
 
-  /** Returns clone of canvas DOM with chrome stripped and bindings applied (for debug/inspect). */
+  /** Returns clone of canvas DOM with chrome stripped and bindings applied (for debug/inspect). Includes the form wrapper (with data-form-group). */
   private getPreviewClone(): HTMLElement | null {
-    const container = document.body.querySelector(".canvas-wrapper") as HTMLElement | null;
+    const container = document.body.querySelector("form.canvas-form") as HTMLElement | null;
     if (!container) return null;
     const clone = container.cloneNode(true) as HTMLElement;
     copyFormValues(container, clone);
     stripBuilderChrome(clone, { stripAngular: false });
-    const targets = this.canvas.getBindingTargetsFromState();
-    this.applyBindingsToClone(clone, targets);
     return clone;
   }
 
-  /** Returns HTML string with builder chrome stripped for preview/export. Only the table element is returned (no wrapper divs). */
+  /** Returns HTML string for preview/export: full form element (form tag and all content, builder chrome already stripped). */
   getPreviewHtml(): string {
-    const clone = this.getPreviewClone();
-    if (!clone) return "";
-    const table = clone.querySelector(".canvas-content .canvas-table");
-    return table ? (table as HTMLElement).outerHTML : clone.outerHTML;
+    const container = document.body.querySelector("form.canvas-form") as HTMLElement | null;
+    if (!container) return "";
+    const clone = container.cloneNode(true) as HTMLElement;
+    copyFormValues(container, clone);
+    stripBuilderChrome(clone, { stripAngular: true });
+    return clone.outerHTML;
   }
 
   openPreview(): void {
@@ -344,48 +362,4 @@ export class CanvasComponent {
     URL.revokeObjectURL(url);
   }
 
-  /**
-   * Apply binding targets to a cloned container so saved HTML shows value="{{ propertyName }}" on controls.
-   * Collects widget elements in the same order as getBindingTargetsFromState (main cells then nested table cells inline).
-   */
-  private applyBindingsToClone(
-    clone: HTMLElement,
-    targets: Array<{ valueBinding?: string; optionBindings?: string[] }>,
-  ): void {
-    const widgetElements: HTMLElement[] = [];
-    const tbody = clone.querySelector(".canvas-content .canvas-table tbody");
-    if (!tbody) return;
-    const trs = Array.from(tbody.querySelectorAll(":scope > tr"));
-    for (const tr of trs) {
-      const tds = Array.from(tr.querySelectorAll(":scope > td"));
-      for (const td of tds) {
-        const child = td.firstElementChild as HTMLElement | null;
-        if (!child) continue;
-        if (child.classList.contains("widget") && !child.classList.contains("widget--no-padding")) {
-          widgetElements.push(child);
-        } else {
-          Array.from(td.querySelectorAll(".widget-cell")).forEach((el) => widgetElements.push(el as HTMLElement));
-        }
-      }
-    }
-
-    widgetElements.forEach((el, i) => {
-      const target = targets[i];
-      if (!target) return;
-
-      if (target.valueBinding) {
-        const valueInput = el.querySelector<HTMLInputElement>(".widget-input-control, .widget-checkbox-control");
-        const labelEl = el.querySelector<HTMLLabelElement>(".widget-label-control");
-        if (valueInput) valueInput.setAttribute("value", target.valueBinding);
-        if (labelEl) labelEl.textContent = target.valueBinding;
-      }
-
-      if (target.optionBindings?.length) {
-        const radioInputs = el.querySelectorAll<HTMLInputElement>('.widget-radio-item input[type="radio"]');
-        radioInputs.forEach((input, j) => {
-          if (target.optionBindings![j]) input.setAttribute("value", target.optionBindings![j]);
-        });
-      }
-    });
-  }
 }

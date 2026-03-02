@@ -1,4 +1,5 @@
 @if (widget(); as w) {
+  <div class="widget-radio-wrapper" [attr.data-error-condition]="w.errorCondition ?? null" [attr.data-error-message]="w.errorMessage ?? null">
   <input
     type="text"
     class="widget-radio-group-label"
@@ -9,39 +10,36 @@
     placeholder="Group label"
   />
   <div class="widget-radio-group">
-      @for (opt of (w.options ?? ['Option 1', 'Option 2']); track $index) {
-        <div class="widget-radio-item" (click)="onRadioOptionClick($index)" [attr.data-class-target]="'option-' + $index" [ngClass]="getElementClassObj('option-' + $index)">
-          <input
-            type="radio"
-            [attr.name]="'radio-' + w.id"
-            [value]="opt"
-            [ngModel]="getSelectedValue(w)"
-            (ngModelChange)="onRadioSelect(w, $event)"
-          />
-          <input
-            type="text"
-            class="widget-radio-option-input"
-            [attr.data-class-target]="'option-' + $index + '-input'"
-            [ngClass]="getElementClassObj('option-' + $index + '-input')"
-            [value]="opt"
-            (input)="onOptionChange(w.options ?? [], $index, $any($event.target).value)"
-          />
-          <button
-            type="button"
-            class="widget-radio-option-remove"
-            (click)="removeOption(w.options ?? [], $index); $event.stopPropagation()"
-            title="Remove option"
-          >
-            ×
-          </button>
-        </div>
-      }
-      <button
-        type="button"
-        class="widget-radio-option-add"
-        (click)="addOption(w.options ?? [])"
-      >
-        + Option
-      </button>
+    @for (opt of (w.options ?? ['Option 1', 'Option 2']); track $index) {
+      <div class="widget-radio-item" (click)="onRadioOptionClick($index)" [attr.data-class-target]="'option-' + $index" [ngClass]="getElementClassObj('option-' + $index)">
+        <input
+          type="radio"
+          [attr.name]="'radio-' + w.id"
+          [value]="opt"
+          [attr.data-form-control-name]="w.formControlName ?? null"
+          [attr.data-property-binding]="getPropertyBinding(w.optionBindings?.[$index]) ?? null"
+          [checked]="getSelectedValue(w) === opt"
+          (change)="onRadioSelect(w, opt)"
+        />
+        <input
+          type="text"
+          class="widget-radio-option-input"
+          [attr.data-class-target]="'option-' + $index + '-input'"
+          [ngClass]="getElementClassObj('option-' + $index + '-input')"
+          [value]="opt"
+          (input)="onOptionChange(w.options ?? [], $index, $any($event.target).value)"
+        />
+        <button type="button" class="widget-radio-option-remove" (click)="removeOption(w.options ?? [], $index); $event.stopPropagation()" title="Remove option">×</button>
+      </div>
+    }
+    <button type="button" class="widget-radio-option-add" (click)="addOption(w.options ?? [])">+ Option</button>
+  </div>
+    @if (w.errorMessage) {
+      <span
+        class="widget-error-message"
+        [attr.data-error-condition]="w.errorCondition ?? null"
+        [attr.data-error-message]="w.errorMessage"
+      >{{ w.errorMessage }}</span>
+    }
   </div>
 }

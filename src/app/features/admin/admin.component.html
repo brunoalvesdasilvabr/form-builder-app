@@ -27,6 +27,122 @@
             (ngModelChange)="pendingClass.set($event)"
             [placeholder]="'Class for the ' + getClassTargetLabel()"
           />
+          @if (cell.widget && ['input', 'checkbox', 'radio'].includes(cell.widget.type)) {
+            <div class="admin-right-panel-field">
+              <label class="admin-right-panel-label" for="form-control-name-input">Control name</label>
+              <input
+                id="form-control-name-input"
+                type="text"
+                class="admin-right-panel-input"
+                [ngModel]="pendingFormControlName()"
+                (ngModelChange)="pendingFormControlName.set($event)"
+                placeholder="e.g. inputName"
+              />
+              <p class="admin-right-panel-hint">Sets data-form-control-name on the control</p>
+            </div>
+            <div class="admin-right-panel-field">
+              <label class="admin-right-panel-label" for="error-message-input">Error message</label>
+              <input
+                id="error-message-input"
+                type="text"
+                class="admin-right-panel-input"
+                [ngModel]="pendingErrorMessage()"
+                (ngModelChange)="pendingErrorMessage.set($event)"
+                placeholder="e.g. This field is required"
+              />
+              <p class="admin-right-panel-hint">Shown when the visibility condition is true</p>
+            </div>
+            <div class="admin-right-panel-field">
+              <label class="admin-right-panel-label" for="error-condition-insert">Insert rule</label>
+              <select
+                id="error-condition-insert"
+                class="admin-right-panel-input admin-right-panel-select"
+                [ngModel]="insertSnippetChoice()"
+                (ngModelChange)="onInsertErrorSnippet($event)"
+                [ngModelOptions]="{standalone: true}"
+              >
+                <option value="">— Choose a rule to insert, then keep typing —</option>
+                @for (snippet of errorConditionSnippets; track snippet.label; let i = $index) {
+                  <option [value]="i">{{ snippet.label }}</option>
+                }
+              </select>
+              <label class="admin-right-panel-label" for="error-condition-input">Error visibility rule</label>
+              <input
+                id="error-condition-input"
+                type="text"
+                class="admin-right-panel-input"
+                [ngModel]="pendingErrorCondition()"
+                (ngModelChange)="pendingErrorCondition.set($event)"
+                [placeholder]="'e.g. ' + formGroupName() + '.email.invalid && ' + formGroupName() + '.email.touched'"
+              />
+              @if (cell.widget && cell.widget.type === 'input' && showValidatorValuesSection(cell)) {
+                <div class="admin-right-panel-validator-values">
+                  <p class="admin-right-panel-hint">Set the value for the chosen rule (data-minlength, data-maxlength, data-min, data-max):</p>
+                  @if (showMinLengthInput(cell)) {
+                    <div class="admin-right-panel-validator-row">
+                      <label class="admin-right-panel-label" for="minlength-input">Min length</label>
+                      <input
+                        id="minlength-input"
+                        type="number"
+                        min="0"
+                        class="admin-right-panel-input admin-right-panel-input-narrow"
+                        [ngModel]="pendingMinLength()"
+                        (ngModelChange)="pendingMinLength.set($event)"
+                        placeholder="—"
+                      />
+                    </div>
+                  }
+                  @if (showMaxLengthInput(cell)) {
+                    <div class="admin-right-panel-validator-row">
+                      <label class="admin-right-panel-label" for="maxlength-input">Max length</label>
+                      <input
+                        id="maxlength-input"
+                        type="number"
+                        min="0"
+                        class="admin-right-panel-input admin-right-panel-input-narrow"
+                        [ngModel]="pendingMaxLength()"
+                        (ngModelChange)="pendingMaxLength.set($event)"
+                        placeholder="—"
+                      />
+                    </div>
+                  }
+                  @if (showMinInput(cell)) {
+                    <div class="admin-right-panel-validator-row">
+                      <label class="admin-right-panel-label" for="min-input">Min (number)</label>
+                      <input
+                        id="min-input"
+                        type="number"
+                        class="admin-right-panel-input admin-right-panel-input-narrow"
+                        [ngModel]="pendingMin()"
+                        (ngModelChange)="pendingMin.set($event)"
+                        placeholder="—"
+                      />
+                    </div>
+                  }
+                  @if (showMaxInput(cell)) {
+                    <div class="admin-right-panel-validator-row">
+                      <label class="admin-right-panel-label" for="max-input">Max (number)</label>
+                      <input
+                        id="max-input"
+                        type="number"
+                        class="admin-right-panel-input admin-right-panel-input-narrow"
+                        [ngModel]="pendingMax()"
+                        (ngModelChange)="pendingMax.set($event)"
+                        placeholder="—"
+                      />
+                    </div>
+                  }
+                </div>
+              }
+              <p class="admin-right-panel-hint">Pick a rule from the dropdown to insert it, then keep typing to build the full expression. The entire string above is bound to data-error-condition on Apply. Combine with &amp;&amp;, ||, ().</p>
+              @if (pendingErrorCondition()) {
+                <div class="admin-right-panel-ngif-preview">
+                  <span class="admin-right-panel-ngif-label">*ngIf rule:</span>
+                  <code class="admin-right-panel-ngif-code">*ngIf="{{ pendingErrorCondition() }}"</code>
+                </div>
+              }
+            </div>
+          }
           @if (cell.widget && cell.widget.type !== 'table') {
             <div class="admin-right-panel-field">
               <label class="admin-right-panel-label" for="value-binding-select">Property binding</label>

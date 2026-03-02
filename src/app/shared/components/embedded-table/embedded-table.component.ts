@@ -21,6 +21,7 @@ import * as gridMerge from '../../utils/grid-merge.util';
 import { generateId } from '../../utils/id.util';
 import { computeMergeRange, canMergeFromRange, updateSelectionForCtrlClick } from '../../utils/grid-selection.util';
 import { CanvasService } from '../../../core/services/canvas.service';
+import { LayoutGuardService } from '../../../core/services/layout-guard.service';
 
 const NESTED_MOVE_DATA_TYPE = 'application/x-nested-move';
 
@@ -40,6 +41,7 @@ export class EmbeddedTableComponent {
   nestedTableChange = output<NestedTableState>();
 
   private readonly canvas = inject(CanvasService);
+  private readonly layoutGuard = inject(LayoutGuardService);
 
   private readonly state = signal<NestedTableState | null>(null);
 
@@ -248,7 +250,7 @@ export class EmbeddedTableComponent {
     return this.selectionCells().includes(`${rowIndex},${colIndex}`);
   }
 
-  // same as canvas: ctrl+click to build selection, right-click merged to unmerge. Stop propagation so inner table owns selection (parent table/canvas doesn't receive click).
+  // same as canvas: ctrl+click to add/remove from selection (no unmerge). Stop propagation so inner table owns selection.
   onCellClick(e: MouseEvent, rowIndex: number, colIndex: number, cell: NestedTableCell): void {
     e.stopPropagation();
     if (e.ctrlKey) {
@@ -257,28 +259,37 @@ export class EmbeddedTableComponent {
       this.clearMergeSelection();
       const parentCellId = this.parentCellId();
       const parentWidgetId = this.parentWidgetId();
-      if (parentCellId && parentWidgetId && cell.widget && cell.widget.type !== 'table') {
-        const el = e.target as Element;
-        const elementTarget = el?.closest?.('[data-class-target]')?.getAttribute?.('data-class-target');
-        if (elementTarget) {
-          this.canvas.setSelectedNestedCell(parentCellId, parentWidgetId, cell.id, 'element', elementTarget);
-        } else if (
-          el?.closest?.('app-widget-input') ||
-          el?.closest?.('app-widget-checkbox') ||
-          el?.closest?.('app-widget-radio') ||
-          el?.closest?.('app-widget-label')
-        ) {
-          this.canvas.setSelectedNestedCell(parentCellId, parentWidgetId, cell.id, 'widget-inner');
-        } else if (el?.closest?.('app-widget-cell-renderer')) {
-          this.canvas.setSelectedNestedCell(parentCellId, parentWidgetId, cell.id, 'widget');
-        } else {
+      const hasFormControl = cell.widget && ['input', 'checkbox', 'radio'].includes(cell.widget.type);
+      const doSelect = () => {
+        if (parentCellId && parentWidgetId && cell.widget && cell.widget.type !== 'table') {
+          const el = e.target as Element;
+          const elementTarget = el?.closest?.('[data-class-target]')?.getAttribute?.('data-class-target');
+          if (elementTarget) {
+            this.canvas.setSelectedNestedCell(parentCellId, parentWidgetId, cell.id, 'element', elementTarget);
+          } else if (
+            el?.closest?.('app-widget-input') ||
+            el?.closest?.('app-widget-checkbox') ||
+            el?.closest?.('app-widget-radio') ||
+            el?.closest?.('app-widget-label')
+          ) {
+            this.canvas.setSelectedNestedCell(parentCellId, parentWidgetId, cell.id, 'widget-inner');
+          } else if (el?.closest?.('app-widget-cell-renderer')) {
+            this.canvas.setSelectedNestedCell(parentCellId, parentWidgetId, cell.id, 'widget');
+          } else {
+            this.canvas.setSelectedNestedCell(parentCellId, parentWidgetId, cell.id, 'cell');
+          }
+        } else if (parentCellId && parentWidgetId && cell.widget) {
+          // table widget: don't open panel (same as canvas)
+        } else if (parentCellId && parentWidgetId) {
           this.canvas.setSelectedNestedCell(parentCellId, parentWidgetId, cell.id, 'cell');
         }
-      } else if (parentCellId && parentWidgetId && cell.widget) {
-        // table widget: don't open panel (same as canvas)
-      } else if (parentCellId && parentWidgetId) {
-        // empty cell
-        this.canvas.setSelectedNestedCell(parentCellId, parentWidgetId, cell.id, 'cell');
+      };
+      if (hasFormControl && !this.layoutGuard.hasLayoutNamed()) {
+        this.layoutGuard.ensureLayoutNamed().then((ok) => {
+          if (ok) doSelect();
+        });
+      } else {
+        doSelect();
       }
     }
   }
@@ -321,13 +332,6 @@ export class EmbeddedTableComponent {
   isMergedCell(rowIndex: number, colIndex: number): boolean {
     const span = this.getSpan(rowIndex, colIndex);
     return span.colSpan > 1 || span.rowSpan > 1;
-  }
-
-  onCellContextMenu(e: MouseEvent, rowIndex: number, colIndex: number): void {
-    e.stopPropagation();
-    if (!this.isMergedCell(rowIndex, colIndex)) return;
-    e.preventDefault();
-    this.unmergeAt(rowIndex, colIndex);
   }
 
   shouldSkipCell(rowIndex: number, colIndex: number): boolean {

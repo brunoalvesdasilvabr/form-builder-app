@@ -1,19 +1,19 @@
-import { Component, input, output, inject, HostBinding } from '@angular/core';
+import { Component, input, output, signal, HostBinding } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
-import { BindingContextService } from '../../../core/services/binding-context.service';
 import type { WidgetInstance } from '../../models/canvas.model';
 import { getElementClassObj } from '../../utils/element-class.util';
+import { parseBindingProperty } from '../../utils/binding.util';
 
 @Component({
   selector: 'app-widget-radio',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule],
   templateUrl: './widget-radio.component.html',
   styleUrl: './widget-radio.component.scss',
 })
 export class WidgetRadioComponent {
-  protected readonly bindingContext = inject(BindingContextService);
+  /** Per-widget selected value (widgetId -> selected option value) for local UX only. */
+  private readonly selectedByWidget = signal<Record<string, string>>({});
 
   widget = input.required<WidgetInstance>();
   labelChange = output<string>();
@@ -26,6 +26,11 @@ export class WidgetRadioComponent {
 
   getElementClassObj(key: string): Record<string, boolean> {
     return getElementClassObj(this.widget(), key);
+  }
+
+  getPropertyBinding(binding: string | undefined): string | null {
+    const prop = parseBindingProperty(binding);
+    return prop || null;
   }
 
   onLabelInput(value: string): void {
@@ -52,31 +57,12 @@ export class WidgetRadioComponent {
     this.optionSelect.emit(optionIndex);
   }
 
-  /** Single selected value for the group (ensures mutual exclusivity). */
+  /** Selected value for this radio group (local UX only). */
   getSelectedValue(w: WidgetInstance): string {
-    if (w.valueBinding) return this.bindingContext.getValue(w.valueBinding, w.id);
-    const ob = w.optionBindings;
-    const opts = w.options ?? ['Option 1', 'Option 2'];
-    if (ob?.length) {
-      for (let i = 0; i < opts.length; i++) {
-        const v = this.bindingContext.getValue(ob[i], w.id);
-        if (v === opts[i]) return opts[i];
-      }
-    }
-    return '';
+    return this.selectedByWidget()[w.id] ?? '';
   }
 
   onRadioSelect(w: WidgetInstance, value: string): void {
-    if (w.valueBinding) {
-      this.bindingContext.setValue(w.valueBinding, value, w.id);
-      return;
-    }
-    const ob = w.optionBindings;
-    const opts = w.options ?? ['Option 1', 'Option 2'];
-    if (ob?.length) {
-      opts.forEach((opt, i) =>
-        this.bindingContext.setValue(ob[i], opt === value ? value : '', w.id)
-      );
-    }
+    this.selectedByWidget.update((prev) => ({ ...prev, [w.id]: value }));
   }
 }

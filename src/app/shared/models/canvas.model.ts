@@ -66,6 +66,20 @@ export interface WidgetInstance {
   innerClassName?: string;
   /** Classes for specific child elements; key = data-class-target value (e.g. 'label', 'control', 'option-0') */
   elementClasses?: Record<string, string>;
+  /** FormControlName for reactive forms (input, checkbox, radio) */
+  formControlName?: string;
+  /** Error message text shown when the visibility condition is true */
+  errorMessage?: string;
+  /** Reactive-form-style expression (e.g. f.email.invalid && f.email.touched) controlling when the error is shown. Output as data-error-condition. */
+  errorCondition?: string;
+  /** Min character length (Validators.minlength). Output as data-minlength. */
+  minLength?: number;
+  /** Max character length (Validators.maxlength). Output as data-maxlength. */
+  maxLength?: number;
+  /** Min numeric value (Validators.min). Output as data-min. */
+  min?: number;
+  /** Max numeric value (Validators.max). Output as data-max. */
+  max?: number;
 }
 
 export interface CanvasCell {

@@ -108,6 +108,35 @@
   margin-top: 1rem;
 }
 
+.admin-right-panel-validator-values .admin-right-panel-hint {
+  margin-bottom: 0.5rem;
+}
+
+.admin-right-panel-validator-values .admin-right-panel-hint {
+  margin-bottom: 0.5rem;
+}
+
+.admin-right-panel-validator-under-dropdown {
+  margin-top: 0.6rem;
+}
+
+.admin-right-panel-validator-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.4rem;
+}
+
+.admin-right-panel-validator-row .admin-right-panel-label {
+  margin-bottom: 0;
+  min-width: 6rem;
+}
+
+.admin-right-panel-input-narrow {
+  width: 5rem;
+  flex-shrink: 0;
+}
+
 .admin-right-panel-hint {
   margin: 0.4rem 0 0 0;
   font-size: 0.75rem;
@@ -117,6 +146,51 @@
 .admin-right-panel-select {
   cursor: pointer;
   appearance: auto;
+}
+
+.admin-right-panel-snippets {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.admin-right-panel-snippets-label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.admin-right-panel-snippets-select {
+  flex: 1;
+  padding: 0.4rem 0.6rem;
+  font-size: 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg, #fff);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.admin-right-panel-ngif-preview {
+  margin-top: 0.6rem;
+  padding: 0.5rem 0.65rem;
+  background: var(--bg-main);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 0.8rem;
+}
+
+.admin-right-panel-ngif-label {
+  display: block;
+  color: var(--text-muted);
+  margin-bottom: 0.25rem;
+}
+
+.admin-right-panel-ngif-code {
+  display: block;
+  font-family: var(--font-mono);
+  word-break: break-all;
+  color: var(--accent);
 }
 
 .admin-right-panel-apply {

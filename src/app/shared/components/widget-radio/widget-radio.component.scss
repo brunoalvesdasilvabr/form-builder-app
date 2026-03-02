@@ -19,6 +19,18 @@
   outline-offset: 2px;
 }
 
+.widget-radio-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  width: 100%;
+}
+
+.widget-radio-wrapper .widget-error-message {
+  font-size: 0.8rem;
+  color: var(--danger, #dc2626);
+}
+
 .widget-radio-group-label {
   font-size: 0.8rem;
   color: var(--text);

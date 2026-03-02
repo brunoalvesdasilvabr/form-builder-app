@@ -59,7 +59,8 @@
   }
 }
 
-.preview-modal-layout {
+/* Pierce encapsulation so styles apply to [innerHTML] content (no Angular host attributes). */
+:host ::ng-deep .preview-modal-layout {
   .canvas-wrapper {
     display: flex;
     flex-direction: column;
@@ -229,6 +230,22 @@
   label {
     font-family: inherit;
     font-size: inherit;
+  }
+
+  /* Widget structure (from injected HTML; component styles are encapsulated elsewhere). */
+  .widget-input-wrapper,
+  .widget-checkbox-wrapper,
+  .widget-radio-wrapper {
+    display: block;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .widget-error-message {
+    display: block;
+    margin-top: 0.25rem;
+    font-size: 0.8rem;
+    color: var(--error-color, #b91c1c);
   }
 }
 
