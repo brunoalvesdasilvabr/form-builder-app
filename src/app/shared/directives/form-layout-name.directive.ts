@@ -1,9 +1,6 @@
 import { Directive, effect, ElementRef, inject } from "@angular/core";
 import { SavedLayoutsService } from "../../core/services/saved-layouts.service";
-
-function slugify(s: string): string {
-  return s.toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_-]/g, "") || "form";
-}
+import { slugify } from '../utils/slugify.util';
 
 /**
  * Sets the form's data-form-group attribute to the selected layout name (slugified).

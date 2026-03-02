@@ -13,7 +13,6 @@ import { PreviewModalComponent } from "../../../../shared/components/preview-mod
 import { LayoutNameDialogComponent } from "../../../../shared/components/layout-name-dialog/layout-name-dialog.component";
 import type {
   CanvasCell,
-  CanvasState,
   WidgetType,
   NestedTableState,
   WidgetInstance,
@@ -229,16 +228,6 @@ export class CanvasComponent {
         this.savedLayouts.addLayout(name, state);
       }
       this.cdr.detectChanges();
-      const layoutId = result.layoutId ?? "new";
-      const layoutSaved = {
-        id: layoutId,
-        name,
-        state: JSON.parse(JSON.stringify(state)),
-        updatedAt: Date.now(),
-      };
-      console.log("[Save Layout] What gets saved to localStorage:", layoutSaved);
-      console.log("[Save Layout] Preview DOM (expand to inspect nesting, value=, class):", this.getPreviewClone());
-      console.log("[Save Layout] Bindings & classes summary:", this.getBindingsAndClassesSummary(state));
     });
   }
 
@@ -258,74 +247,6 @@ export class CanvasComponent {
   undo(): void {
     this.canvas.undo();
     this.clearSelection();
-  }
-
-  /** Summary of valueBinding and class bindings from state for debug. */
-  private getBindingsAndClassesSummary(state: CanvasState): Array<{
-    path: string;
-    type: string;
-    cellClass?: string;
-    valueBinding?: string;
-    optionBindings?: string[];
-    widgetClass?: string;
-    innerClass?: string;
-    elementClasses?: Record<string, string>;
-  }> {
-    const out: Array<{
-      path: string;
-      type: string;
-      cellClass?: string;
-      valueBinding?: string;
-      optionBindings?: string[];
-      widgetClass?: string;
-      innerClass?: string;
-      elementClasses?: Record<string, string>;
-    }> = [];
-    for (const row of state.rows) {
-      for (const cell of row.cells) {
-        if (!cell.widget) continue;
-        if (cell.widget.type === "table") {
-          const nested = cell.widget.nestedTable?.rows ?? [];
-          for (let r = 0; r < nested.length; r++) {
-            for (let c = 0; c < nested[r].cells.length; c++) {
-              const n = nested[r].cells[c];
-              if (!n.widget) continue;
-              out.push({
-                path: `row${row.id}/table/r${r}c${c}`,
-                type: n.widget.type,
-                valueBinding: n.widget.valueBinding,
-                optionBindings: n.widget.optionBindings?.length ? n.widget.optionBindings : undefined,
-                widgetClass: n.widget.className,
-                innerClass: n.widget.innerClassName,
-                elementClasses: n.widget.elementClasses,
-              });
-            }
-          }
-          continue;
-        }
-        out.push({
-          path: `row${row.id}/cell${cell.id}`,
-          type: cell.widget.type,
-          cellClass: cell.className,
-          valueBinding: cell.widget.valueBinding,
-          optionBindings: cell.widget.optionBindings?.length ? cell.widget.optionBindings : undefined,
-          widgetClass: cell.widget.className,
-          innerClass: cell.widget.innerClassName,
-          elementClasses: cell.widget.elementClasses,
-        });
-      }
-    }
-    return out;
-  }
-
-  /** Returns clone of canvas DOM with chrome stripped and bindings applied (for debug/inspect). Includes the form wrapper (with data-form-group). */
-  private getPreviewClone(): HTMLElement | null {
-    const container = document.body.querySelector("form.canvas-form") as HTMLElement | null;
-    if (!container) return null;
-    const clone = container.cloneNode(true) as HTMLElement;
-    copyFormValues(container, clone);
-    stripBuilderChrome(clone, { stripAngular: false });
-    return clone;
   }
 
   /** Returns HTML string for preview/export: full form element (form tag and all content, builder chrome already stripped). */

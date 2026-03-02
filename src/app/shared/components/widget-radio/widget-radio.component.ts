@@ -1,8 +1,7 @@
 import { Component, input, output, signal, HostBinding } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import type { WidgetInstance } from '../../models/canvas.model';
-import { getElementClassObj } from '../../utils/element-class.util';
-import { parseBindingProperty } from '../../utils/binding.util';
+import { BaseWidgetComponent } from '../base-widget.component';
 
 @Component({
   selector: 'app-widget-radio',
@@ -11,26 +10,17 @@ import { parseBindingProperty } from '../../utils/binding.util';
   templateUrl: './widget-radio.component.html',
   styleUrl: './widget-radio.component.scss',
 })
-export class WidgetRadioComponent {
+export class WidgetRadioComponent extends BaseWidgetComponent {
   /** Per-widget selected value (widgetId -> selected option value) for local UX only. */
   private readonly selectedByWidget = signal<Record<string, string>>({});
 
-  widget = input.required<WidgetInstance>();
+  override readonly widget = input.required<WidgetInstance>();
   labelChange = output<string>();
   optionsChange = output<string[]>();
   optionSelect = output<number>();
 
   @HostBinding('class') get hostClass(): string {
     return this.widget()?.innerClassName?.trim() ?? '';
-  }
-
-  getElementClassObj(key: string): Record<string, boolean> {
-    return getElementClassObj(this.widget(), key);
-  }
-
-  getPropertyBinding(binding: string | undefined): string | null {
-    const prop = parseBindingProperty(binding);
-    return prop || null;
   }
 
   onLabelInput(value: string): void {

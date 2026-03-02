@@ -50,7 +50,7 @@ export function copyFormValues(source: HTMLElement, clone: HTMLElement): void {
         input.checked = src.checked;
       }
       input.value = src.value;
-      input.setAttribute('value', src.value);
+      // Do not set value attribute: consumer binds via data-property-binding.
     }
   });
 }
@@ -76,6 +76,11 @@ export function stripBuilderChrome(clone: HTMLElement, options?: { stripAngular?
   clone.querySelectorAll('[draggable="true"]').forEach((el) => {
     (el as HTMLElement).setAttribute('draggable', 'false');
   });
+
+  // Remove value attribute from text-like inputs; consumer binds via data-property-binding.
+  clone.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>(
+    'input[type="text"], input[type="email"], input[type="number"], input:not([type]), textarea'
+  ).forEach((el) => el.removeAttribute('value'));
 
   // Remove Angular attributes only when requested (e.g. for export). When false, keep them so
   // component styles (which use [_ngcontent-*] selectors) still match in-preview.

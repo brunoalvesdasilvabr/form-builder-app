@@ -1,8 +1,7 @@
 import { Component, input, output, HostBinding, viewChild, effect, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import type { WidgetInstance } from '../../models/canvas.model';
-import { getElementClassObj } from '../../utils/element-class.util';
-import { parseBindingProperty } from '../../utils/binding.util';
+import { BaseWidgetComponent } from '../base-widget.component';
 
 @Component({
   selector: 'app-widget-label',
@@ -11,23 +10,14 @@ import { parseBindingProperty } from '../../utils/binding.util';
   templateUrl: './widget-label.component.html',
   styleUrl: './widget-label.component.scss',
 })
-export class WidgetLabelComponent {
-  widget = input.required<WidgetInstance>();
+export class WidgetLabelComponent extends BaseWidgetComponent {
+  override readonly widget = input.required<WidgetInstance>();
   labelChange = output<string>();
 
   private readonly editableRef = viewChild<ElementRef<HTMLLabelElement>>('editableRef');
 
   @HostBinding('class') get hostClass(): string {
     return this.widget()?.innerClassName?.trim() ?? '';
-  }
-
-  getElementClassObj(key: string): Record<string, boolean> {
-    return getElementClassObj(this.widget(), key);
-  }
-
-  getPropertyBinding(binding: string | undefined): string | null {
-    const prop = parseBindingProperty(binding);
-    return prop || null;
   }
 
   constructor() {

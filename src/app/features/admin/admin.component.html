@@ -36,7 +36,7 @@
                 class="admin-right-panel-input"
                 [ngModel]="pendingFormControlName()"
                 (ngModelChange)="pendingFormControlName.set($event)"
-                placeholder="e.g. inputName"
+                placeholder="Example: inputName"
               />
               <p class="admin-right-panel-hint">Sets data-form-control-name on the control</p>
             </div>
@@ -48,7 +48,7 @@
                 class="admin-right-panel-input"
                 [ngModel]="pendingErrorMessage()"
                 (ngModelChange)="pendingErrorMessage.set($event)"
-                placeholder="e.g. This field is required"
+                placeholder="Example: This field is required"
               />
               <p class="admin-right-panel-hint">Shown when the visibility condition is true</p>
             </div>
@@ -74,7 +74,7 @@
                   class="admin-right-panel-input"
                   [ngModel]="pendingErrorCondition()"
                   (ngModelChange)="pendingErrorCondition.set($event)"
-                  [placeholder]="'e.g. ' + formGroupName() + '.email.invalid && ' + formGroupName() + '.email.touched'"
+                  [placeholder]="'Example: ' + formGroupName() + '.email.invalid && ' + formGroupName() + '.email.touched'"
                 />
                 <button
                   type="button"
@@ -150,7 +150,7 @@
                         class="admin-right-panel-input"
                         [ngModel]="pendingPattern()"
                         (ngModelChange)="pendingPattern.set($event)"
-                        placeholder="e.g. ^[a-zA-Z]+$ or ^\\d{5}$"
+                        placeholder="Example: ^[a-zA-Z]+$ or ^\\d{5}$"
                       />
                     </div>
                   }

@@ -11,10 +11,7 @@ import {
   ERROR_CONDITION_SNIPPETS,
   type ErrorConditionSnippet,
 } from '../../shared/constants/error-condition.constants';
-
-function slugify(s: string): string {
-  return s.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_-]/g, '') || 'form';
-}
+import { slugify } from '../../shared/utils/slugify.util';
 
 @Component({
   selector: 'app-admin',
@@ -75,6 +72,7 @@ export class AdminComponent {
       const cell = this.selectedCell();
       const target = this.selectedTarget();
       const elementKey = this.selectedElementKey();
+      this.insertSnippetChoice.set('');
       if (cell) {
         if (target === 'element' && elementKey) {
           this.initialClass = cell.widget?.elementClasses?.[elementKey] ?? '';
@@ -111,12 +109,12 @@ export class AdminComponent {
         this.pendingMin.set(this.initialMin);
         this.pendingMax.set(this.initialMax);
         this.pendingPattern.set(this.initialPattern);
-        this.insertSnippetChoice.set('');
       }
     });
   }
 
   closePanel(): void {
+    this.insertSnippetChoice.set('');
     this.canvas.setSelectedCell(null);
   }
 
