@@ -1,7 +1,7 @@
 import type { InputSignal } from '@angular/core';
-import type { WidgetInstance } from '../../models/canvas.model';
-import { getElementClassObj as getElementClassObjUtil } from '../../utils/element-class.util';
-import { parseBindingProperty } from '../../utils/binding.util';
+import type { WidgetInstance } from '../models/canvas.model';
+import { getElementClassObj as getElementClassObjUtil } from '../utils/element-class.util';
+import { parseBindingProperty } from '../utils/binding.util';
 
 /** Base class for widget components sharing getElementClassObj and getPropertyBinding. */
 export abstract class BaseWidgetComponent {

@@ -21,6 +21,7 @@ export class WidgetLabelComponent extends BaseWidgetComponent {
   }
 
   constructor() {
+    super();
     effect(() => {
       const w = this.widget();
       const el = this.editableRef()?.nativeElement;
