@@ -104,6 +104,39 @@
   border-color: var(--primary, #2563eb);
 }
 
+.admin-right-panel-error-rule-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+
+  .admin-right-panel-input {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+.admin-right-panel-clear-rule {
+  flex-shrink: 0;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  background: var(--bg-main);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+
+  &:hover:not(:disabled) {
+    color: var(--text);
+    background: var(--bg-cell-hover);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
 .admin-right-panel-field {
   margin-top: 1rem;
 }

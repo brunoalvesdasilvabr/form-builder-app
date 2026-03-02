@@ -479,6 +479,19 @@ export class CanvasService {
     this.updateWidgetValidatorValue(cellId, widgetId, 'max', value);
   }
 
+  updateWidgetPattern(cellId: string, widgetId: string, value: string | undefined): void {
+    this.pushHistory();
+    const val = (value?.trim() || undefined) as string | undefined;
+    const rows = this.state().rows.map((row) => ({
+      ...row,
+      cells: row.cells.map((c) => {
+        if (c.id !== cellId || !c.widget || c.widget.id !== widgetId) return c;
+        return { ...c, widget: { ...c.widget, pattern: val } };
+      }),
+    }));
+    this.state.set({ rows });
+  }
+
   private updateNestedWidgetValidatorValue(
     parentCellId: string,
     parentWidgetId: string,
@@ -547,6 +560,36 @@ export class CanvasService {
     value: number | undefined
   ): void {
     this.updateNestedWidgetValidatorValue(parentCellId, parentWidgetId, nestedCellId, nestedWidgetId, 'max', value);
+  }
+
+  updateNestedWidgetPattern(
+    parentCellId: string,
+    parentWidgetId: string,
+    nestedCellId: string,
+    nestedWidgetId: string,
+    value: string | undefined
+  ): void {
+    this.pushHistory();
+    const val = value?.trim() || undefined;
+    this.state.update((s) => {
+      const rows = s.rows.map((row) => ({
+        ...row,
+        cells: row.cells.map((c) => {
+          if (c.id !== parentCellId || !c.widget || c.widget.id !== parentWidgetId || c.widget.type !== 'table') return c;
+          const nested = c.widget.nestedTable;
+          if (!nested?.rows) return c;
+          const nestedRows = nested.rows.map((r) => ({
+            ...r,
+            cells: r.cells.map((nc) => {
+              if (nc.id !== nestedCellId || !nc.widget || nc.widget.id !== nestedWidgetId) return nc;
+              return { ...nc, widget: { ...nc.widget, pattern: val } };
+            }),
+          }));
+          return { ...c, widget: { ...c.widget, nestedTable: { rows: nestedRows } } };
+        }),
+      }));
+      return { rows };
+    });
   }
 
   createRow(rowIndex: number, colCount: number): CanvasRow {

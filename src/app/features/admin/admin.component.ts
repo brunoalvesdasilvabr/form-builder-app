@@ -44,6 +44,7 @@ export class AdminComponent {
   readonly pendingMaxLength = signal('');
   readonly pendingMin = signal('');
   readonly pendingMax = signal('');
+  readonly pendingPattern = signal('');
   /** Selected index for "Insert rule" dropdown (reset after insert so user can continue typing). */
   readonly insertSnippetChoice = signal<string>('');
   /** Snapshot when panel opened / last apply (to detect what changed). */
@@ -56,6 +57,7 @@ export class AdminComponent {
   private initialMaxLength = '';
   private initialMin = '';
   private initialMax = '';
+  private initialPattern = '';
 
   readonly errorConditionSnippets = ERROR_CONDITION_SNIPPETS;
 
@@ -98,6 +100,7 @@ export class AdminComponent {
         this.initialMaxLength = w?.type === 'input' && w.maxLength != null ? String(w.maxLength) : '';
         this.initialMin = w?.type === 'input' && w.min != null ? String(w.min) : '';
         this.initialMax = w?.type === 'input' && w.max != null ? String(w.max) : '';
+        this.initialPattern = w?.type === 'input' && w.pattern != null ? String(w.pattern) : '';
         this.pendingClass.set(this.initialClass);
         this.pendingProperty.set(this.initialProperty);
         this.pendingFormControlName.set(this.initialFormControlName);
@@ -107,6 +110,7 @@ export class AdminComponent {
         this.pendingMaxLength.set(this.initialMaxLength);
         this.pendingMin.set(this.initialMin);
         this.pendingMax.set(this.initialMax);
+        this.pendingPattern.set(this.initialPattern);
         this.insertSnippetChoice.set('');
       }
     });
@@ -131,6 +135,7 @@ export class AdminComponent {
     const maxLengthChanged = this.pendingMaxLength() !== this.initialMaxLength;
     const minChanged = this.pendingMin() !== this.initialMin;
     const maxChanged = this.pendingMax() !== this.initialMax;
+    const patternChanged = this.pendingPattern() !== this.initialPattern;
     const nested = this.selectedNestedPath();
 
     if (classChanged) {
@@ -178,13 +183,14 @@ export class AdminComponent {
       this.initialErrorMessage = this.pendingErrorMessage();
       this.initialErrorCondition = this.pendingErrorCondition();
     }
-    if ((minLengthChanged || maxLengthChanged || minChanged || maxChanged) && cell.widget && cell.widget.type === 'input') {
+    if ((minLengthChanged || maxLengthChanged || minChanged || maxChanged || patternChanged) && cell.widget && cell.widget.type === 'input') {
       this.applyValidatorValues(cell);
-      messages.push('Validation min/max values were applied.');
+      messages.push('Validation min/max/pattern values were applied.');
       this.initialMinLength = this.pendingMinLength();
       this.initialMaxLength = this.pendingMaxLength();
       this.initialMin = this.pendingMin();
       this.initialMax = this.pendingMax();
+      this.initialPattern = this.pendingPattern();
     }
 
     if (messages.length) {
@@ -203,17 +209,26 @@ export class AdminComponent {
     return expr;
   }
 
-  /** Insert chosen snippet into the error rule input; user can then continue typing. Final string is bound to data-error-condition on Apply. */
+  /** Insert chosen snippet into the error rule input if not already present; user can then continue typing. Final string is bound to data-error-condition on Apply. */
   onInsertErrorSnippet(indexStr: string): void {
     if (indexStr === '' || indexStr == null) return;
     const i = Number(indexStr);
     const snippet = this.errorConditionSnippets[i] as ErrorConditionSnippet | undefined;
     if (!snippet) return;
-    const inserted = this.getSnippetPreview(snippet);
+    const inserted = this.getSnippetPreview(snippet).trim();
     const current = (this.pendingErrorCondition() || '').trim();
+    if (current.includes(inserted)) {
+      this.insertSnippetChoice.set('');
+      return;
+    }
     const next = current ? `${current} && ${inserted}` : inserted;
     this.pendingErrorCondition.set(next);
     this.insertSnippetChoice.set('');
+  }
+
+  /** Clear the error visibility rule (entire string). */
+  clearErrorRule(): void {
+    this.pendingErrorCondition.set('');
   }
 
   private parseOptionalNumber(s: string | number): number | undefined {
@@ -230,17 +245,20 @@ export class AdminComponent {
     const maxLength = this.parseOptionalNumber(this.pendingMaxLength());
     const min = this.parseOptionalNumber(this.pendingMin());
     const max = this.parseOptionalNumber(this.pendingMax());
+    const pattern = (this.pendingPattern().trim() || undefined) as string | undefined;
     if (nested) {
       const { parentCellId, parentWidgetId, nestedCellId } = nested;
       this.canvas.updateNestedWidgetMinLength(parentCellId, parentWidgetId, nestedCellId, w.id, minLength);
       this.canvas.updateNestedWidgetMaxLength(parentCellId, parentWidgetId, nestedCellId, w.id, maxLength);
       this.canvas.updateNestedWidgetMin(parentCellId, parentWidgetId, nestedCellId, w.id, min);
       this.canvas.updateNestedWidgetMax(parentCellId, parentWidgetId, nestedCellId, w.id, max);
+      this.canvas.updateNestedWidgetPattern(parentCellId, parentWidgetId, nestedCellId, w.id, pattern);
     } else {
       this.canvas.updateWidgetMinLength(cell.id, w.id, minLength);
       this.canvas.updateWidgetMaxLength(cell.id, w.id, maxLength);
       this.canvas.updateWidgetMin(cell.id, w.id, min);
       this.canvas.updateWidgetMax(cell.id, w.id, max);
+      this.canvas.updateWidgetPattern(cell.id, w.id, pattern);
     }
   }
 
@@ -338,14 +356,15 @@ export class AdminComponent {
     return (this.pendingErrorCondition() || cell.widget.errorCondition || '').trim();
   }
 
-  /** True if the condition references any validator that needs a value (minlength, maxlength, min, max). */
+  /** True if the condition references any validator that needs a value (minlength, maxlength, min, max, pattern). */
   showValidatorValuesSection(cell: CanvasCell | null): boolean {
     const cond = this.getEffectiveErrorCondition(cell);
     return (
       cond.includes('minlength') ||
       cond.includes('maxlength') ||
       /\[\s*['"]min['"]\s*\]/.test(cond) ||
-      /\[\s*['"]max['"]\s*\]/.test(cond)
+      /\[\s*['"]max['"]\s*\]/.test(cond) ||
+      cond.includes('pattern')
     );
   }
 
@@ -363,6 +382,10 @@ export class AdminComponent {
 
   showMaxInput(cell: CanvasCell | null): boolean {
     return /\[\s*['"]max['"]\s*\]/.test(this.getEffectiveErrorCondition(cell));
+  }
+
+  showPatternInput(cell: CanvasCell | null): boolean {
+    return this.getEffectiveErrorCondition(cell).includes('pattern');
   }
 
   /** Get the current binding as a property name (e.g. "listValue1") for the dropdown. */

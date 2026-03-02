@@ -67,17 +67,26 @@
                 }
               </select>
               <label class="admin-right-panel-label" for="error-condition-input">Error visibility rule</label>
-              <input
-                id="error-condition-input"
-                type="text"
-                class="admin-right-panel-input"
-                [ngModel]="pendingErrorCondition()"
-                (ngModelChange)="pendingErrorCondition.set($event)"
-                [placeholder]="'e.g. ' + formGroupName() + '.email.invalid && ' + formGroupName() + '.email.touched'"
-              />
+              <div class="admin-right-panel-error-rule-row">
+                <input
+                  id="error-condition-input"
+                  type="text"
+                  class="admin-right-panel-input"
+                  [ngModel]="pendingErrorCondition()"
+                  (ngModelChange)="pendingErrorCondition.set($event)"
+                  [placeholder]="'e.g. ' + formGroupName() + '.email.invalid && ' + formGroupName() + '.email.touched'"
+                />
+                <button
+                  type="button"
+                  class="admin-right-panel-clear-rule"
+                  (click)="clearErrorRule()"
+                  [disabled]="!pendingErrorCondition()"
+                  title="Clear error rule"
+                >Clear rule</button>
+              </div>
               @if (cell.widget && cell.widget.type === 'input' && showValidatorValuesSection(cell)) {
                 <div class="admin-right-panel-validator-values">
-                  <p class="admin-right-panel-hint">Set the value for the chosen rule (data-minlength, data-maxlength, data-min, data-max):</p>
+                  <p class="admin-right-panel-hint">Set the value for the chosen rule (data-minlength, data-maxlength, data-min, data-max, data-pattern):</p>
                   @if (showMinLengthInput(cell)) {
                     <div class="admin-right-panel-validator-row">
                       <label class="admin-right-panel-label" for="minlength-input">Min length</label>
@@ -129,6 +138,19 @@
                         [ngModel]="pendingMax()"
                         (ngModelChange)="pendingMax.set($event)"
                         placeholder="—"
+                      />
+                    </div>
+                  }
+                  @if (showPatternInput(cell)) {
+                    <div class="admin-right-panel-validator-row">
+                      <label class="admin-right-panel-label" for="pattern-input">Pattern (regex)</label>
+                      <input
+                        id="pattern-input"
+                        type="text"
+                        class="admin-right-panel-input"
+                        [ngModel]="pendingPattern()"
+                        (ngModelChange)="pendingPattern.set($event)"
+                        placeholder="e.g. ^[a-zA-Z]+$ or ^\\d{5}$"
                       />
                     </div>
                   }

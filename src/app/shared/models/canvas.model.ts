@@ -80,6 +80,8 @@ export interface WidgetInstance {
   min?: number;
   /** Max numeric value (Validators.max). Output as data-max. */
   max?: number;
+  /** Regex pattern (Validators.pattern). Output as data-pattern. */
+  pattern?: string;
 }
 
 export interface CanvasCell {
