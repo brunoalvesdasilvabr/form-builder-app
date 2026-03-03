@@ -28,9 +28,9 @@
 }
 
 .embedded-table {
-  width: auto;
+  width: 100%;
   min-width: 100%;
-  table-layout: auto;
+  table-layout: fixed;
   border-collapse: collapse;
   font-size: 0.85rem;
   box-sizing: border-box;
@@ -42,6 +42,7 @@
 
 .embedded-cell {
   min-width: 48px;
+  width: 1%;
   min-height: 44px;
   max-height: 44px;
   padding: 0.35rem;
@@ -49,10 +50,14 @@
   border: 1px solid var(--border);
   background: var(--bg-main);
   overflow: hidden;
+  box-sizing: border-box;
 
   > * {
+    display: block;
+    width: 100%;
     min-width: 0;
     overflow: visible;
+    box-sizing: border-box;
   }
 
   /* Label: one line, no ellipsis – column can grow when typing */

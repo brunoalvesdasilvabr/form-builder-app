@@ -69,19 +69,34 @@ export function mergeCells<T extends MergeableRow>(
 ): T[] {
   const rowSpan = endRow - originRow + 1;
   const colSpan = endCol - originCol + 1;
+  // Keep widget from the top-left origin cell; if it's empty, use widget from first non-empty cell in range
+  const originCell = rows[originRow]?.cells[originCol] as { widget?: unknown } | undefined;
+  let widgetToKeep = originCell?.widget;
+  if (widgetToKeep == null) {
+    for (let r = originRow; r <= endRow && widgetToKeep == null; r++) {
+      for (let c = originCol; c <= endCol && widgetToKeep == null; c++) {
+        const c2 = rows[r]?.cells[c] as { widget?: unknown } | undefined;
+        if (c2?.widget != null) widgetToKeep = c2.widget;
+      }
+    }
+  }
   return rows.map((row, ri) => ({
     ...row,
     cells: row.cells.map((cell, ci) => {
       const inRange = ri >= originRow && ri <= endRow && ci >= originCol && ci <= endCol;
       if (!inRange) return cell;
       const isOrigin = ri === originRow && ci === originCol;
-      return {
+      const cellWithWidget = {
         ...cell,
         colSpan: isOrigin ? colSpan : 1,
         rowSpan: isOrigin ? rowSpan : 1,
         isMergedOrigin: isOrigin,
         ...(!isOrigin && 'widget' in cell ? { widget: null } : {}),
       };
+      if (isOrigin && 'widget' in cellWithWidget && widgetToKeep != null) {
+        return { ...cellWithWidget, widget: widgetToKeep };
+      }
+      return cellWithWidget;
     }),
   })) as T[];
 }
