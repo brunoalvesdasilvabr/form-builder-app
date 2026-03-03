@@ -7,6 +7,7 @@
     [ngClass]="getElementClassObj('control')"
     contenteditable="true"
     data-placeholder="Label text"
+    (input)="onLabelInput($event)"
     (blur)="onLabelBlur($event)"
   ></label>
 }

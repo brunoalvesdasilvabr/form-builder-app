@@ -6,6 +6,7 @@ import {
   computed,
   effect,
   inject,
+  ElementRef,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { WidgetCellRendererComponent } from '../widget-cell-renderer/widget-cell-renderer.component';
@@ -42,6 +43,8 @@ export class EmbeddedTableComponent {
 
   private readonly canvas = inject(CanvasService);
   private readonly layoutGuard = inject(LayoutGuardService);
+  private readonly hostRef = inject(ElementRef<HTMLElement>);
+  private labelOverflowCheckTimeout: ReturnType<typeof setTimeout> | null = null;
 
   private readonly state = signal<NestedTableState | null>(null);
 
@@ -55,6 +58,11 @@ export class EmbeddedTableComponent {
     if (nested?.rows?.length) return nested.rows;
     return this.initialDefault.rows;
   });
+
+  /** Column indices for colgroup (ensures consistent column structure for merge alignment) */
+  readonly columnIndices = computed(() =>
+    Array.from({ length: this.rows()[0]?.cells.length ?? 0 }, (_, i) => i)
+  );
 
   constructor() {
     effect(() => {
@@ -370,6 +378,100 @@ export class EmbeddedTableComponent {
     }));
     this.state.set({ rows });
     this.emitState();
+    this.scheduleMergeUnmergeCheck(cellId);
+  }
+
+  /** Called when user types in an input – run same merge/unmerge check as for labels */
+  onCellInputValueChange(cellId: string): void {
+    this.scheduleMergeUnmergeCheck(cellId);
+  }
+
+  private scheduleMergeUnmergeCheck(cellId: string): void {
+    if (this.labelOverflowCheckTimeout != null) clearTimeout(this.labelOverflowCheckTimeout);
+    this.labelOverflowCheckTimeout = setTimeout(() => {
+      this.labelOverflowCheckTimeout = null;
+      this.tryAutoMergeOrUnmerge(cellId);
+    }, 120);
+  }
+
+  /** If label/input overflows → merge with next empty cell; if merged and now fits in one cell → unmerge */
+  private tryAutoMergeOrUnmerge(cellId: string): void {
+    const s = this.state();
+    if (!s?.rows.length) return;
+    const cell = this.findCellById(s.rows, cellId);
+    if (!cell || !cell.widget) return;
+    const isLabel = cell.widget.type === 'label';
+    const isInput = cell.widget.type === 'input';
+    if (!isLabel && !isInput) return;
+    const span = this.getSpan(cell.rowIndex, cell.colIndex);
+    const cellEl = this.hostRef.nativeElement.querySelector(
+      `[data-cell-id="${cellId}"]`
+    ) as HTMLElement | null;
+    const controlEl = cellEl?.querySelector(
+      isLabel ? '.widget-label-control' : '.widget-input-control'
+    ) as HTMLElement | null;
+    if (!cellEl || !controlEl) return;
+
+    const contentWidth = this.getControlContentWidth(controlEl, isInput);
+    if (contentWidth < 0) return;
+
+    if (span.colSpan > 1) {
+      // Merged: if content fits in one column width, unmerge (10% buffer for padding/rounding)
+      const oneColWidth = cellEl.clientWidth / span.colSpan;
+      if (contentWidth <= oneColWidth * 1.1) {
+        const unmergedRows = gridMerge.unmergeCell(
+          s.rows as gridMerge.MergeableRow[],
+          cell.rowIndex,
+          cell.colIndex
+        ) as unknown as NestedTableRow[];
+        this.state.set({ rows: unmergedRows });
+        this.nestedTableChange.emit({ rows: unmergedRows });
+      }
+      return;
+    }
+
+    // Single cell: if content overflows and next is empty, merge
+    const nextCol = cell.colIndex + 1;
+    if (nextCol >= s.rows[cell.rowIndex].cells.length) return;
+    const nextOrigin = gridMerge.getOriginCell(
+      s.rows as { cells: gridMerge.MergeableCell[] }[],
+      cell.rowIndex,
+      nextCol
+    );
+    if (!nextOrigin || nextOrigin.rowIndex !== cell.rowIndex || nextOrigin.colIndex !== nextCol) return;
+    const nextCell = nextOrigin as NestedTableCell;
+    if (nextCell.widget != null) return; // next cell has content
+    if (contentWidth <= cellEl.clientWidth) return;
+    const mergedRows = gridMerge.mergeCells(
+      s.rows as gridMerge.MergeableRow[],
+      cell.rowIndex,
+      cell.colIndex,
+      cell.rowIndex,
+      nextCol
+    ) as unknown as NestedTableRow[];
+    this.state.set({ rows: mergedRows });
+    this.nestedTableChange.emit({ rows: mergedRows });
+  }
+
+  /** Get actual text content width – use canvas for both label and input (element width can be wrong when merged) */
+  private getControlContentWidth(el: HTMLElement, isInput: boolean): number {
+    const text = isInput && 'value' in el
+      ? (el as HTMLInputElement).value ?? ''
+      : (el.textContent ?? '').trim();
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return 0;
+    const style = window.getComputedStyle(el);
+    ctx.font = `${style.fontStyle} ${style.fontVariant} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+    return ctx.measureText(text ?? '').width;
+  }
+
+  private findCellById(rows: NestedTableRow[], cellId: string): NestedTableCell | null {
+    for (const row of rows) {
+      const c = row.cells.find((x) => x.id === cellId);
+      if (c) return c;
+    }
+    return null;
   }
 
   onCellOptionSelect(cell: NestedTableCell, optionIndex: number): void {

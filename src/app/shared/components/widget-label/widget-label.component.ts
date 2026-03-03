@@ -30,6 +30,12 @@ export class WidgetLabelComponent extends BaseWidgetComponent {
     });
   }
 
+  onLabelInput(_e: Event): void {
+    const el = this.editableRef()?.nativeElement;
+    const value = el?.textContent?.trim() ?? '';
+    this.labelChange.emit(value);
+  }
+
   onLabelBlur(e: FocusEvent): void {
     const el = e.target as HTMLLabelElement;
     const value = el?.textContent?.trim() ?? '';

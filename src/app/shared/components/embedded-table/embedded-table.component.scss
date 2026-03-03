@@ -30,19 +30,18 @@
 .embedded-table {
   width: 100%;
   min-width: 100%;
-  table-layout: fixed;
+  table-layout: fixed; /* fixed + colgroup = consistent column alignment with colspan */
   border-collapse: collapse;
   font-size: 0.85rem;
   box-sizing: border-box;
 
   tbody tr {
-    height: 44px; /* fixed row height so rowspan cells get correct total height */
+    height: 44px;
   }
 }
 
 .embedded-cell {
   min-width: 48px;
-  width: 1%;
   min-height: 44px;
   max-height: 44px;
   padding: 0.35rem;
@@ -55,21 +54,24 @@
   > * {
     display: block;
     width: 100%;
-    min-width: 0;
+    min-width: min-content; /* cell grows with label/input content */
     overflow: visible;
     box-sizing: border-box;
   }
 
-  /* Label: one line, no ellipsis – column can grow when typing */
+  /* Label: one line, column width grows as you type (no wrap, no ellipsis) */
   ::ng-deep .widget-label-control,
   ::ng-deep [contenteditable="true"] {
     white-space: nowrap !important;
-    max-height: 2em !important;
+    overflow: visible !important;
+    text-overflow: unset !important;
+    width: max-content !important;
+    min-width: 100% !important;
     line-height: 1.4 !important;
+    box-sizing: border-box;
   }
 
-  /* Input, radio, checkbox: zero intrinsic width – take 100% of cell, never grow cell when dropped */
-  ::ng-deep app-widget-input,
+  /* Radio, checkbox: fixed width – don't grow column */
   ::ng-deep app-widget-radio,
   ::ng-deep app-widget-checkbox {
     width: 0 !important;
@@ -77,14 +79,16 @@
     max-width: 100% !important;
     box-sizing: border-box;
   }
-  /* Input: 100% of cell when dropped; no ellipsis when typing – column grows with content */
-  ::ng-deep .widget-input-control {
-    width: 0 !important;
+  /* Input: fill cell width (single and merged) */
+  ::ng-deep app-widget-input {
+    width: 100% !important;
     min-width: 100% !important;
-    overflow: visible !important;
-    text-overflow: unset !important;
     box-sizing: border-box;
-    field-sizing: content; /* input grows with typed text (Chrome 123+, Safari 26.2+) */
+  }
+  ::ng-deep .widget-input-control {
+    width: 100% !important;
+    min-width: 100% !important;
+    box-sizing: border-box;
   }
   /* Checkbox/radio: label and group – no intrinsic width */
   ::ng-deep .widget-checkbox-label,

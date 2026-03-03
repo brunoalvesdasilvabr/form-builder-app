@@ -26,6 +26,7 @@ export class WidgetCellRendererComponent {
   cellId = input<string | undefined>(undefined);
   removeWidget = output<void>();
   labelChange = output<string>();
+  inputValueChange = output<void>();
   optionsChange = output<string[]>();
   optionSelect = output<number>();
 

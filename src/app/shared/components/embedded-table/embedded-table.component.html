@@ -1,6 +1,11 @@
 <div class="embedded-table-wrap">
   <div class="embedded-table-scroll">
     <table class="embedded-table">
+      <colgroup>
+        @for (i of columnIndices(); track i) {
+          <col />
+        }
+      </colgroup>
       <tbody>
         @for (row of rows(); track row.id) {
           <tr>
@@ -10,6 +15,7 @@
               } @else {
                 <td
                   class="embedded-cell"
+                  [attr.data-cell-id]="cell.id"
                   [class.embedded-cell-selected]="isSelected(cell.rowIndex, cell.colIndex)"
                   [attr.colspan]="getSpan(cell.rowIndex, cell.colIndex).colSpan > 1 ? getSpan(cell.rowIndex, cell.colIndex).colSpan : null"
                   [attr.rowspan]="getSpan(cell.rowIndex, cell.colIndex).rowSpan > 1 ? getSpan(cell.rowIndex, cell.colIndex).rowSpan : null"
@@ -30,6 +36,7 @@
                         [cellId]="cell.id"
                         (removeWidget)="removeNestedWidget(cell.id)"
                         (labelChange)="onCellWidgetLabelChange(cell.id, $event)"
+                        (inputValueChange)="onCellInputValueChange(cell.id)"
                         (optionsChange)="onCellWidgetOptionsChange(cell.id, $event)"
                         (optionSelect)="onCellOptionSelect(cell, $event)"
                       />
