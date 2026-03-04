@@ -12,13 +12,11 @@
     @if (selectedCell(); as cell) {
       <aside class="admin-right-panel">
         <div class="admin-right-panel-header">
-          <h3 class="admin-right-panel-title">Cell properties</h3>
+          <h3 class="admin-right-panel-title">Properties</h3>
           <button type="button" class="admin-right-panel-close" (click)="closePanel()" title="Close panel">×</button>
         </div>
         <div class="admin-right-panel-body">
-          <label class="admin-right-panel-label" for="cell-class-input">
-            Class binding ({{ getClassTargetLabel() }})
-          </label>
+          <label class="admin-right-panel-label" for="cell-class-input">Class Name</label>
           <input
             id="cell-class-input"
             type="text"
@@ -38,53 +36,8 @@
                 (ngModelChange)="pendingFormControlName.set($event)"
                 placeholder="Example: inputName"
               />
-              <p class="admin-right-panel-hint">Sets data-form-control-name on the control</p>
             </div>
-            <div class="admin-right-panel-field">
-              <label class="admin-right-panel-label" for="error-message-input">Error message</label>
-              <input
-                id="error-message-input"
-                type="text"
-                class="admin-right-panel-input"
-                [ngModel]="pendingErrorMessage()"
-                (ngModelChange)="pendingErrorMessage.set($event)"
-                placeholder="Example: This field is required"
-              />
-              <p class="admin-right-panel-hint">Shown when the visibility condition is true</p>
-            </div>
-            <div class="admin-right-panel-field">
-              <label class="admin-right-panel-label" for="error-condition-insert">Insert rule</label>
-              <select
-                id="error-condition-insert"
-                class="admin-right-panel-input admin-right-panel-select"
-                [ngModel]="insertSnippetChoice()"
-                (ngModelChange)="onInsertErrorSnippet($event)"
-                [ngModelOptions]="{standalone: true}"
-              >
-                <option value="">— Choose a rule to insert, then keep typing —</option>
-                @for (snippet of errorConditionSnippets; track snippet.label; let i = $index) {
-                  <option [value]="i">{{ snippet.label }}</option>
-                }
-              </select>
-              <label class="admin-right-panel-label" for="error-condition-input">Error visibility rule</label>
-              <div class="admin-right-panel-error-rule-row">
-                <input
-                  id="error-condition-input"
-                  type="text"
-                  class="admin-right-panel-input"
-                  [ngModel]="pendingErrorCondition()"
-                  (ngModelChange)="pendingErrorCondition.set($event)"
-                  [placeholder]="'Example: ' + formGroupName() + '.email.invalid && ' + formGroupName() + '.email.touched'"
-                />
-                <button
-                  type="button"
-                  class="admin-right-panel-clear-rule"
-                  (click)="clearErrorRule()"
-                  [disabled]="!pendingErrorCondition()"
-                  title="Clear error rule"
-                >Clear rule</button>
-              </div>
-              @if (cell.widget && cell.widget.type === 'input' && showValidatorValuesSection(cell)) {
+              @if (cell.widget.type === 'input' && showValidatorValuesSection(cell)) {
                 <div class="admin-right-panel-validator-values">
                   <p class="admin-right-panel-hint">Set the value for the chosen rule (data-minlength, data-maxlength, data-min, data-max, data-pattern):</p>
                   @if (showMinLengthInput(cell)) {
@@ -156,18 +109,68 @@
                   }
                 </div>
               }
-              <p class="admin-right-panel-hint">Pick a rule from the dropdown to insert it, then keep typing to build the full expression. The entire string above is bound to data-error-condition on Apply. Combine with &amp;&amp;, ||, ().</p>
-              @if (pendingErrorCondition()) {
-                <div class="admin-right-panel-ngif-preview">
-                  <span class="admin-right-panel-ngif-label">*ngIf rule:</span>
-                  <code class="admin-right-panel-ngif-code">*ngIf="{{ pendingErrorCondition() }}"</code>
-                </div>
-              }
+          }
+          @if (cell.widget && cell.widget.type === 'label') {
+            <div class="admin-right-panel-field">
+              <label class="admin-right-panel-label" for="error-for-control-select">Associated input</label>
+              <select
+                id="error-for-control-select"
+                class="admin-right-panel-input admin-right-panel-select"
+                [ngModel]="pendingErrorForControlName()"
+                (ngModelChange)="pendingErrorForControlName.set($event)"
+              >
+                <option value="">— None —</option>
+                @for (ctrl of controlNamesInLayout(); track ctrl) {
+                  <option [value]="ctrl">{{ ctrl }}</option>
+                }
+              </select>
+              <p class="admin-right-panel-hint">Show this label when the chosen input meets the rule below</p>
+            </div>
+            <div class="admin-right-panel-field">
+              <label class="admin-right-panel-label" for="error-condition-input">Error visibility rule</label>
+              <span class="admin-right-panel-ngif-label">*ngIf rule:</span>
+              <div class="admin-right-panel-ngif-preview admin-right-panel-ngif-textarea-wrap">
+                <textarea
+                  id="error-condition-input"
+                  class="admin-right-panel-ngif-textarea"
+                  rows="3"
+                  [ngModel]="pendingErrorCondition()"
+                  (ngModelChange)="pendingErrorCondition.set($event)"
+                  [placeholder]="'Example: ' + formGroupName() + '.' + (pendingErrorForControlName() || 'controlName') + '.invalid && ' + formGroupName() + '.' + (pendingErrorForControlName() || 'controlName') + '.touched'"
+                ></textarea>
+              </div>
+              <div class="admin-right-panel-rule-actions">
+                <button
+                  type="button"
+                  class="admin-right-panel-clear-rule"
+                  (click)="clearErrorRule()"
+                  [disabled]="!pendingErrorCondition()"
+                  title="Clear error rule"
+                >Clear rule</button>
+                <button
+                  type="button"
+                  class="admin-right-panel-add-rule"
+                  (click)="openAddRuleModal()"
+                  title="Insert a rule from the list"
+                >Add rule</button>
+              </div>
+            </div>
+            <div class="admin-right-panel-field">
+              <label class="admin-right-panel-label" for="error-message-input">Error message</label>
+              <input
+                id="error-message-input"
+                type="text"
+                class="admin-right-panel-input"
+                [ngModel]="pendingErrorMessage()"
+                (ngModelChange)="pendingErrorMessage.set($event)"
+                placeholder="Example: This field is required"
+              />
+              <p class="admin-right-panel-hint">Shown when the rule is true (bound to data-error-message on this label)</p>
             </div>
           }
           @if (cell.widget && cell.widget.type !== 'table') {
             <div class="admin-right-panel-field">
-              <label class="admin-right-panel-label" for="value-binding-select">Property binding</label>
+              <label class="admin-right-panel-label" for="value-binding-select">Data Binding</label>
               <select
                 id="value-binding-select"
                 class="admin-right-panel-input admin-right-panel-select"
@@ -185,6 +188,35 @@
           <button type="button" class="admin-right-panel-apply" (click)="applyChanges()">Apply</button>
         </div>
       </aside>
+      @if (addRuleModalOpen()) {
+        <div class="admin-add-rule-overlay" (click)="closeAddRuleModal()" role="presentation">
+          <div class="admin-add-rule-modal" (click)="$event.stopPropagation()">
+            <h4 class="admin-add-rule-modal-title">Insert rule</h4>
+            <label class="admin-right-panel-label" for="add-rule-select">Choose a rule</label>
+            <select
+              id="add-rule-select"
+              class="admin-right-panel-input admin-right-panel-select"
+              [ngModel]="insertSnippetChoice()"
+              (ngModelChange)="insertSnippetChoice.set($event)"
+              [ngModelOptions]="{standalone: true}"
+            >
+              <option value="">— Choose a rule —</option>
+              @for (snippet of errorConditionSnippets; track snippet.label; let i = $index) {
+                <option [value]="i">{{ snippet.label }}</option>
+              }
+            </select>
+            <div class="admin-add-rule-modal-actions">
+              <button type="button" class="admin-right-panel-apply" (click)="closeAddRuleModal()">Cancel</button>
+              <button
+                type="button"
+                class="admin-right-panel-apply admin-add-rule-insert"
+                (click)="insertRuleAndClose()"
+                [disabled]="insertSnippetChoice() === '' || insertSnippetChoice() == null"
+              >Insert</button>
+            </div>
+          </div>
+        </div>
+      }
     }
   </main>
   @if (notificationMessages().length) {

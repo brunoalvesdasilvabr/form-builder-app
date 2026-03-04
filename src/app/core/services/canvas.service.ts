@@ -1,8 +1,9 @@
 import { Injectable, signal, computed } from '@angular/core';
 import type { CanvasState, CanvasRow, CanvasCell, WidgetInstance, WidgetType, NestedTableState, NestedTableRow, NestedTableCell, BindableProperty } from '../../shared/models/canvas.model';
-import { WIDGET_LABELS } from '../../shared/models/canvas.model';
+import { getDefaultWidgetLabel } from '../../shared/models/canvas.model';
 import * as gridMerge from '../../shared/utils/grid-merge.util';
 import { generateId } from '../../shared/utils/id.util';
+import { createDefaultNestedTable } from '../../shared/utils/nested-table.util';
 
 const UNDO_LIMIT = 50;
 
@@ -446,6 +447,49 @@ export class CanvasService {
     });
   }
 
+  updateWidgetErrorForControlName(cellId: string, widgetId: string, errorForControlName: string): void {
+    this.pushHistory();
+    const val = errorForControlName.trim() || undefined;
+    const rows = this.state().rows.map((row) => ({
+      ...row,
+      cells: row.cells.map((c) => {
+        if (c.id !== cellId || !c.widget || c.widget.id !== widgetId) return c;
+        return { ...c, widget: { ...c.widget, errorForControlName: val } };
+      }),
+    }));
+    this.state.set({ rows });
+  }
+
+  updateNestedWidgetErrorForControlName(
+    parentCellId: string,
+    parentWidgetId: string,
+    nestedCellId: string,
+    nestedWidgetId: string,
+    errorForControlName: string
+  ): void {
+    this.pushHistory();
+    const val = errorForControlName.trim() || undefined;
+    this.state.update((s) => {
+      const rows = s.rows.map((row) => ({
+        ...row,
+        cells: row.cells.map((c) => {
+          if (c.id !== parentCellId || !c.widget || c.widget.id !== parentWidgetId || c.widget.type !== 'table') return c;
+          const nested = c.widget.nestedTable;
+          if (!nested?.rows) return c;
+          const nestedRows = nested.rows.map((r) => ({
+            ...r,
+            cells: r.cells.map((nc) => {
+              if (nc.id !== nestedCellId || !nc.widget || nc.widget.id !== nestedWidgetId) return nc;
+              return { ...nc, widget: { ...nc.widget, errorForControlName: val } };
+            }),
+          }));
+          return { ...c, widget: { ...c.widget, nestedTable: { rows: nestedRows } } };
+        }),
+      }));
+      return { rows };
+    });
+  }
+
   private updateWidgetValidatorValue(
     cellId: string,
     widgetId: string,
@@ -655,40 +699,28 @@ export class CanvasService {
     });
   }
 
-  getCell(rowIndex: number, colIndex: number): CanvasCell | null {
-    const rows = this.state().rows;
-    const row = rows[rowIndex];
-    if (!row) return null;
-    return row.cells[colIndex] ?? null;
-  }
-
-  // top-left cell for this position (same cell if not merged)
-  getOriginCell(rowIndex: number, colIndex: number): CanvasCell | null {
-    return gridMerge.getOriginCell(
-      this.state().rows as { cells: gridMerge.MergeableCell[] }[],
-      rowIndex,
-      colIndex
-    ) as CanvasCell | null;
-  }
-
   createDefaultNestedTable(): NestedTableState {
-    const rows: NestedTableRow[] = [];
-    for (let r = 0; r < 2; r++) {
-      const cells: NestedTableCell[] = [];
-      for (let c = 0; c < 2; c++) {
-        cells.push({
-          id: generateId('id'),
-          rowIndex: r,
-          colIndex: c,
-          widget: null,
-          colSpan: 1,
-          rowSpan: 1,
-          isMergedOrigin: true,
-        });
+    return createDefaultNestedTable('id');
+  }
+
+  /** All form control names from inputs/checkbox/radio in the layout (top-level and nested) for "Associated input" dropdown. */
+  getControlNamesInLayout(): string[] {
+    const set = new Set<string>();
+    const addFromRows = (rows: { cells: { widget: WidgetInstance | null }[] }[]): void => {
+      for (const row of rows) {
+        for (const cell of row.cells) {
+          const w = cell.widget;
+          if (w && ['input', 'checkbox', 'radio'].includes(w.type) && w.formControlName?.trim()) {
+            set.add(w.formControlName.trim());
+          }
+          if (w?.type === 'table' && w.nestedTable?.rows?.length) {
+            addFromRows(w.nestedTable.rows);
+          }
+        }
       }
-      rows.push({ id: generateId('id'), cells });
-    }
-    return { rows };
+    };
+    addFromRows(this.state().rows);
+    return Array.from(set).sort();
   }
 
   setWidgetAt(rowIndex: number, colIndex: number, type: WidgetType, label?: string, options?: string[]): void {
@@ -700,7 +732,7 @@ export class CanvasService {
         const widget: WidgetInstance = {
           id: generateId('id'),
           type,
-          label: label ?? (type === 'radio' ? 'Choose one' : WIDGET_LABELS[type]),
+          label: getDefaultWidgetLabel(type, label),
           options: options ?? (type === 'radio' ? ['Option 1', 'Option 2'] : undefined),
           placeholder: type === 'input' ? 'Enter text...' : undefined,
         };
@@ -734,10 +766,43 @@ export class CanvasService {
       ...row,
       cells: row.cells.map((c) => {
         if (c.id !== cellId || !c.widget || c.widget.id !== widgetId) return c;
-        return { ...c, widget: { ...c.widget, label } };
+        const w = c.widget;
+        const updates = w.type === 'label' ? { label, errorMessage: label } : { label };
+        return { ...c, widget: { ...w, ...updates } };
       }),
     }));
     this.state.set({ rows });
+  }
+
+  updateNestedWidgetLabel(
+    parentCellId: string,
+    parentWidgetId: string,
+    nestedCellId: string,
+    nestedWidgetId: string,
+    label: string
+  ): void {
+    this.pushHistory();
+    this.state.update((s) => {
+      const rows = s.rows.map((row) => ({
+        ...row,
+        cells: row.cells.map((c) => {
+          if (c.id !== parentCellId || !c.widget || c.widget.id !== parentWidgetId || c.widget.type !== 'table') return c;
+          const nested = c.widget.nestedTable;
+          if (!nested?.rows) return c;
+          const nestedRows = nested.rows.map((r) => ({
+            ...r,
+            cells: r.cells.map((nc) => {
+              if (nc.id !== nestedCellId || !nc.widget || nc.widget.id !== nestedWidgetId) return nc;
+              const w = nc.widget;
+              const updates = w.type === 'label' ? { label, errorMessage: label } : { label };
+              return { ...nc, widget: { ...w, ...updates } };
+            }),
+          }));
+          return { ...c, widget: { ...c.widget, nestedTable: { rows: nestedRows } } };
+        }),
+      }));
+      return { rows };
+    });
   }
 
   updateWidgetOptions(cellId: string, widgetId: string, options: string[]): void {
@@ -868,33 +933,5 @@ export class CanvasService {
   /** Returns a fresh default canvas state (one row, three cells). */
   getDefaultState(): CanvasState {
     return { rows: [this.createRow(0, 3)] };
-  }
-
-  /** Collect binding targets from state (valueBinding / optionBindings) for all non-table widgets in DOM order. */
-  getBindingTargetsFromState(): Array<{ valueBinding?: string; optionBindings?: string[] }> {
-    const targets: Array<{ valueBinding?: string; optionBindings?: string[] }> = [];
-    for (const row of this.state().rows) {
-      for (const cell of row.cells) {
-        if (!cell.widget) continue;
-        if (cell.widget.type === 'table') {
-          const nested = cell.widget.nestedTable?.rows ?? [];
-          for (const nRow of nested) {
-            for (const nCell of nRow.cells) {
-              if (!nCell.widget || nCell.widget.type === 'table') continue;
-              targets.push({
-                valueBinding: nCell.widget.valueBinding,
-                optionBindings: nCell.widget.optionBindings?.length ? nCell.widget.optionBindings : undefined,
-              });
-            }
-          }
-          continue;
-        }
-        targets.push({
-          valueBinding: cell.widget.valueBinding,
-          optionBindings: cell.widget.optionBindings?.length ? cell.widget.optionBindings : undefined,
-        });
-      }
-    }
-    return targets;
   }
 }

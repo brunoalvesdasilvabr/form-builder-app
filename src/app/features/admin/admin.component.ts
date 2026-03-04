@@ -42,14 +42,19 @@ export class AdminComponent {
   readonly pendingMin = signal('');
   readonly pendingMax = signal('');
   readonly pendingPattern = signal('');
+  /** For labels: which input (formControlName) this label shows errors for. */
+  readonly pendingErrorForControlName = signal('');
   /** Selected index for "Insert rule" dropdown (reset after insert so user can continue typing). */
   readonly insertSnippetChoice = signal<string>('');
+  /** Add rule modal open state */
+  readonly addRuleModalOpen = signal(false);
   /** Snapshot when panel opened / last apply (to detect what changed). */
   private initialClass = '';
   private initialProperty = '';
   private initialFormControlName = '';
   private initialErrorMessage = '';
   private initialErrorCondition = '';
+  private initialErrorForControlName = '';
   private initialMinLength = '';
   private initialMaxLength = '';
   private initialMin = '';
@@ -64,53 +69,85 @@ export class AdminComponent {
     return slugify(layout?.name?.trim() ?? 'form');
   });
 
+  /** Control names from all inputs/checkboxes/radios in the layout (for label "Associated input" dropdown). */
+  readonly controlNamesInLayout = computed(() => this.canvas.getControlNamesInLayout());
+
   /** Notifications to show after Apply (e.g. "Your class was bound to the component"). */
   readonly notificationMessages = signal<string[]>([]);
 
   constructor() {
     effect(() => {
       const cell = this.selectedCell();
-      const target = this.selectedTarget();
-      const elementKey = this.selectedElementKey();
       this.insertSnippetChoice.set('');
       if (cell) {
-        if (target === 'element' && elementKey) {
-          this.initialClass = cell.widget?.elementClasses?.[elementKey] ?? '';
-        } else if (target === 'widget' && cell.widget) {
-          this.initialClass = cell.widget.className ?? '';
-        } else if (target === 'widget-inner' && cell.widget) {
-          this.initialClass = cell.widget.innerClassName ?? '';
-        } else {
-          this.initialClass = (cell as { className?: string }).className ?? '';
-        }
-        this.initialProperty = this.getCurrentBindingProperty(cell);
-        this.initialFormControlName = (cell.widget && ['input', 'checkbox', 'radio'].includes(cell.widget.type))
-          ? (cell.widget.formControlName ?? '')
-          : '';
-        this.initialErrorMessage = (cell.widget && ['input', 'checkbox', 'radio'].includes(cell.widget.type))
-          ? (cell.widget.errorMessage ?? '')
-          : '';
-        this.initialErrorCondition = (cell.widget && ['input', 'checkbox', 'radio'].includes(cell.widget.type))
-          ? (cell.widget.errorCondition ?? '')
-          : '';
-        const w = cell.widget;
-        this.initialMinLength = w?.type === 'input' && w.minLength != null ? String(w.minLength) : '';
-        this.initialMaxLength = w?.type === 'input' && w.maxLength != null ? String(w.maxLength) : '';
-        this.initialMin = w?.type === 'input' && w.min != null ? String(w.min) : '';
-        this.initialMax = w?.type === 'input' && w.max != null ? String(w.max) : '';
-        this.initialPattern = w?.type === 'input' && w.pattern != null ? String(w.pattern) : '';
-        this.pendingClass.set(this.initialClass);
-        this.pendingProperty.set(this.initialProperty);
-        this.pendingFormControlName.set(this.initialFormControlName);
-        this.pendingErrorMessage.set(this.initialErrorMessage);
-        this.pendingErrorCondition.set(this.initialErrorCondition);
-        this.pendingMinLength.set(this.initialMinLength);
-        this.pendingMaxLength.set(this.initialMaxLength);
-        this.pendingMin.set(this.initialMin);
-        this.pendingMax.set(this.initialMax);
-        this.pendingPattern.set(this.initialPattern);
+        this.syncInitialClassFromCell(cell);
+        this.syncInitialBindingAndFormControl(cell);
+        this.syncInitialErrorFieldsFromCell(cell);
+        this.syncInitialValidatorValuesFromCell(cell);
+        this.copyInitialsToPending();
       }
     });
+  }
+
+  /** Fills initialClass from the selected cell (element, widget, widget-inner, or cell). */
+  private syncInitialClassFromCell(cell: CanvasCell): void {
+    const target = this.selectedTarget();
+    const elementKey = this.selectedElementKey();
+    if (target === 'element' && elementKey) {
+      this.initialClass = cell.widget?.elementClasses?.[elementKey] ?? '';
+    } else if (target === 'widget' && cell.widget) {
+      this.initialClass = cell.widget.className ?? '';
+    } else if (target === 'widget-inner' && cell.widget) {
+      this.initialClass = cell.widget.innerClassName ?? '';
+    } else {
+      this.initialClass = (cell as { className?: string }).className ?? '';
+    }
+  }
+
+  /** Fills initialProperty and initialFormControlName from the cell. */
+  private syncInitialBindingAndFormControl(cell: CanvasCell): void {
+    this.initialProperty = this.getCurrentBindingProperty(cell);
+    this.initialFormControlName = (cell.widget && ['input', 'checkbox', 'radio'].includes(cell.widget.type))
+      ? (cell.widget.formControlName ?? '')
+      : '';
+  }
+
+  /** Fills initial error fields (for labels: associated input, message, rule). */
+  private syncInitialErrorFieldsFromCell(cell: CanvasCell): void {
+    if (cell.widget?.type === 'label') {
+      this.initialErrorForControlName = cell.widget.errorForControlName ?? '';
+      this.initialErrorMessage = (cell.widget.errorMessage ?? cell.widget.label ?? '').trim();
+      this.initialErrorCondition = cell.widget.errorCondition ?? '';
+    } else {
+      this.initialErrorForControlName = '';
+      this.initialErrorMessage = '';
+      this.initialErrorCondition = '';
+    }
+  }
+
+  /** Fills initial validator values (min/max length, min/max number, pattern) for inputs. */
+  private syncInitialValidatorValuesFromCell(cell: CanvasCell): void {
+    const w = cell.widget;
+    this.initialMinLength = w?.type === 'input' && w.minLength != null ? String(w.minLength) : '';
+    this.initialMaxLength = w?.type === 'input' && w.maxLength != null ? String(w.maxLength) : '';
+    this.initialMin = w?.type === 'input' && w.min != null ? String(w.min) : '';
+    this.initialMax = w?.type === 'input' && w.max != null ? String(w.max) : '';
+    this.initialPattern = w?.type === 'input' && w.pattern != null ? String(w.pattern) : '';
+  }
+
+  /** Copies all initial* values into the pending* signals. */
+  private copyInitialsToPending(): void {
+    this.pendingClass.set(this.initialClass);
+    this.pendingProperty.set(this.initialProperty);
+    this.pendingFormControlName.set(this.initialFormControlName);
+    this.pendingErrorForControlName.set(this.initialErrorForControlName);
+    this.pendingErrorMessage.set(this.initialErrorMessage);
+    this.pendingErrorCondition.set(this.initialErrorCondition);
+    this.pendingMinLength.set(this.initialMinLength);
+    this.pendingMaxLength.set(this.initialMaxLength);
+    this.pendingMin.set(this.initialMin);
+    this.pendingMax.set(this.initialMax);
+    this.pendingPattern.set(this.initialPattern);
   }
 
   closePanel(): void {
@@ -124,71 +161,26 @@ export class AdminComponent {
     if (!cell) return;
 
     const messages: string[] = [];
-    const classChanged = this.pendingClass() !== this.initialClass;
-    const propertyChanged = this.pendingProperty() !== this.initialProperty;
-    const formControlNameChanged = this.pendingFormControlName() !== this.initialFormControlName;
-    const errorMessageChanged = this.pendingErrorMessage() !== this.initialErrorMessage;
-    const errorConditionChanged = this.pendingErrorCondition() !== this.initialErrorCondition;
-    const minLengthChanged = this.pendingMinLength() !== this.initialMinLength;
-    const maxLengthChanged = this.pendingMaxLength() !== this.initialMaxLength;
-    const minChanged = this.pendingMin() !== this.initialMin;
-    const maxChanged = this.pendingMax() !== this.initialMax;
-    const patternChanged = this.pendingPattern() !== this.initialPattern;
-    const nested = this.selectedNestedPath();
-
-    if (classChanged) {
-      const target = this.selectedTarget();
-      const elementKey = this.selectedElementKey();
-      if (nested) {
-        const { parentCellId, parentWidgetId, nestedCellId } = nested;
-        if (target === 'element' && elementKey && cell.widget) {
-          this.canvas.updateNestedWidgetElementClass(parentCellId, parentWidgetId, nestedCellId, cell.widget.id, elementKey, this.pendingClass());
-        } else if (target === 'widget' && cell.widget) {
-          this.canvas.updateNestedWidgetClass(parentCellId, parentWidgetId, nestedCellId, cell.widget.id, this.pendingClass());
-        } else if (target === 'widget-inner' && cell.widget) {
-          this.canvas.updateNestedWidgetInnerClass(parentCellId, parentWidgetId, nestedCellId, cell.widget.id, this.pendingClass());
-        } else {
-          this.canvas.updateNestedCellClass(parentCellId, parentWidgetId, nestedCellId, this.pendingClass());
-        }
-      } else {
-        if (target === 'element' && elementKey && cell.widget) {
-          this.canvas.updateWidgetElementClass(cell.id, cell.widget.id, elementKey, this.pendingClass());
-        } else if (target === 'widget' && cell.widget) {
-          this.canvas.updateWidgetClass(cell.id, cell.widget.id, this.pendingClass());
-        } else if (target === 'widget-inner' && cell.widget) {
-          this.canvas.updateWidgetInnerClass(cell.id, cell.widget.id, this.pendingClass());
-        } else {
-          this.canvas.updateCellClass(cell.id, this.pendingClass());
-        }
-      }
-      const targetLabel = this.getClassTargetLabel();
-      messages.push(`Your class was bound to the ${targetLabel}.`);
-      this.initialClass = this.pendingClass();
+    if (this.pendingClass() !== this.initialClass) {
+      this.applyClassChange(cell, messages);
     }
-    if (propertyChanged) {
-      this.applyPropertyBinding(cell, this.pendingProperty());
-      messages.push('Your property was bound to the component.');
-      this.initialProperty = this.pendingProperty();
+    if (this.pendingProperty() !== this.initialProperty) {
+      this.applyPropertyChange(cell, messages);
     }
-    if (formControlNameChanged && cell.widget && ['input', 'checkbox', 'radio'].includes(cell.widget.type)) {
-      this.applyFormControlName(cell);
-      messages.push('Control name (data-form-control-name) was applied.');
-      this.initialFormControlName = this.pendingFormControlName();
+    if (this.pendingFormControlName() !== this.initialFormControlName && cell.widget && ['input', 'checkbox', 'radio'].includes(cell.widget.type)) {
+      this.applyFormControlNameChange(cell, messages);
     }
-    if ((errorMessageChanged || errorConditionChanged) && cell.widget && ['input', 'checkbox', 'radio'].includes(cell.widget.type)) {
-      this.applyErrorFields(cell);
-      messages.push('Error message and visibility rule were applied.');
-      this.initialErrorMessage = this.pendingErrorMessage();
-      this.initialErrorCondition = this.pendingErrorCondition();
+    if ((this.pendingErrorForControlName() !== this.initialErrorForControlName ||
+         this.pendingErrorMessage() !== this.initialErrorMessage ||
+         this.pendingErrorCondition() !== this.initialErrorCondition) &&
+        cell.widget?.type === 'label') {
+      this.applyErrorFieldsChange(cell, messages);
     }
-    if ((minLengthChanged || maxLengthChanged || minChanged || maxChanged || patternChanged) && cell.widget && cell.widget.type === 'input') {
-      this.applyValidatorValues(cell);
-      messages.push('Validation min/max/pattern values were applied.');
-      this.initialMinLength = this.pendingMinLength();
-      this.initialMaxLength = this.pendingMaxLength();
-      this.initialMin = this.pendingMin();
-      this.initialMax = this.pendingMax();
-      this.initialPattern = this.pendingPattern();
+    if ((this.pendingMinLength() !== this.initialMinLength || this.pendingMaxLength() !== this.initialMaxLength ||
+         this.pendingMin() !== this.initialMin || this.pendingMax() !== this.initialMax ||
+         this.pendingPattern() !== this.initialPattern) &&
+        cell.widget?.type === 'input') {
+      this.applyValidatorValuesChange(cell, messages);
     }
 
     if (messages.length) {
@@ -197,8 +189,75 @@ export class AdminComponent {
     }
   }
 
+  /** Applies the pending class to the cell/widget/element and records the message. */
+  private applyClassChange(cell: CanvasCell, messages: string[]): void {
+    const target = this.selectedTarget();
+    const elementKey = this.selectedElementKey();
+    const nested = this.selectedNestedPath();
+    const newClass = this.pendingClass();
+    if (nested) {
+      const { parentCellId, parentWidgetId, nestedCellId } = nested;
+      if (target === 'element' && elementKey && cell.widget) {
+        this.canvas.updateNestedWidgetElementClass(parentCellId, parentWidgetId, nestedCellId, cell.widget.id, elementKey, newClass);
+      } else if (target === 'widget' && cell.widget) {
+        this.canvas.updateNestedWidgetClass(parentCellId, parentWidgetId, nestedCellId, cell.widget.id, newClass);
+      } else if (target === 'widget-inner' && cell.widget) {
+        this.canvas.updateNestedWidgetInnerClass(parentCellId, parentWidgetId, nestedCellId, cell.widget.id, newClass);
+      } else {
+        this.canvas.updateNestedCellClass(parentCellId, parentWidgetId, nestedCellId, newClass);
+      }
+    } else {
+      if (target === 'element' && elementKey && cell.widget) {
+        this.canvas.updateWidgetElementClass(cell.id, cell.widget.id, elementKey, newClass);
+      } else if (target === 'widget' && cell.widget) {
+        this.canvas.updateWidgetClass(cell.id, cell.widget.id, newClass);
+      } else if (target === 'widget-inner' && cell.widget) {
+        this.canvas.updateWidgetInnerClass(cell.id, cell.widget.id, newClass);
+      } else {
+        this.canvas.updateCellClass(cell.id, newClass);
+      }
+    }
+    messages.push(`Your class was bound to the ${this.getClassTargetLabel()}.`);
+    this.initialClass = newClass;
+  }
+
+  /** Applies the pending property binding and records the message. */
+  private applyPropertyChange(cell: CanvasCell, messages: string[]): void {
+    this.applyPropertyBinding(cell, this.pendingProperty());
+    messages.push('Your property was bound to the component.');
+    this.initialProperty = this.pendingProperty();
+  }
+
+  /** Applies the pending form control name for input/checkbox/radio and records the message. */
+  private applyFormControlNameChange(cell: CanvasCell, messages: string[]): void {
+    this.applyFormControlName(cell);
+    messages.push('Control name (data-form-control-name) was applied.');
+    this.initialFormControlName = this.pendingFormControlName();
+  }
+
+  /** Applies error-for, message and rule to the label and records the message. */
+  private applyErrorFieldsChange(cell: CanvasCell, messages: string[]): void {
+    this.applyErrorFieldsForLabel(cell);
+    messages.push('Error association, message and visibility rule were applied to the label.');
+    this.initialErrorForControlName = this.pendingErrorForControlName();
+    this.initialErrorMessage = this.pendingErrorMessage();
+    this.initialErrorCondition = this.pendingErrorCondition();
+  }
+
+  /** Applies pending validator values (min/max/pattern) for input and records the message. */
+  private applyValidatorValuesChange(cell: CanvasCell, messages: string[]): void {
+    this.applyValidatorValues(cell);
+    messages.push('Validation min/max/pattern values were applied.');
+    this.initialMinLength = this.pendingMinLength();
+    this.initialMaxLength = this.pendingMaxLength();
+    this.initialMin = this.pendingMin();
+    this.initialMax = this.pendingMax();
+    this.initialPattern = this.pendingPattern();
+  }
+
   getSnippetPreview(snippet: { template: string; usesGroup?: boolean }): string {
-    const ctrl = this.pendingFormControlName().trim() || 'controlName';
+    const cell = this.selectedCell();
+    const ctrl = (cell?.widget?.type === 'label' ? this.pendingErrorForControlName() : this.pendingFormControlName()).trim() || 'controlName';
     const form = this.formGroupName();
     const grp = form;
     let expr = snippet.template.replace(/\{form\}/g, form);
@@ -227,6 +286,21 @@ export class AdminComponent {
   /** Clear the error visibility rule (entire string). */
   clearErrorRule(): void {
     this.pendingErrorCondition.set('');
+  }
+
+  openAddRuleModal(): void {
+    this.addRuleModalOpen.set(true);
+  }
+
+  closeAddRuleModal(): void {
+    this.addRuleModalOpen.set(false);
+    this.insertSnippetChoice.set('');
+  }
+
+  insertRuleAndClose(): void {
+    const v = this.insertSnippetChoice();
+    if (v !== '' && v != null) this.onInsertErrorSnippet(v);
+    this.closeAddRuleModal();
   }
 
   private parseOptionalNumber(s: string | number): number | undefined {
@@ -260,19 +334,25 @@ export class AdminComponent {
     }
   }
 
-  private applyErrorFields(cell: CanvasCell): void {
+  /** Apply error-for-control, error message and visibility rule to a label widget. Error message and label text stay in sync. */
+  private applyErrorFieldsForLabel(cell: CanvasCell): void {
     const w = cell.widget;
-    if (!w || !['input', 'checkbox', 'radio'].includes(w.type)) return;
+    if (!w || w.type !== 'label') return;
     const nested = this.selectedNestedPath();
-    const msg = this.pendingErrorMessage().trim() || undefined;
-    const cond = this.pendingErrorCondition().trim() || undefined;
+    const errorFor = this.pendingErrorForControlName().trim() || '';
+    const msg = this.pendingErrorMessage().trim() || '';
+    const cond = this.pendingErrorCondition().trim() || '';
     if (nested) {
       const { parentCellId, parentWidgetId, nestedCellId } = nested;
-      this.canvas.updateNestedWidgetErrorMessage(parentCellId, parentWidgetId, nestedCellId, w.id, msg ?? '');
-      this.canvas.updateNestedWidgetErrorCondition(parentCellId, parentWidgetId, nestedCellId, w.id, cond ?? '');
+      this.canvas.updateNestedWidgetErrorForControlName(parentCellId, parentWidgetId, nestedCellId, w.id, errorFor);
+      this.canvas.updateNestedWidgetErrorMessage(parentCellId, parentWidgetId, nestedCellId, w.id, msg);
+      this.canvas.updateNestedWidgetErrorCondition(parentCellId, parentWidgetId, nestedCellId, w.id, cond);
+      this.canvas.updateNestedWidgetLabel(parentCellId, parentWidgetId, nestedCellId, w.id, msg);
     } else {
-      this.canvas.updateWidgetErrorMessage(cell.id, w.id, msg ?? '');
-      this.canvas.updateWidgetErrorCondition(cell.id, w.id, cond ?? '');
+      this.canvas.updateWidgetErrorForControlName(cell.id, w.id, errorFor);
+      this.canvas.updateWidgetErrorMessage(cell.id, w.id, msg);
+      this.canvas.updateWidgetErrorCondition(cell.id, w.id, cond);
+      this.canvas.updateWidgetLabel(cell.id, w.id, msg);
     }
   }
 

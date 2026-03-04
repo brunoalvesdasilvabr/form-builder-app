@@ -107,11 +107,110 @@
 .admin-right-panel-error-rule-row {
   display: flex;
   gap: 0.5rem;
-  align-items: center;
+  align-items: flex-start;
 
   .admin-right-panel-input {
     flex: 1;
     min-width: 0;
+  }
+}
+
+/* Rule textarea – same style as *ngIf rule preview box */
+.admin-right-panel-rule-box {
+  flex: 1;
+  min-width: 0;
+  resize: vertical;
+  min-height: 4rem;
+  padding: 0.5rem 0.65rem;
+  background: var(--bg-main);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  color: var(--accent, #6366f1);
+  box-sizing: border-box;
+
+  &::placeholder {
+    color: var(--text-muted);
+  }
+
+  &:focus {
+    outline: none;
+    border-color: var(--primary, #2563eb);
+  }
+}
+
+.admin-right-panel-add-rule {
+  margin-top: 0.5rem;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.85rem;
+  color: var(--accent, #6366f1);
+  background: var(--bg-main);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--bg-cell-hover);
+    border-color: var(--accent);
+  }
+}
+
+/* Add rule modal */
+.admin-add-rule-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.admin-add-rule-modal {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1.25rem;
+  min-width: 260px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.admin-add-rule-modal-title {
+  margin: 0 0 0.75rem 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.admin-add-rule-modal .admin-right-panel-label {
+  display: block;
+  margin-bottom: 0.35rem;
+}
+
+.admin-add-rule-modal select {
+  width: 100%;
+  margin-bottom: 1rem;
+}
+
+.admin-add-rule-modal-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+.admin-add-rule-insert {
+  background: var(--primary, #2563eb);
+  color: white;
+  border-color: var(--primary);
+
+  &:hover:not(:disabled) {
+    filter: brightness(1.05);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
   }
 }
 
@@ -207,6 +306,42 @@
   border: 1px solid var(--border);
   border-radius: 6px;
   font-size: 0.8rem;
+}
+
+.admin-right-panel-ngif-textarea-wrap {
+  margin-top: 0.25rem;
+  padding: 0;
+  overflow: hidden;
+}
+
+.admin-right-panel-ngif-textarea {
+  display: block;
+  width: 100%;
+  min-height: 4rem;
+  resize: vertical;
+  padding: 0.5rem 0.65rem;
+  margin: 0;
+  border: none;
+  background: transparent;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--accent);
+  box-sizing: border-box;
+
+  &::placeholder {
+    color: var(--text-muted);
+  }
+
+  &:focus {
+    outline: none;
+  }
+}
+
+.admin-right-panel-rule-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-top: 0.5rem;
 }
 
 .admin-right-panel-ngif-label {

@@ -11,12 +11,7 @@ import { LayoutGuardService } from "../../../../core/services/layout-guard.servi
 import { WidgetRendererComponent } from "../../../../shared/components/widget-renderer/widget-renderer.component";
 import { PreviewModalComponent } from "../../../../shared/components/preview-modal/preview-modal.component";
 import { LayoutNameDialogComponent } from "../../../../shared/components/layout-name-dialog/layout-name-dialog.component";
-import type {
-  CanvasCell,
-  WidgetType,
-  NestedTableState,
-  WidgetInstance,
-} from "../../../../shared/models/canvas.model";
+import type { CanvasCell, WidgetType, NestedTableState, WidgetInstance } from "../../../../shared/models/canvas.model";
 import { WIDGET_TYPES } from "../../../../shared/models/canvas.model";
 import {
   computeMergeRange,
@@ -24,11 +19,19 @@ import {
   updateSelectionForCtrlClick,
 } from "../../../../shared/utils/grid-selection.util";
 import { FormLayoutNameDirective } from "../../../../shared/directives/form-layout-name.directive";
+import { toSafeFilename } from "../../../../shared/utils/safe-filename.util";
 
 @Component({
   selector: "app-canvas",
   standalone: true,
-  imports: [CommonModule, FormsModule, MatButtonModule, MatIconModule, WidgetRendererComponent, FormLayoutNameDirective],
+  imports: [
+    CommonModule,
+    FormsModule,
+    MatButtonModule,
+    MatIconModule,
+    WidgetRendererComponent,
+    FormLayoutNameDirective,
+  ],
   templateUrl: "./canvas.component.html",
   styleUrl: "./canvas.component.scss",
 })
@@ -221,6 +224,9 @@ export class CanvasComponent {
     dialogRef.afterClosed().subscribe((result: { name: string; layoutId: string | null } | undefined) => {
       if (!result) return;
       const state = this.canvas.getState();
+      console.log("[Save layout] state saved to localStorage (tags & nesting):", state);
+      const clone = this.getPreviewClone();
+      console.log("[Save layout] clone (same as Download HTML — no toolbar, no table tools):", clone);
       const name = result.name.trim() || "Untitled";
       if (result.layoutId) {
         this.savedLayouts.updateLayout(result.layoutId, state, name);
@@ -249,14 +255,20 @@ export class CanvasComponent {
     this.clearSelection();
   }
 
-  /** Returns HTML string for preview/export: full form element (form tag and all content, builder chrome already stripped). */
-  getPreviewHtml(): string {
+  /** Returns the cloned form element (builder chrome stripped). Use for preview/export or inspection. */
+  getPreviewClone(): HTMLElement | null {
     const container = document.body.querySelector("form.canvas-form") as HTMLElement | null;
-    if (!container) return "";
+    if (!container) return null;
     const clone = container.cloneNode(true) as HTMLElement;
     copyFormValues(container, clone);
     stripBuilderChrome(clone, { stripAngular: true });
-    return clone.outerHTML;
+    return clone;
+  }
+
+  /** Returns HTML string for preview/export: full form element (form tag and all content, builder chrome already stripped). */
+  getPreviewHtml(): string {
+    const clone = this.getPreviewClone();
+    return clone ? clone.outerHTML : "";
   }
 
   openPreview(): void {
@@ -272,8 +284,7 @@ export class CanvasComponent {
     const html = this.getPreviewHtml();
     if (!html) return;
     const layout = this.savedLayouts.selectedLayout();
-    const name = layout?.name?.replace(/[^a-z0-9-_]/gi, "-") || "canvas";
-    const filename = `${name}.html`;
+    const filename = `${toSafeFilename(layout?.name)}.html`;
     const blob = new Blob([html], { type: "text/html;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -282,5 +293,4 @@ export class CanvasComponent {
     a.click();
     URL.revokeObjectURL(url);
   }
-
 }

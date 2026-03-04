@@ -1,0 +1,23 @@
+import type { NestedTableState, NestedTableRow, NestedTableCell } from '../models/canvas.model';
+import { generateId } from './id.util';
+
+/** Creates a 2×2 empty nested table. Use the same id prefix as the rest of your table (e.g. 'id' for canvas, 'nested' for embedded). */
+export function createDefaultNestedTable(idPrefix = 'id'): NestedTableState {
+  const rows: NestedTableRow[] = [];
+  for (let r = 0; r < 2; r++) {
+    const cells: NestedTableCell[] = [];
+    for (let c = 0; c < 2; c++) {
+      cells.push({
+        id: generateId(idPrefix),
+        rowIndex: r,
+        colIndex: c,
+        widget: null,
+        colSpan: 1,
+        rowSpan: 1,
+        isMergedOrigin: true,
+      });
+    }
+    rows.push({ id: generateId(idPrefix), cells });
+  }
+  return { rows };
+}

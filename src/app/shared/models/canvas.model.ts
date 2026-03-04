@@ -14,6 +14,12 @@ export const WIDGET_LABELS: Record<WidgetType, string> = {
   label: "Label",
 };
 
+/** Default label for a new widget of the given type (e.g. "Choose one" for radio). Use when creating widgets. */
+export function getDefaultWidgetLabel(type: WidgetType, labelOverride?: string): string {
+  if (labelOverride?.trim()) return labelOverride.trim();
+  return type === 'radio' ? 'Choose one' : WIDGET_LABELS[type];
+}
+
 /** Ordered list of widget types shown in the palette; single source of truth for builders. */
 export const WIDGET_TYPES: WidgetType[] = ["input", "checkbox", "radio", "table", "label"];
 
@@ -34,6 +40,8 @@ export interface NestedTableCell {
   colSpan?: number;
   rowSpan?: number;
   isMergedOrigin?: boolean;
+  /** True when merge was done by typing overflow; false when user clicked Merge. Don't auto-unmerge user merges. */
+  autoMerged?: boolean;
   /** Optional CSS class(es) applied to the cell's td */
   className?: string;
 }
@@ -68,10 +76,12 @@ export interface WidgetInstance {
   elementClasses?: Record<string, string>;
   /** FormControlName for reactive forms (input, checkbox, radio) */
   formControlName?: string;
-  /** Error message text shown when the visibility condition is true */
+  /** Error message text shown when the visibility condition is true. On labels: message shown when associated input meets the rule. */
   errorMessage?: string;
-  /** Reactive-form-style expression (e.g. f.email.invalid && f.email.touched) controlling when the error is shown. Output as data-error-condition. */
+  /** Reactive-form-style expression (e.g. f.email.invalid && f.email.touched) controlling when the error is shown. On labels: when to show this label as error for the associated input. Output as data-error-condition. */
   errorCondition?: string;
+  /** When this widget is a label used as error display: the formControlName of the input this label is associated with. Output as data-error-for. */
+  errorForControlName?: string;
   /** Min character length (Validators.minlength). Output as data-minlength. */
   minLength?: number;
   /** Max character length (Validators.maxlength). Output as data-maxlength. */

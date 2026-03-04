@@ -24,7 +24,7 @@ export class LayoutGuardService {
 
     const dialogRef = this.dialog.open(LayoutNameDialogComponent, {
       data: {
-        title: 'Name layout first',
+        title: 'Please enter layout name',
         defaultValue: name || (layout?.name ?? ''),
         layoutId: layout?.id ?? null,
       },

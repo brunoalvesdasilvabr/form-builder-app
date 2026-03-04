@@ -17,9 +17,10 @@ import type {
   NestedTableRow,
   NestedTableCell,
 } from '../../models/canvas.model';
-import { WIDGET_TYPES, WIDGET_LABELS } from '../../models/canvas.model';
+import { WIDGET_TYPES, getDefaultWidgetLabel } from '../../models/canvas.model';
 import * as gridMerge from '../../utils/grid-merge.util';
 import { generateId } from '../../utils/id.util';
+import { createDefaultNestedTable } from '../../utils/nested-table.util';
 import { computeMergeRange, canMergeFromRange, updateSelectionForCtrlClick } from '../../utils/grid-selection.util';
 import { CanvasService } from '../../../core/services/canvas.service';
 import { LayoutGuardService } from '../../../core/services/layout-guard.service';
@@ -77,23 +78,7 @@ export class EmbeddedTableComponent {
   }
 
   private defaultState(): NestedTableState {
-    const rows: NestedTableRow[] = [];
-    for (let r = 0; r < 2; r++) {
-      const cells: NestedTableCell[] = [];
-      for (let c = 0; c < 2; c++) {
-        cells.push({
-          id: generateId('nested'),
-          rowIndex: r,
-          colIndex: c,
-          widget: null,
-          colSpan: 1,
-          rowSpan: 1,
-          isMergedOrigin: true,
-        });
-      }
-      rows.push({ id: generateId('nested'), cells });
-    }
-    return { rows };
+    return createDefaultNestedTable('nested');
   }
 
   private emitState(): void {
@@ -187,7 +172,7 @@ export class EmbeddedTableComponent {
     const newWidget: WidgetInstance = {
       id: generateId('nested'),
       type,
-      label: type === 'radio' ? 'Choose one' : WIDGET_LABELS[type],
+      label: getDefaultWidgetLabel(type),
       placeholder: type === 'input' ? 'Enter text...' : undefined,
       options: type === 'radio' ? ['Option 1', 'Option 2'] : undefined,
     };
@@ -318,8 +303,15 @@ export class EmbeddedTableComponent {
       range.r1,
       range.c1
     ) as unknown as NestedTableRow[];
-    this.state.set({ rows: mergedRows });
-    this.nestedTableChange.emit({ rows: mergedRows });
+    // Mark as user merge so typing/backspace never auto-unmerges this
+    const withUserMerge = mergedRows.map((row, ri) => ({
+      ...row,
+      cells: row.cells.map((c, ci) =>
+        ri === range.r0 && ci === range.c0 ? { ...c, autoMerged: false } : c
+      ),
+    }));
+    this.state.set({ rows: withUserMerge });
+    this.nestedTableChange.emit({ rows: withUserMerge });
     this.clearMergeSelection();
   }
 
@@ -370,11 +362,12 @@ export class EmbeddedTableComponent {
     if (!s) return;
     const rows = s.rows.map((row) => ({
       ...row,
-      cells: row.cells.map((c) =>
-        c.id === cellId && c.widget
-          ? { ...c, widget: { ...c.widget, label } }
-          : c
-      ),
+      cells: row.cells.map((c) => {
+        if (c.id !== cellId || !c.widget) return c;
+        const w = c.widget;
+        const updates = w.type === 'label' ? { label, errorMessage: label } : { label };
+        return { ...c, widget: { ...w, ...updates } };
+      }),
     }));
     this.state.set({ rows });
     this.emitState();
@@ -398,39 +391,62 @@ export class EmbeddedTableComponent {
   private tryAutoMergeOrUnmerge(cellId: string): void {
     const s = this.state();
     if (!s?.rows.length) return;
-    const cell = this.findCellById(s.rows, cellId);
-    if (!cell || !cell.widget) return;
-    const isLabel = cell.widget.type === 'label';
-    const isInput = cell.widget.type === 'input';
-    if (!isLabel && !isInput) return;
-    const span = this.getSpan(cell.rowIndex, cell.colIndex);
-    const cellEl = this.hostRef.nativeElement.querySelector(
-      `[data-cell-id="${cellId}"]`
-    ) as HTMLElement | null;
-    const controlEl = cellEl?.querySelector(
-      isLabel ? '.widget-label-control' : '.widget-input-control'
-    ) as HTMLElement | null;
-    if (!cellEl || !controlEl) return;
-
+    const found = this.findCellAndControlElement(s, cellId);
+    if (!found) return;
+    const { cell, cellEl, controlEl, isLabel, isInput } = found;
     const contentWidth = this.getControlContentWidth(controlEl, isInput);
     if (contentWidth < 0) return;
-
+    const span = this.getSpan(cell.rowIndex, cell.colIndex);
     if (span.colSpan > 1) {
-      // Merged: if content fits in one column width, unmerge (10% buffer for padding/rounding)
-      const oneColWidth = cellEl.clientWidth / span.colSpan;
-      if (contentWidth <= oneColWidth * 1.1) {
-        const unmergedRows = gridMerge.unmergeCell(
-          s.rows as gridMerge.MergeableRow[],
-          cell.rowIndex,
-          cell.colIndex
-        ) as unknown as NestedTableRow[];
-        this.state.set({ rows: unmergedRows });
-        this.nestedTableChange.emit({ rows: unmergedRows });
-      }
+      this.tryUnmergeIfFitsInOneCell(s, cell, cellEl, span, contentWidth);
       return;
     }
+    this.tryMergeWithNextEmptyCell(s, cell, cellEl, contentWidth);
+  }
 
-    // Single cell: if content overflows and next is empty, merge
+  /** Resolves the cell, its DOM element, and the label/input control element for merge checks. */
+  private findCellAndControlElement(
+    s: NestedTableState,
+    cellId: string
+  ): { cell: NestedTableCell; cellEl: HTMLElement; controlEl: HTMLElement; isLabel: boolean; isInput: boolean } | null {
+    const cell = this.findCellById(s.rows, cellId);
+    if (!cell?.widget) return null;
+    const isLabel = cell.widget.type === 'label';
+    const isInput = cell.widget.type === 'input';
+    if (!isLabel && !isInput) return null;
+    const cellEl = this.hostRef.nativeElement.querySelector(`[data-cell-id="${cellId}"]`) as HTMLElement | null;
+    const controlEl = cellEl?.querySelector(isLabel ? '.widget-label-control' : '.widget-input-control') as HTMLElement | null;
+    if (!cellEl || !controlEl) return null;
+    return { cell, cellEl, controlEl, isLabel, isInput };
+  }
+
+  /** If this cell is auto-merged and content fits in one column, unmerge it. */
+  private tryUnmergeIfFitsInOneCell(
+    s: NestedTableState,
+    cell: NestedTableCell,
+    cellEl: HTMLElement,
+    span: { colSpan: number },
+    contentWidth: number
+  ): void {
+    if (cell.autoMerged !== true) return;
+    const oneColWidth = cellEl.clientWidth / span.colSpan;
+    if (contentWidth > oneColWidth * 1.1) return;
+    const unmergedRows = gridMerge.unmergeCell(
+      s.rows as gridMerge.MergeableRow[],
+      cell.rowIndex,
+      cell.colIndex
+    ) as unknown as NestedTableRow[];
+    this.state.set({ rows: unmergedRows });
+    this.nestedTableChange.emit({ rows: unmergedRows });
+  }
+
+  /** If content overflows and the next cell is empty, merge this cell with the next. */
+  private tryMergeWithNextEmptyCell(
+    s: NestedTableState,
+    cell: NestedTableCell,
+    cellEl: HTMLElement,
+    contentWidth: number
+  ): void {
     const nextCol = cell.colIndex + 1;
     if (nextCol >= s.rows[cell.rowIndex].cells.length) return;
     const nextOrigin = gridMerge.getOriginCell(
@@ -440,7 +456,7 @@ export class EmbeddedTableComponent {
     );
     if (!nextOrigin || nextOrigin.rowIndex !== cell.rowIndex || nextOrigin.colIndex !== nextCol) return;
     const nextCell = nextOrigin as NestedTableCell;
-    if (nextCell.widget != null) return; // next cell has content
+    if (nextCell.widget != null) return;
     if (contentWidth <= cellEl.clientWidth) return;
     const mergedRows = gridMerge.mergeCells(
       s.rows as gridMerge.MergeableRow[],
@@ -449,8 +465,14 @@ export class EmbeddedTableComponent {
       cell.rowIndex,
       nextCol
     ) as unknown as NestedTableRow[];
-    this.state.set({ rows: mergedRows });
-    this.nestedTableChange.emit({ rows: mergedRows });
+    const withAutoMerge = mergedRows.map((row, ri) => ({
+      ...row,
+      cells: row.cells.map((c, ci) =>
+        ri === cell.rowIndex && ci === cell.colIndex ? { ...c, autoMerged: true } : c
+      ),
+    }));
+    this.state.set({ rows: withAutoMerge });
+    this.nestedTableChange.emit({ rows: withAutoMerge });
   }
 
   /** Get actual text content width – use canvas for both label and input (element width can be wrong when merged) */

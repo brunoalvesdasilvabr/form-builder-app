@@ -1,6 +1,5 @@
 <h2 mat-dialog-title>{{ title }}</h2>
 <mat-dialog-content>
-  <label class="layout-name-label" for="layout-name-input">Layout name</label>
   <input
     id="layout-name-input"
     type="text"
@@ -9,6 +8,7 @@
     (input)="onNameInput($any($event.target).value)"
     placeholder="My layout"
     (keydown.enter)="save()"
+    aria-label="Layout name"
   />
 </mat-dialog-content>
 <mat-dialog-actions align="end">

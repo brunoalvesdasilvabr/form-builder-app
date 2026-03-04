@@ -72,13 +72,3 @@ export const ERROR_CONDITION_SNIPPETS: ErrorConditionSnippet[] = [
     usesGroup: true,
   },
 ];
-
-/** Control state tokens for autocomplete hints */
-export const ERROR_CONDITION_CONTROL_STATES = [
-  'invalid', 'valid', 'dirty', 'pristine', 'touched', 'untouched',
-] as const;
-
-/** Error keys commonly used in Angular validators */
-export const ERROR_CONDITION_ERROR_KEYS = [
-  'required', 'email', 'minlength', 'maxlength', 'pattern', 'min', 'max',
-] as const;
