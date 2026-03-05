@@ -232,20 +232,13 @@
     font-size: inherit;
   }
 
-  /* Widget structure (from injected HTML; component styles are encapsulated elsewhere). */
-  .widget-input-wrapper,
-  .widget-checkbox-wrapper,
-  .widget-radio-wrapper {
+  /* Widget structure (from injected HTML; no wrapper divs). */
+  app-widget-input,
+  app-widget-checkbox,
+  app-widget-radio {
     display: block;
     width: 100%;
     min-width: 0;
-  }
-
-  .widget-error-message {
-    display: block;
-    margin-top: 0.25rem;
-    font-size: 0.8rem;
-    color: var(--error-color, #b91c1c);
   }
 }
 

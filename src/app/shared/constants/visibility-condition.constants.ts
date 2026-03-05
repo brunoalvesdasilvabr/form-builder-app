@@ -1,9 +1,9 @@
 /**
- * Reactive-form-style error visibility snippets.
+ * Reactive-form-style visibility condition snippets.
  * Placeholders: {form} = layout name (data-form-group), {ctrl} = control name (formControlName), {grp} = nested group name.
  * Path pattern: {form}.{ctrl} for flat form, or {form}.{grp}.{ctrl} for nested group.
  */
-export interface ErrorConditionSnippet {
+export interface VisibilityConditionSnippet {
   /** Label shown in the dropdown */
   label: string;
   /** Expression template with {form}, {ctrl} and optionally {grp} placeholders */
@@ -12,7 +12,7 @@ export interface ErrorConditionSnippet {
   usesGroup?: boolean;
 }
 
-export const ERROR_CONDITION_SNIPPETS: ErrorConditionSnippet[] = [
+export const VISIBILITY_CONDITION_SNIPPETS: VisibilityConditionSnippet[] = [
   {
     label: 'Invalid and (dirty or touched)',
     template: '{form}.{ctrl}.invalid && ({form}.{ctrl}.dirty || {form}.{ctrl}.touched)',

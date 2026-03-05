@@ -1,26 +1,29 @@
 <form appFormLayoutName class="canvas-form canvas-wrapper">
   <div class="canvas-toolbar">
-      <div class="canvas-toolbar-buttons">
-        <button mat-raised-button color="primary" (click)="undo()" [disabled]="!canUndo()" title="Undo last change">
-          <mat-icon>undo</mat-icon>
-          Undo
-        </button>
-        <select
-          name="layoutSelect"
-          class="canvas-toolbar-select"
-          [ngModel]="selectedLayoutId()"
-          (ngModelChange)="onLayoutSelect($event)"
-          [ngModelOptions]="{standalone: true}"
-          title="Switch layout"
-        >
-          <option [ngValue]="null">— New layout —</option>
-          @for (layout of layouts(); track layout.id) {
-            <option [ngValue]="layout.id">{{ layout.name }}</option>
-          }
-        </select>
-        <button type="button" class="btn btn-secondary" (click)="openPreview()" title="Preview canvas HTML">Preview</button>
-        <button type="button" class="btn btn-secondary" (click)="downloadCanvasHtml()" title="Download canvas HTML">Download HTML</button>
-        <button type="button" class="btn btn-secondary" (click)="saveLayout()" title="Save layout">Save layout</button>
+      <div class="canvas-toolbar-row">
+        <div class="canvas-toolbar-left">
+          <label for="layoutSelect" class="canvas-toolbar-label">Layout:</label>
+          <select
+            id="layoutSelect"
+            name="layoutSelect"
+            class="canvas-toolbar-select"
+            [ngModel]="selectedLayoutId()"
+            (ngModelChange)="onLayoutSelect($event)"
+            [ngModelOptions]="{standalone: true}"
+            title="Switch layout"
+          >
+            <option [ngValue]="null">— New layout —</option>
+            @for (layout of layouts(); track layout.id) {
+              <option [ngValue]="layout.id">{{ layout.name }}</option>
+            }
+          </select>
+        </div>
+        <div class="canvas-toolbar-right">
+          <button mat-stroked-button (click)="undo()" [disabled]="!canUndo()" title="Undo last change">Undo</button>
+          <button mat-raised-button color="primary" (click)="saveLayout()" [disabled]="!canUndo()" title="Save layout">Save layout</button>
+          <button type="button" class="btn btn-secondary" (click)="openPreview()" title="Preview canvas HTML">Preview</button>
+          <button type="button" class="btn btn-secondary" (click)="downloadCanvasHtml()" title="Download canvas HTML">Download HTML</button>
+        </div>
       </div>
       <p class="canvas-toolbar-hint">Ctrl+click two corners (e.g. top-left then bottom-right) to select a rectangle—cells inside merged regions are included automatically. Ctrl+click a selected cell to unselect it. Use Undo to revert the last change.</p>
   </div>

@@ -14,9 +14,50 @@
 }
 
 .palette-hint {
-  margin: 0 0 1rem 0;
+  margin: 0 0 0.75rem 0;
   font-size: 0.75rem;
   color: var(--text-muted);
+}
+
+.palette-accordion {
+  display: block;
+
+  &::ng-deep {
+    .mat-mdc-expansion-panel,
+    .mat-expansion-panel {
+      box-shadow: none !important;
+    }
+  }
+}
+
+.palette-panel {
+  background: var(--bg-cell);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: none !important;
+
+  &::ng-deep {
+    .mat-mdc-expansion-panel-header,
+    .mat-expansion-panel-header {
+      box-shadow: none;
+    }
+    .mat-mdc-expansion-panel-header {
+      padding: 0.5rem 0.75rem;
+      min-height: 40px;
+    }
+    .mat-mdc-expansion-panel-header-title {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .mat-mdc-expansion-panel-body {
+      padding: 0.5rem 0.75rem 0.75rem;
+    }
+  }
+
+  + .palette-panel {
+    margin-top: 0.35rem;
+  }
 }
 
 .palette-list {

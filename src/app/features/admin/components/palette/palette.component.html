@@ -1,17 +1,33 @@
 <div class="palette">
   <h3 class="palette-title">Components</h3>
   <p class="palette-hint">Drag components into the canvas table</p>
-  <div class="palette-list">
-    @for (type of widgets(); track type) {
-      <div
-        class="palette-item"
-        draggable="true"
-        (dragstart)="onDragStart($event, type)"
-        (dragend)="onDragEnd($event)"
-      >
-        <span class="palette-item-icon">{{ iconFor(type) }}</span>
-        <span class="palette-item-label">{{ labels()[type] }}</span>
+
+  <mat-accordion class="palette-accordion" displayMode="flat">
+    <mat-expansion-panel class="palette-panel">
+      <mat-expansion-panel-header>
+        <mat-panel-title>Layout</mat-panel-title>
+      </mat-expansion-panel-header>
+      <div class="palette-list">
+        @for (type of layoutWidgets; track type) {
+          <div class="palette-item" draggable="true" (dragstart)="onDragStart($event, type)" (dragend)="onDragEnd($event)">
+            <span class="palette-item-icon">{{ iconFor(type) }}</span>
+            <span class="palette-item-label">{{ labels()[type] }}</span>
+          </div>
+        }
       </div>
-    }
-  </div>
+    </mat-expansion-panel>
+    <mat-expansion-panel class="palette-panel">
+      <mat-expansion-panel-header>
+        <mat-panel-title>Data</mat-panel-title>
+      </mat-expansion-panel-header>
+      <div class="palette-list">
+        @for (type of dataWidgets; track type) {
+          <div class="palette-item" draggable="true" (dragstart)="onDragStart($event, type)" (dragend)="onDragEnd($event)">
+            <span class="palette-item-icon">{{ iconFor(type) }}</span>
+            <span class="palette-item-label">{{ labels()[type] }}</span>
+          </div>
+        }
+      </div>
+    </mat-expansion-panel>
+  </mat-accordion>
 </div>

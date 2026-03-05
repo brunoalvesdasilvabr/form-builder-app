@@ -361,41 +361,28 @@ export class CanvasService {
     });
   }
 
-  updateWidgetErrorCondition(cellId: string, widgetId: string, errorCondition: string): void {
+  updateWidgetVisibilityCondition(cellId: string, widgetId: string, visibilityCondition: string): void {
     this.pushHistory();
-    const val = errorCondition.trim() || undefined;
+    const val = visibilityCondition.trim() || undefined;
     const rows = this.state().rows.map((row) => ({
       ...row,
       cells: row.cells.map((c) => {
         if (c.id !== cellId || !c.widget || c.widget.id !== widgetId) return c;
-        return { ...c, widget: { ...c.widget, errorCondition: val } };
+        return { ...c, widget: { ...c.widget, visibilityCondition: val } };
       }),
     }));
     this.state.set({ rows });
   }
 
-  updateWidgetErrorMessage(cellId: string, widgetId: string, errorMessage: string): void {
-    this.pushHistory();
-    const val = errorMessage.trim() || undefined;
-    const rows = this.state().rows.map((row) => ({
-      ...row,
-      cells: row.cells.map((c) => {
-        if (c.id !== cellId || !c.widget || c.widget.id !== widgetId) return c;
-        return { ...c, widget: { ...c.widget, errorMessage: val } };
-      }),
-    }));
-    this.state.set({ rows });
-  }
-
-  updateNestedWidgetErrorCondition(
+  updateNestedWidgetVisibilityCondition(
     parentCellId: string,
     parentWidgetId: string,
     nestedCellId: string,
     nestedWidgetId: string,
-    errorCondition: string
+    visibilityCondition: string
   ): void {
     this.pushHistory();
-    const val = errorCondition.trim() || undefined;
+    const val = visibilityCondition.trim() || undefined;
     this.state.update((s) => {
       const rows = s.rows.map((row) => ({
         ...row,
@@ -407,80 +394,7 @@ export class CanvasService {
             ...r,
             cells: r.cells.map((nc) => {
               if (nc.id !== nestedCellId || !nc.widget || nc.widget.id !== nestedWidgetId) return nc;
-              return { ...nc, widget: { ...nc.widget, errorCondition: val } };
-            }),
-          }));
-          return { ...c, widget: { ...c.widget, nestedTable: { rows: nestedRows } } };
-        }),
-      }));
-      return { rows };
-    });
-  }
-
-  updateNestedWidgetErrorMessage(
-    parentCellId: string,
-    parentWidgetId: string,
-    nestedCellId: string,
-    nestedWidgetId: string,
-    errorMessage: string
-  ): void {
-    this.pushHistory();
-    const val = errorMessage.trim() || undefined;
-    this.state.update((s) => {
-      const rows = s.rows.map((row) => ({
-        ...row,
-        cells: row.cells.map((c) => {
-          if (c.id !== parentCellId || !c.widget || c.widget.id !== parentWidgetId || c.widget.type !== 'table') return c;
-          const nested = c.widget.nestedTable;
-          if (!nested?.rows) return c;
-          const nestedRows = nested.rows.map((r) => ({
-            ...r,
-            cells: r.cells.map((nc) => {
-              if (nc.id !== nestedCellId || !nc.widget || nc.widget.id !== nestedWidgetId) return nc;
-              return { ...nc, widget: { ...nc.widget, errorMessage: val } };
-            }),
-          }));
-          return { ...c, widget: { ...c.widget, nestedTable: { rows: nestedRows } } };
-        }),
-      }));
-      return { rows };
-    });
-  }
-
-  updateWidgetErrorForControlName(cellId: string, widgetId: string, errorForControlName: string): void {
-    this.pushHistory();
-    const val = errorForControlName.trim() || undefined;
-    const rows = this.state().rows.map((row) => ({
-      ...row,
-      cells: row.cells.map((c) => {
-        if (c.id !== cellId || !c.widget || c.widget.id !== widgetId) return c;
-        return { ...c, widget: { ...c.widget, errorForControlName: val } };
-      }),
-    }));
-    this.state.set({ rows });
-  }
-
-  updateNestedWidgetErrorForControlName(
-    parentCellId: string,
-    parentWidgetId: string,
-    nestedCellId: string,
-    nestedWidgetId: string,
-    errorForControlName: string
-  ): void {
-    this.pushHistory();
-    const val = errorForControlName.trim() || undefined;
-    this.state.update((s) => {
-      const rows = s.rows.map((row) => ({
-        ...row,
-        cells: row.cells.map((c) => {
-          if (c.id !== parentCellId || !c.widget || c.widget.id !== parentWidgetId || c.widget.type !== 'table') return c;
-          const nested = c.widget.nestedTable;
-          if (!nested?.rows) return c;
-          const nestedRows = nested.rows.map((r) => ({
-            ...r,
-            cells: r.cells.map((nc) => {
-              if (nc.id !== nestedCellId || !nc.widget || nc.widget.id !== nestedWidgetId) return nc;
-              return { ...nc, widget: { ...nc.widget, errorForControlName: val } };
+              return { ...nc, widget: { ...nc.widget, visibilityCondition: val } };
             }),
           }));
           return { ...c, widget: { ...c.widget, nestedTable: { rows: nestedRows } } };
@@ -703,7 +617,7 @@ export class CanvasService {
     return createDefaultNestedTable('id');
   }
 
-  /** All form control names from inputs/checkbox/radio in the layout (top-level and nested) for "Associated input" dropdown. */
+  /** All form control names from inputs/checkbox/radio in the layout (top-level and nested). */
   getControlNamesInLayout(): string[] {
     const set = new Set<string>();
     const addFromRows = (rows: { cells: { widget: WidgetInstance | null }[] }[]): void => {
@@ -767,7 +681,7 @@ export class CanvasService {
       cells: row.cells.map((c) => {
         if (c.id !== cellId || !c.widget || c.widget.id !== widgetId) return c;
         const w = c.widget;
-        const updates = w.type === 'label' ? { label, errorMessage: label } : { label };
+        const updates = { label };
         return { ...c, widget: { ...w, ...updates } };
       }),
     }));
@@ -794,7 +708,7 @@ export class CanvasService {
             cells: r.cells.map((nc) => {
               if (nc.id !== nestedCellId || !nc.widget || nc.widget.id !== nestedWidgetId) return nc;
               const w = nc.widget;
-              const updates = w.type === 'label' ? { label, errorMessage: label } : { label };
+              const updates = { label };
               return { ...nc, widget: { ...w, ...updates } };
             }),
           }));

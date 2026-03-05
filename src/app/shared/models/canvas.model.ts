@@ -76,12 +76,8 @@ export interface WidgetInstance {
   elementClasses?: Record<string, string>;
   /** FormControlName for reactive forms (input, checkbox, radio) */
   formControlName?: string;
-  /** Error message text shown when the visibility condition is true. On labels: message shown when associated input meets the rule. */
-  errorMessage?: string;
-  /** Reactive-form-style expression (e.g. f.email.invalid && f.email.touched) controlling when the error is shown. On labels: when to show this label as error for the associated input. Output as data-error-condition. */
-  errorCondition?: string;
-  /** When this widget is a label used as error display: the formControlName of the input this label is associated with. Output as data-error-for. */
-  errorForControlName?: string;
+  /** Reactive-form-style expression controlling when this component is shown. Output as data-visibility-condition. Applies to label, input, checkbox, radio. */
+  visibilityCondition?: string;
   /** Min character length (Validators.minlength). Output as data-minlength. */
   minLength?: number;
   /** Max character length (Validators.maxlength). Output as data-maxlength. */

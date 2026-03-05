@@ -7,7 +7,7 @@ import { CanvasService } from './canvas.service';
 
 /**
  * Prompts the user to save the layout name before opening the right panel for form controls.
- * The layout name is used as the form reference (e.g. layoutName.controlName.invalid) in error visibility rules.
+ * The layout name is used as the form reference (e.g. layoutName.controlName.invalid) in visibility conditions.
  */
 @Injectable({ providedIn: 'root' })
 export class LayoutGuardService {

@@ -11,6 +11,7 @@ const BUILDER_ELEMENT_SELECTORS = [
   '.widget-cell-remove',
   '.widget-radio-option-add',
   '.widget-radio-option-remove',
+  '.canvas-cell-placeholder', /* "Drop component" in empty cells – not shown in preview/download */
 ] as const;
 
 const OUTLINE_CLASSES_TO_STRIP = [

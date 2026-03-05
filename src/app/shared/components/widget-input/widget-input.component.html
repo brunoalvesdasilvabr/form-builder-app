@@ -1,21 +1,20 @@
 @if (widget(); as w) {
-  <div class="widget-input-wrapper">
-    <input
-      type="text"
-      [attr.name]="w.formControlName || w.id"
-      class="widget-input-control"
-      (input)="onInput()"
-      (keyup)="onInput()"
-      data-class-target="control"
-      [ngClass]="getElementClassObj('control')"
-      [attr.data-form-control-name]="w.formControlName ?? null"
-      [attr.data-property-binding]="getPropertyBinding(w.valueBinding) ?? null"
-      [attr.data-minlength]="w.minLength ?? null"
-      [attr.data-maxlength]="w.maxLength ?? null"
-      [attr.data-min]="w.min ?? null"
-      [attr.data-max]="w.max ?? null"
-      [attr.data-pattern]="w.pattern ?? null"
-      [placeholder]="w.placeholder ?? 'Enter text...'"
-    />
-  </div>
+  <input
+    type="text"
+    [attr.name]="w.formControlName || w.id"
+    class="widget-input-control"
+    (input)="onInput()"
+    (keyup)="onInput()"
+    data-class-target="control"
+    [ngClass]="getElementClassObj('control')"
+    [attr.data-form-control-name]="w.formControlName ?? null"
+    [attr.data-visibility-condition]="w.visibilityCondition ?? null"
+    [attr.data-property-binding]="getPropertyBinding(w.valueBinding) ?? null"
+    [attr.data-minlength]="w.minLength ?? null"
+    [attr.data-maxlength]="w.maxLength ?? null"
+    [attr.data-min]="w.min ?? null"
+    [attr.data-max]="w.max ?? null"
+    [attr.data-pattern]="w.pattern ?? null"
+    [placeholder]="w.placeholder ?? 'Enter text...'"
+  />
 }

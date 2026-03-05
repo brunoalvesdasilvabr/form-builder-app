@@ -8,9 +8,9 @@ import { SavedLayoutsService } from '../../core/services/saved-layouts.service';
 import type { CanvasCell } from '../../shared/models/canvas.model';
 import { parseBindingProperty } from '../../shared/utils/binding.util';
 import {
-  ERROR_CONDITION_SNIPPETS,
-  type ErrorConditionSnippet,
-} from '../../shared/constants/error-condition.constants';
+  VISIBILITY_CONDITION_SNIPPETS,
+  type VisibilityConditionSnippet,
+} from '../../shared/constants/visibility-condition.constants';
 import { slugify } from '../../shared/utils/slugify.util';
 
 @Component({
@@ -35,15 +35,12 @@ export class AdminComponent {
   readonly pendingClass = signal('');
   readonly pendingProperty = signal('');
   readonly pendingFormControlName = signal('');
-  readonly pendingErrorMessage = signal('');
-  readonly pendingErrorCondition = signal('');
+  readonly pendingVisibilityCondition = signal('');
   readonly pendingMinLength = signal('');
   readonly pendingMaxLength = signal('');
   readonly pendingMin = signal('');
   readonly pendingMax = signal('');
   readonly pendingPattern = signal('');
-  /** For labels: which input (formControlName) this label shows errors for. */
-  readonly pendingErrorForControlName = signal('');
   /** Selected index for "Insert rule" dropdown (reset after insert so user can continue typing). */
   readonly insertSnippetChoice = signal<string>('');
   /** Add rule modal open state */
@@ -52,16 +49,14 @@ export class AdminComponent {
   private initialClass = '';
   private initialProperty = '';
   private initialFormControlName = '';
-  private initialErrorMessage = '';
-  private initialErrorCondition = '';
-  private initialErrorForControlName = '';
+  private initialVisibilityCondition = '';
   private initialMinLength = '';
   private initialMaxLength = '';
   private initialMin = '';
   private initialMax = '';
   private initialPattern = '';
 
-  readonly errorConditionSnippets = ERROR_CONDITION_SNIPPETS;
+  readonly visibilityConditionSnippets = VISIBILITY_CONDITION_SNIPPETS;
 
   /** Form group name from layout (slugified) for snippet placeholders */
   readonly formGroupName = computed(() => {
@@ -69,8 +64,12 @@ export class AdminComponent {
     return slugify(layout?.name?.trim() ?? 'form');
   });
 
-  /** Control names from all inputs/checkboxes/radios in the layout (for label "Associated input" dropdown). */
-  readonly controlNamesInLayout = computed(() => this.canvas.getControlNamesInLayout());
+  /** True when the right panel should show the visibility condition block. Shown for every data component (label, input, checkbox, radio) — i.e. any widget that is not a table. */
+  readonly showVisibilityConditionSection = computed(() => {
+    const cell = this.selectedCell();
+    if (!cell?.widget) return false;
+    return (cell.widget.type as string) !== 'table';
+  });
 
   /** Notifications to show after Apply (e.g. "Your class was bound to the component"). */
   readonly notificationMessages = signal<string[]>([]);
@@ -82,7 +81,7 @@ export class AdminComponent {
       if (cell) {
         this.syncInitialClassFromCell(cell);
         this.syncInitialBindingAndFormControl(cell);
-        this.syncInitialErrorFieldsFromCell(cell);
+        this.syncInitialVisibilityFromCell(cell);
         this.syncInitialValidatorValuesFromCell(cell);
         this.copyInitialsToPending();
       }
@@ -112,17 +111,11 @@ export class AdminComponent {
       : '';
   }
 
-  /** Fills initial error fields (for labels: associated input, message, rule). */
-  private syncInitialErrorFieldsFromCell(cell: CanvasCell): void {
-    if (cell.widget?.type === 'label') {
-      this.initialErrorForControlName = cell.widget.errorForControlName ?? '';
-      this.initialErrorMessage = (cell.widget.errorMessage ?? cell.widget.label ?? '').trim();
-      this.initialErrorCondition = cell.widget.errorCondition ?? '';
-    } else {
-      this.initialErrorForControlName = '';
-      this.initialErrorMessage = '';
-      this.initialErrorCondition = '';
-    }
+  /** Fills initial visibility condition (for label, input, checkbox, radio). */
+  private syncInitialVisibilityFromCell(cell: CanvasCell): void {
+    const w = cell.widget;
+    const raw = w?.visibilityCondition ?? '';
+    this.initialVisibilityCondition = raw;
   }
 
   /** Fills initial validator values (min/max length, min/max number, pattern) for inputs. */
@@ -140,9 +133,7 @@ export class AdminComponent {
     this.pendingClass.set(this.initialClass);
     this.pendingProperty.set(this.initialProperty);
     this.pendingFormControlName.set(this.initialFormControlName);
-    this.pendingErrorForControlName.set(this.initialErrorForControlName);
-    this.pendingErrorMessage.set(this.initialErrorMessage);
-    this.pendingErrorCondition.set(this.initialErrorCondition);
+    this.pendingVisibilityCondition.set(this.initialVisibilityCondition);
     this.pendingMinLength.set(this.initialMinLength);
     this.pendingMaxLength.set(this.initialMaxLength);
     this.pendingMin.set(this.initialMin);
@@ -170,11 +161,9 @@ export class AdminComponent {
     if (this.pendingFormControlName() !== this.initialFormControlName && cell.widget && ['input', 'checkbox', 'radio'].includes(cell.widget.type)) {
       this.applyFormControlNameChange(cell, messages);
     }
-    if ((this.pendingErrorForControlName() !== this.initialErrorForControlName ||
-         this.pendingErrorMessage() !== this.initialErrorMessage ||
-         this.pendingErrorCondition() !== this.initialErrorCondition) &&
-        cell.widget?.type === 'label') {
-      this.applyErrorFieldsChange(cell, messages);
+    const isDataComponent = cell.widget && ['label', 'input', 'checkbox', 'radio'].includes(cell.widget.type);
+    if (isDataComponent && this.pendingVisibilityCondition() !== this.initialVisibilityCondition) {
+      this.applyVisibilityConditionChange(cell, messages);
     }
     if ((this.pendingMinLength() !== this.initialMinLength || this.pendingMaxLength() !== this.initialMaxLength ||
          this.pendingMin() !== this.initialMin || this.pendingMax() !== this.initialMax ||
@@ -235,13 +224,11 @@ export class AdminComponent {
     this.initialFormControlName = this.pendingFormControlName();
   }
 
-  /** Applies error-for, message and rule to the label and records the message. */
-  private applyErrorFieldsChange(cell: CanvasCell, messages: string[]): void {
-    this.applyErrorFieldsForLabel(cell);
-    messages.push('Error association, message and visibility rule were applied to the label.');
-    this.initialErrorForControlName = this.pendingErrorForControlName();
-    this.initialErrorMessage = this.pendingErrorMessage();
-    this.initialErrorCondition = this.pendingErrorCondition();
+  /** Applies visibility condition to the selected data component (label, input, checkbox, radio). */
+  private applyVisibilityConditionChange(cell: CanvasCell, messages: string[]): void {
+    this.applyVisibilityCondition(cell);
+    messages.push('Visibility condition was applied.');
+    this.initialVisibilityCondition = this.pendingVisibilityCondition();
   }
 
   /** Applies pending validator values (min/max/pattern) for input and records the message. */
@@ -256,8 +243,7 @@ export class AdminComponent {
   }
 
   getSnippetPreview(snippet: { template: string; usesGroup?: boolean }): string {
-    const cell = this.selectedCell();
-    const ctrl = (cell?.widget?.type === 'label' ? this.pendingErrorForControlName() : this.pendingFormControlName()).trim() || 'controlName';
+    const ctrl = (this.pendingFormControlName() || '').trim() || 'controlName';
     const form = this.formGroupName();
     const grp = form;
     let expr = snippet.template.replace(/\{form\}/g, form);
@@ -266,26 +252,26 @@ export class AdminComponent {
     return expr;
   }
 
-  /** Insert chosen snippet into the error rule input if not already present; user can then continue typing. Final string is bound to data-error-condition on Apply. */
-  onInsertErrorSnippet(indexStr: string): void {
+  /** Insert chosen snippet into the visibility condition input if not already present. Bound to data-visibility-condition on Apply. */
+  onInsertVisibilitySnippet(indexStr: string): void {
     if (indexStr === '' || indexStr == null) return;
     const i = Number(indexStr);
-    const snippet = this.errorConditionSnippets[i] as ErrorConditionSnippet | undefined;
+    const snippet = this.visibilityConditionSnippets[i] as VisibilityConditionSnippet | undefined;
     if (!snippet) return;
     const inserted = this.getSnippetPreview(snippet).trim();
-    const current = (this.pendingErrorCondition() || '').trim();
+    const current = (this.pendingVisibilityCondition() || '').trim();
     if (current.includes(inserted)) {
       this.insertSnippetChoice.set('');
       return;
     }
     const next = current ? `${current} && ${inserted}` : inserted;
-    this.pendingErrorCondition.set(next);
+    this.pendingVisibilityCondition.set(next);
     this.insertSnippetChoice.set('');
   }
 
-  /** Clear the error visibility rule (entire string). */
-  clearErrorRule(): void {
-    this.pendingErrorCondition.set('');
+  /** Clear the visibility condition (entire string). */
+  clearVisibilityRule(): void {
+    this.pendingVisibilityCondition.set('');
   }
 
   openAddRuleModal(): void {
@@ -299,7 +285,7 @@ export class AdminComponent {
 
   insertRuleAndClose(): void {
     const v = this.insertSnippetChoice();
-    if (v !== '' && v != null) this.onInsertErrorSnippet(v);
+    if (v !== '' && v != null) this.onInsertVisibilitySnippet(v);
     this.closeAddRuleModal();
   }
 
@@ -334,25 +320,17 @@ export class AdminComponent {
     }
   }
 
-  /** Apply error-for-control, error message and visibility rule to a label widget. Error message and label text stay in sync. */
-  private applyErrorFieldsForLabel(cell: CanvasCell): void {
+  /** Apply visibility condition to the selected data component (label, input, checkbox, radio). */
+  private applyVisibilityCondition(cell: CanvasCell): void {
     const w = cell.widget;
-    if (!w || w.type !== 'label') return;
+    if (!w || !['label', 'input', 'checkbox', 'radio'].includes(w.type)) return;
+    const cond = this.pendingVisibilityCondition().trim() || '';
     const nested = this.selectedNestedPath();
-    const errorFor = this.pendingErrorForControlName().trim() || '';
-    const msg = this.pendingErrorMessage().trim() || '';
-    const cond = this.pendingErrorCondition().trim() || '';
     if (nested) {
       const { parentCellId, parentWidgetId, nestedCellId } = nested;
-      this.canvas.updateNestedWidgetErrorForControlName(parentCellId, parentWidgetId, nestedCellId, w.id, errorFor);
-      this.canvas.updateNestedWidgetErrorMessage(parentCellId, parentWidgetId, nestedCellId, w.id, msg);
-      this.canvas.updateNestedWidgetErrorCondition(parentCellId, parentWidgetId, nestedCellId, w.id, cond);
-      this.canvas.updateNestedWidgetLabel(parentCellId, parentWidgetId, nestedCellId, w.id, msg);
+      this.canvas.updateNestedWidgetVisibilityCondition(parentCellId, parentWidgetId, nestedCellId, w.id, cond);
     } else {
-      this.canvas.updateWidgetErrorForControlName(cell.id, w.id, errorFor);
-      this.canvas.updateWidgetErrorMessage(cell.id, w.id, msg);
-      this.canvas.updateWidgetErrorCondition(cell.id, w.id, cond);
-      this.canvas.updateWidgetLabel(cell.id, w.id, msg);
+      this.canvas.updateWidgetVisibilityCondition(cell.id, w.id, cond);
     }
   }
 
@@ -387,6 +365,22 @@ export class AdminComponent {
         this.canvas.updateValueBinding(cell.id, w.id, propertyValue);
       }
     }
+  }
+
+  /** Right panel title based on selection: "Cell Properties", "Label Properties", "Input Properties", etc. */
+  getPropertiesPanelTitle(): string {
+    const cell = this.selectedCell();
+    if (!cell) return 'Properties';
+    if (!cell.widget) return 'Cell Properties';
+    const typeLabels: Record<string, string> = {
+      input: 'Input',
+      checkbox: 'Checkbox',
+      radio: 'Radio',
+      label: 'Label',
+      table: 'Table',
+    };
+    const name = typeLabels[cell.widget.type] ?? cell.widget.type;
+    return `${name} Properties`;
   }
 
   /** Label for which element gets the class (cell, component wrapper, component, or child element). */
@@ -428,15 +422,16 @@ export class AdminComponent {
     return `Bound to: ${label} — value={{ ${prop} }}`;
   }
 
-  /** Error condition string to use for visibility (pending or saved). */
-  getEffectiveErrorCondition(cell: CanvasCell | null): string {
+  /** Visibility condition string (pending or saved). */
+  getEffectiveVisibilityCondition(cell: CanvasCell | null): string {
     if (!cell?.widget) return '';
-    return (this.pendingErrorCondition() || cell.widget.errorCondition || '').trim();
+    const w = cell.widget;
+    return (this.pendingVisibilityCondition() || w?.visibilityCondition || '').trim();
   }
 
   /** True if the condition references any validator that needs a value (minlength, maxlength, min, max, pattern). */
   showValidatorValuesSection(cell: CanvasCell | null): boolean {
-    const cond = this.getEffectiveErrorCondition(cell);
+    const cond = this.getEffectiveVisibilityCondition(cell);
     return (
       cond.includes('minlength') ||
       cond.includes('maxlength') ||
@@ -447,23 +442,23 @@ export class AdminComponent {
   }
 
   showMinLengthInput(cell: CanvasCell | null): boolean {
-    return this.getEffectiveErrorCondition(cell).includes('minlength');
+    return this.getEffectiveVisibilityCondition(cell).includes('minlength');
   }
 
   showMaxLengthInput(cell: CanvasCell | null): boolean {
-    return this.getEffectiveErrorCondition(cell).includes('maxlength');
+    return this.getEffectiveVisibilityCondition(cell).includes('maxlength');
   }
 
   showMinInput(cell: CanvasCell | null): boolean {
-    return /\[\s*['"]min['"]\s*\]/.test(this.getEffectiveErrorCondition(cell));
+    return /\[\s*['"]min['"]\s*\]/.test(this.getEffectiveVisibilityCondition(cell));
   }
 
   showMaxInput(cell: CanvasCell | null): boolean {
-    return /\[\s*['"]max['"]\s*\]/.test(this.getEffectiveErrorCondition(cell));
+    return /\[\s*['"]max['"]\s*\]/.test(this.getEffectiveVisibilityCondition(cell));
   }
 
   showPatternInput(cell: CanvasCell | null): boolean {
-    return this.getEffectiveErrorCondition(cell).includes('pattern');
+    return this.getEffectiveVisibilityCondition(cell).includes('pattern');
   }
 
   /** Get the current binding as a property name (e.g. "listValue1") for the dropdown. */

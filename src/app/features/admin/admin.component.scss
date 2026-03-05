@@ -60,22 +60,6 @@
   color: var(--text);
 }
 
-.admin-right-panel-close {
-  background: none;
-  border: none;
-  font-size: 1.25rem;
-  line-height: 1;
-  color: var(--text-muted);
-  cursor: pointer;
-  padding: 0 0.25rem;
-  border-radius: 4px;
-}
-
-.admin-right-panel-close:hover {
-  color: var(--text);
-  background: var(--bg-hover, rgba(0, 0, 0, 0.05));
-}
-
 .admin-right-panel-body {
   padding: 1rem;
 }
@@ -337,11 +321,34 @@
   }
 }
 
+.admin-right-panel-visibility .admin-right-panel-rule-actions {
+  margin-top: 0.25rem;
+  margin-bottom: 0.5rem;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+
+  .admin-right-panel-add-rule {
+    margin-top: 0;
+  }
+}
+
 .admin-right-panel-rule-actions {
   display: flex;
-  gap: 0.5rem;
+  flex-direction: row;
   align-items: center;
+  gap: 0.5rem;
   margin-top: 0.5rem;
+}
+
+.admin-right-panel-rule-actions .admin-right-panel-add-rule,
+.admin-right-panel-rule-actions .admin-right-panel-clear-rule {
+  flex-shrink: 0;
+  min-height: 2rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .admin-right-panel-ngif-label {

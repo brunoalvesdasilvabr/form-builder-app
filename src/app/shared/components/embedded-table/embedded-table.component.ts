@@ -365,7 +365,7 @@ export class EmbeddedTableComponent {
       cells: row.cells.map((c) => {
         if (c.id !== cellId || !c.widget) return c;
         const w = c.widget;
-        const updates = w.type === 'label' ? { label, errorMessage: label } : { label };
+        const updates = { label };
         return { ...c, widget: { ...w, ...updates } };
       }),
     }));

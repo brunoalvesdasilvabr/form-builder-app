@@ -1,8 +1,8 @@
 import { Component, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { MatExpansionModule } from '@angular/material/expansion';
 import type { WidgetType } from '../../../../shared/models/canvas.model';
 import {
-  WIDGET_TYPES,
   WIDGET_LABELS,
   WIDGET_PALETTE_ICONS,
 } from '../../../../shared/models/canvas.model';
@@ -10,13 +10,18 @@ import {
 @Component({
   selector: 'app-palette',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, MatExpansionModule],
   templateUrl: './palette.component.html',
   styleUrl: './palette.component.scss',
 })
 export class PaletteComponent {
-  readonly widgets = signal<WidgetType[]>(WIDGET_TYPES);
   readonly labels = signal(WIDGET_LABELS);
+
+  /** Layout section: table */
+  readonly layoutWidgets: WidgetType[] = ['table'];
+
+  /** Data section: label, input, checkbox, radio */
+  readonly dataWidgets: WidgetType[] = ['label', 'input', 'checkbox', 'radio'];
 
   iconFor(type: WidgetType): string {
     return WIDGET_PALETTE_ICONS[type] ?? '?';

@@ -12,19 +12,9 @@
     @if (selectedCell(); as cell) {
       <aside class="admin-right-panel">
         <div class="admin-right-panel-header">
-          <h3 class="admin-right-panel-title">Properties</h3>
-          <button type="button" class="admin-right-panel-close" (click)="closePanel()" title="Close panel">×</button>
+          <h3 class="admin-right-panel-title">{{ getPropertiesPanelTitle() }}</h3>
         </div>
         <div class="admin-right-panel-body">
-          <label class="admin-right-panel-label" for="cell-class-input">Class Name</label>
-          <input
-            id="cell-class-input"
-            type="text"
-            class="admin-right-panel-input"
-            [ngModel]="pendingClass()"
-            (ngModelChange)="pendingClass.set($event)"
-            [placeholder]="'Class for the ' + getClassTargetLabel()"
-          />
           @if (cell.widget && ['input', 'checkbox', 'radio'].includes(cell.widget.type)) {
             <div class="admin-right-panel-field">
               <label class="admin-right-panel-label" for="form-control-name-input">Control name</label>
@@ -36,7 +26,6 @@
                 (ngModelChange)="pendingFormControlName.set($event)"
                 placeholder="Example: inputName"
               />
-            </div>
               @if (cell.widget.type === 'input' && showValidatorValuesSection(cell)) {
                 <div class="admin-right-panel-validator-values">
                   <p class="admin-right-panel-hint">Set the value for the chosen rule (data-minlength, data-maxlength, data-min, data-max, data-pattern):</p>
@@ -109,65 +98,17 @@
                   }
                 </div>
               }
-          }
-          @if (cell.widget && cell.widget.type === 'label') {
-            <div class="admin-right-panel-field">
-              <label class="admin-right-panel-label" for="error-for-control-select">Associated input</label>
-              <select
-                id="error-for-control-select"
-                class="admin-right-panel-input admin-right-panel-select"
-                [ngModel]="pendingErrorForControlName()"
-                (ngModelChange)="pendingErrorForControlName.set($event)"
-              >
-                <option value="">— None —</option>
-                @for (ctrl of controlNamesInLayout(); track ctrl) {
-                  <option [value]="ctrl">{{ ctrl }}</option>
-                }
-              </select>
-              <p class="admin-right-panel-hint">Show this label when the chosen input meets the rule below</p>
-            </div>
-            <div class="admin-right-panel-field">
-              <label class="admin-right-panel-label" for="error-condition-input">Error visibility rule</label>
-              <span class="admin-right-panel-ngif-label">*ngIf rule:</span>
-              <div class="admin-right-panel-ngif-preview admin-right-panel-ngif-textarea-wrap">
-                <textarea
-                  id="error-condition-input"
-                  class="admin-right-panel-ngif-textarea"
-                  rows="3"
-                  [ngModel]="pendingErrorCondition()"
-                  (ngModelChange)="pendingErrorCondition.set($event)"
-                  [placeholder]="'Example: ' + formGroupName() + '.' + (pendingErrorForControlName() || 'controlName') + '.invalid && ' + formGroupName() + '.' + (pendingErrorForControlName() || 'controlName') + '.touched'"
-                ></textarea>
-              </div>
-              <div class="admin-right-panel-rule-actions">
-                <button
-                  type="button"
-                  class="admin-right-panel-clear-rule"
-                  (click)="clearErrorRule()"
-                  [disabled]="!pendingErrorCondition()"
-                  title="Clear error rule"
-                >Clear rule</button>
-                <button
-                  type="button"
-                  class="admin-right-panel-add-rule"
-                  (click)="openAddRuleModal()"
-                  title="Insert a rule from the list"
-                >Add rule</button>
-              </div>
-            </div>
-            <div class="admin-right-panel-field">
-              <label class="admin-right-panel-label" for="error-message-input">Error message</label>
-              <input
-                id="error-message-input"
-                type="text"
-                class="admin-right-panel-input"
-                [ngModel]="pendingErrorMessage()"
-                (ngModelChange)="pendingErrorMessage.set($event)"
-                placeholder="Example: This field is required"
-              />
-              <p class="admin-right-panel-hint">Shown when the rule is true (bound to data-error-message on this label)</p>
             </div>
           }
+          <label class="admin-right-panel-label" for="cell-class-input">Class Name</label>
+          <input
+            id="cell-class-input"
+            type="text"
+            class="admin-right-panel-input"
+            [ngModel]="pendingClass()"
+            (ngModelChange)="pendingClass.set($event)"
+            [placeholder]="'Class for the ' + getClassTargetLabel()"
+          />
           @if (cell.widget && cell.widget.type !== 'table') {
             <div class="admin-right-panel-field">
               <label class="admin-right-panel-label" for="value-binding-select">Data Binding</label>
@@ -183,6 +124,36 @@
                 }
               </select>
               <p class="admin-right-panel-hint">{{ getBindingHint(cell) }}</p>
+            </div>
+          }
+          @if (showVisibilityConditionSection()) {
+            <div class="admin-right-panel-field admin-right-panel-visibility">
+              <label class="admin-right-panel-label" for="visibility-condition-input">Visibility rule (*ngIf rule)</label>
+              <div class="admin-right-panel-rule-actions">
+                <button
+                  type="button"
+                  class="admin-right-panel-add-rule"
+                  (click)="openAddRuleModal()"
+                  title="Insert a rule from the list"
+                >Add rule</button>
+                <button
+                  type="button"
+                  class="admin-right-panel-clear-rule"
+                  (click)="clearVisibilityRule()"
+                  [disabled]="!pendingVisibilityCondition()"
+                  title="Clear visibility rule"
+                >Clear rule</button>
+              </div>
+              <div class="admin-right-panel-ngif-preview admin-right-panel-ngif-textarea-wrap">
+                <textarea
+                  id="visibility-condition-input"
+                  class="admin-right-panel-ngif-textarea"
+                  rows="3"
+                  [ngModel]="pendingVisibilityCondition()"
+                  (ngModelChange)="pendingVisibilityCondition.set($event)"
+                  [placeholder]="'Example: ' + formGroupName() + '.' + (pendingFormControlName() || 'controlName') + '.invalid && ' + formGroupName() + '.' + (pendingFormControlName() || 'controlName') + '.touched'"
+                ></textarea>
+              </div>
             </div>
           }
           <button type="button" class="admin-right-panel-apply" (click)="applyChanges()">Apply</button>
@@ -201,7 +172,7 @@
               [ngModelOptions]="{standalone: true}"
             >
               <option value="">— Choose a rule —</option>
-              @for (snippet of errorConditionSnippets; track snippet.label; let i = $index) {
+              @for (snippet of visibilityConditionSnippets; track snippet.label; let i = $index) {
                 <option [value]="i">{{ snippet.label }}</option>
               }
             </select>

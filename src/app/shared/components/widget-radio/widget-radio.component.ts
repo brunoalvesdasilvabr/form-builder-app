@@ -23,6 +23,10 @@ export class WidgetRadioComponent extends BaseWidgetComponent {
     return this.widget()?.innerClassName?.trim() ?? '';
   }
 
+  @HostBinding('attr.data-visibility-condition') get dataVisibilityCondition(): string | null {
+    return this.widget()?.visibilityCondition ?? null;
+  }
+
   onLabelInput(value: string): void {
     this.labelChange.emit(value);
   }
