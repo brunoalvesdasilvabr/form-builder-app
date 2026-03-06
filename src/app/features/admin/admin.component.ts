@@ -154,6 +154,9 @@ export class AdminComponent {
     if (this.pendingClass() !== this.initialClass) {
       this.applyClassChange(cell, messages);
     }
+    if (this.pendingProperty() !== this.initialProperty) {
+      this.applyPropertyChange(cell, messages);
+    }
     if (this.pendingFormControlName() !== this.initialFormControlName && cell.widget && ['label', 'input', 'checkbox', 'radio'].includes(cell.widget.type)) {
       this.applyFormControlNameChange(cell, messages);
     }

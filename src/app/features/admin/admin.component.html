@@ -100,15 +100,33 @@
               }
             </div>
           }
-          <label class="admin-right-panel-label" for="cell-class-input">Class Name</label>
-          <input
-            id="cell-class-input"
-            type="text"
-            class="admin-right-panel-input"
-            [ngModel]="pendingClass()"
-            (ngModelChange)="pendingClass.set($event)"
-            [placeholder]="'Class for the ' + getClassTargetLabel()"
-          />
+          <div class="admin-right-panel-field">
+            <label class="admin-right-panel-label" for="cell-class-input">Class Name</label>
+            <input
+              id="cell-class-input"
+              type="text"
+              class="admin-right-panel-input"
+              [ngModel]="pendingClass()"
+              (ngModelChange)="pendingClass.set($event)"
+              [placeholder]="'Class for the ' + getClassTargetLabel()"
+            />
+          </div>
+          @if (cell.widget && cell.widget.type !== 'table') {
+            <div class="admin-right-panel-field">
+              <label class="admin-right-panel-label" for="value-binding-select">Data Binding</label>
+              <select
+                id="value-binding-select"
+                class="admin-right-panel-input admin-right-panel-select"
+                [ngModel]="pendingProperty()"
+                (ngModelChange)="pendingProperty.set($event)"
+              >
+                <option value="">— None —</option>
+                @for (prop of bindableProperties; track prop.value) {
+                  <option [value]="prop.value">{{ prop.label }}</option>
+                }
+              </select>
+            </div>
+          }
           @if (showVisibilityConditionSection()) {
             <div class="admin-right-panel-field admin-right-panel-visibility">
               <label class="admin-right-panel-label" for="visibility-condition-input">Visibility rule (*ngIf rule)</label>

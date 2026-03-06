@@ -2,8 +2,8 @@
   <h3 class="palette-title">Components</h3>
   <p class="palette-hint">Drag components into the canvas table</p>
 
-  <mat-accordion class="palette-accordion" displayMode="flat">
-    <mat-expansion-panel class="palette-panel">
+  <mat-accordion class="palette-accordion" displayMode="flat" [multi]="true">
+    <mat-expansion-panel class="palette-panel" [expanded]="true">
       <mat-expansion-panel-header>
         <mat-panel-title>Layout</mat-panel-title>
       </mat-expansion-panel-header>
@@ -16,7 +16,7 @@
         }
       </div>
     </mat-expansion-panel>
-    <mat-expansion-panel class="palette-panel">
+    <mat-expansion-panel class="palette-panel" [expanded]="true">
       <mat-expansion-panel-header>
         <mat-panel-title>Data</mat-panel-title>
       </mat-expansion-panel-header>
