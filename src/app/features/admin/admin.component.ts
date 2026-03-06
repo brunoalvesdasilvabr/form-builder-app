@@ -105,7 +105,7 @@ export class AdminComponent {
   /** Fills initialProperty and initialFormControlName from the cell. */
   private syncInitialBindingAndFormControl(cell: CanvasCell): void {
     this.initialProperty = this.getCurrentBindingProperty(cell);
-    this.initialFormControlName = (cell.widget && ['input', 'checkbox', 'radio'].includes(cell.widget.type))
+    this.initialFormControlName = (cell.widget && ['label', 'input', 'checkbox', 'radio'].includes(cell.widget.type))
       ? (cell.widget.formControlName ?? '')
       : '';
   }
@@ -154,7 +154,7 @@ export class AdminComponent {
     if (this.pendingClass() !== this.initialClass) {
       this.applyClassChange(cell, messages);
     }
-    if (this.pendingFormControlName() !== this.initialFormControlName && cell.widget && ['input', 'checkbox', 'radio'].includes(cell.widget.type)) {
+    if (this.pendingFormControlName() !== this.initialFormControlName && cell.widget && ['label', 'input', 'checkbox', 'radio'].includes(cell.widget.type)) {
       this.applyFormControlNameChange(cell, messages);
     }
     const isDataComponent = cell.widget && ['label', 'input', 'checkbox', 'radio'].includes(cell.widget.type);
@@ -331,7 +331,7 @@ export class AdminComponent {
 
   private applyFormControlName(cell: CanvasCell): void {
     const w = cell.widget;
-    if (!w || !['input', 'checkbox', 'radio'].includes(w.type)) return;
+    if (!w || !['label', 'input', 'checkbox', 'radio'].includes(w.type)) return;
     const nested = this.selectedNestedPath();
     const name = this.pendingFormControlName().trim() || undefined;
     if (nested) {

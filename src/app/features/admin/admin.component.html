@@ -15,7 +15,7 @@
           <h3 class="admin-right-panel-title">{{ getPropertiesPanelTitle() }}</h3>
         </div>
         <div class="admin-right-panel-body">
-          @if (cell.widget && ['input', 'checkbox', 'radio'].includes(cell.widget.type)) {
+          @if (cell.widget && ['label', 'input', 'checkbox', 'radio'].includes(cell.widget.type)) {
             <div class="admin-right-panel-field">
               <label class="admin-right-panel-label" for="form-control-name-input">Control name</label>
               <input

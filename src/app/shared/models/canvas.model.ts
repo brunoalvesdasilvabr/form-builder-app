@@ -74,7 +74,7 @@ export interface WidgetInstance {
   innerClassName?: string;
   /** Classes for specific child elements; key = data-class-target value (e.g. 'label', 'control', 'option-0') */
   elementClasses?: Record<string, string>;
-  /** FormControlName for reactive forms (input, checkbox, radio) */
+  /** FormControlName for reactive forms (label, input, checkbox, radio) */
   formControlName?: string;
   /** Reactive-form-style expression controlling when this component is shown. Output as data-visibility-condition. Applies to label, input, checkbox, radio. */
   visibilityCondition?: string;
