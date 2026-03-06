@@ -1,4 +1,4 @@
-import { Component, input, HostBinding, computed } from '@angular/core';
+import { Component, input, HostBinding, computed, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatTableModule, MatTableDataSource } from '@angular/material/table';
 import type { WidgetInstance } from '../../models/canvas.model';
@@ -27,8 +27,19 @@ export class WidgetGridComponent extends BaseWidgetComponent {
   /** Column ids for matColumnDef and displayedColumns. */
   readonly displayedColumns = computed(() => this.columns().map((c) => c.columnName));
 
-  /** Placeholder data so at least one row is visible; real data binding will come later. */
+  /** Data source: uses widget.gridDataSourcePreview when defined, otherwise placeholder. */
   readonly dataSource = new MatTableDataSource<Record<string, unknown>>(PLACEHOLDER_ROW);
+
+  constructor() {
+    super();
+    effect(() => {
+      const w = this.widget();
+      const data = w?.type === 'grid' && w.gridDataSourcePreview?.length
+        ? w.gridDataSourcePreview
+        : PLACEHOLDER_ROW;
+      this.dataSource.data = data;
+    });
+  }
 
   @HostBinding('class') get hostClass(): string {
     return this.widget()?.innerClassName?.trim() ?? '';

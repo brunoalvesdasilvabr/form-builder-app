@@ -82,6 +82,10 @@ export class CanvasService {
     { value: 'arrangements[0].accountArrangement.assetAccountSetups[0].assetManagementSetup.disciplineTypeDisplayName', label: 'discipline' },
     { value: 'arrangements[0].accountArrangement.assetAccountSetups[0].assetManagementSetup.billingStartDate', label: 'platformBeginDate' },
     { value: 'arrangements[0].fees.assetManagementFees[0].customizedRate', label: 'feeRate' },
+    // Activities (from amsInformation / nonAmsActivity JSON)
+    { value: 'amsInformation.arrangements[0].amsActivity.activities', label: 'AMS Activities' },
+    { value: 'nonAmsActivity.activities', label: 'Non-AMS Activities' },
+    { value: 'amsInformation.arrangements[0].amsActivity.totalAmount', label: 'AMS Activity totalAmount' },
   ];
 
   setSelectedCell(
@@ -686,6 +690,19 @@ export class CanvasService {
         const w = c.widget;
         const updates = { label };
         return { ...c, widget: { ...w, ...updates } };
+      }),
+    }));
+    this.state.set({ rows });
+  }
+
+  /** Set preview data for a grid widget. Row objects’ keys should match column columnName. */
+  updateGridDataSourcePreview(cellId: string, widgetId: string, data: Record<string, unknown>[]): void {
+    this.pushHistory();
+    const rows = this.state().rows.map((row) => ({
+      ...row,
+      cells: row.cells.map((c) => {
+        if (c.id !== cellId || !c.widget || c.widget.id !== widgetId || c.widget.type !== 'grid') return c;
+        return { ...c, widget: { ...c.widget, gridDataSourcePreview: data } };
       }),
     }));
     this.state.set({ rows });

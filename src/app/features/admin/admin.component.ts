@@ -33,9 +33,34 @@ export class AdminComponent {
   readonly bindableProperties = this.canvas.bindableProperties;
   readonly selectedOptionIndex = this.canvas.selectedOptionIndex;
 
+  /** Property names from activity objects (for inner dropdown when Activities / Non-AMS Activities is selected). */
+  readonly activityDataProperties: { value: string; label: string }[] = [
+    { value: 'entryDate', label: 'Entry Date' },
+    { value: 'effectiveDate', label: 'Effective Date' },
+    { value: 'amount', label: 'Amount' },
+    { value: 'additionalDescription', label: 'Additional Description' },
+    { value: 'description', label: 'Description' },
+    { value: 'activityTypeCode', label: 'Activity Type' },
+    { value: 'categoryCode', label: 'Category' },
+    { value: 'currencyCode', label: 'Currency' },
+    { value: 'transactionId', label: 'Transaction ID' },
+    { value: 'transactionDate', label: 'Transaction Date' },
+  ];
+
+  /** True when the selected data binding is one of the activities arrays (show inner dropdown with activity fields). */
+  readonly showActivityDataDropdown = computed(() => {
+    const v = this.pendingProperty();
+    return (
+      v === 'amsInformation.arrangements[0].amsActivity.activities' ||
+      v === 'nonAmsActivity.activities'
+    );
+  });
+
   /** Pending values in the form (not applied until Apply is clicked). */
   readonly pendingClass = signal('');
   readonly pendingProperty = signal('');
+  /** When binding is Activities/Non-AMS Activities, selected property from the activity object (e.g. entryDate, amount). */
+  readonly pendingActivityDataProperty = signal('');
   readonly pendingFormControlName = signal('');
   readonly pendingVisibilityCondition = signal('');
   readonly pendingMinLength = signal('');
@@ -131,6 +156,7 @@ export class AdminComponent {
   private copyInitialsToPending(): void {
     this.pendingClass.set(this.initialClass);
     this.pendingProperty.set(this.initialProperty);
+    this.pendingActivityDataProperty.set(''); // not persisted on widget yet
     this.pendingFormControlName.set(this.initialFormControlName);
     this.pendingVisibilityCondition.set(this.initialVisibilityCondition);
     this.pendingMinLength.set(this.initialMinLength);
@@ -138,6 +164,15 @@ export class AdminComponent {
     this.pendingMin.set(this.initialMin);
     this.pendingMax.set(this.initialMax);
     this.pendingPattern.set(this.initialPattern);
+  }
+
+  /** Called when Data Binding dropdown changes; clears activity-field selection when switching away from Activities. */
+  onDataBindingChange(value: string): void {
+    this.pendingProperty.set(value);
+    const isActivities =
+      value === 'amsInformation.arrangements[0].amsActivity.activities' ||
+      value === 'nonAmsActivity.activities';
+    if (!isActivities) this.pendingActivityDataProperty.set('');
   }
 
   closePanel(): void {

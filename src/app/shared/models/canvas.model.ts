@@ -68,6 +68,8 @@ export interface WidgetInstance {
   nestedTable?: NestedTableState; // only for type 'table'
   /** Column definitions for type 'grid' (mat-table). When empty, one default column is shown. */
   gridColumns?: { id: string; columnName: string; headerName: string }[];
+  /** Preview data for the grid in the builder: array of row objects. Keys should match column columnName. When set, grid shows these rows. */
+  gridDataSourcePreview?: Record<string, unknown>[];
   /** Value binding template e.g. "{{ listValue1 }}" for input, checkbox, label */
   valueBinding?: string;
   /** Per-option value bindings for radio, e.g. ["{{ listValue1 }}", "{{ listValue2 }}"] */

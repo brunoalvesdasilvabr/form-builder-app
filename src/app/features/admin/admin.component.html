@@ -118,13 +118,27 @@
                 id="value-binding-select"
                 class="admin-right-panel-input admin-right-panel-select"
                 [ngModel]="pendingProperty()"
-                (ngModelChange)="pendingProperty.set($event)"
+                (ngModelChange)="onDataBindingChange($event)"
               >
                 <option value="">— None —</option>
                 @for (prop of bindableProperties; track prop.value) {
                   <option [value]="prop.value">{{ prop.label }}</option>
                 }
               </select>
+              @if (showActivityDataDropdown()) {
+                <label class="admin-right-panel-label admin-right-panel-inner-label" for="activity-data-property-select">Property from activity</label>
+                <select
+                  id="activity-data-property-select"
+                  class="admin-right-panel-input admin-right-panel-select admin-right-panel-select-small"
+                  [ngModel]="pendingActivityDataProperty()"
+                  (ngModelChange)="pendingActivityDataProperty.set($event)"
+                >
+                  <option value="">— Select property —</option>
+                  @for (prop of activityDataProperties; track prop.value) {
+                    <option [value]="prop.value">{{ prop.label }}</option>
+                  }
+                </select>
+              }
             </div>
           }
           @if (showVisibilityConditionSection()) {
