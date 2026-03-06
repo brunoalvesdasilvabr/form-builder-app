@@ -2,9 +2,10 @@ import { Component, inject, signal, computed, ChangeDetectorRef } from "@angular
 import { CommonModule } from "@angular/common";
 import { FormsModule } from "@angular/forms";
 import { MatDialog } from "@angular/material/dialog";
+import { MatSnackBar } from "@angular/material/snack-bar";
 import { MatButtonModule } from "@angular/material/button";
 import { MatIconModule } from "@angular/material/icon";
-import { stripBuilderChrome, copyFormValues } from "../../../../shared/utils/preview-html.util";
+import { stripBuilderChrome, copyFormValues, stripComponentWrappers } from "../../../../shared/utils/preview-html.util";
 import { CanvasService } from "../../../../core/services/canvas.service";
 import { SavedLayoutsService } from "../../../../core/services/saved-layouts.service";
 import { LayoutGuardService } from "../../../../core/services/layout-guard.service";
@@ -41,6 +42,7 @@ export class CanvasComponent {
   private readonly savedLayouts = inject(SavedLayoutsService);
   private readonly layoutGuard = inject(LayoutGuardService);
   private readonly dialog = inject(MatDialog);
+  private readonly snackBar = inject(MatSnackBar);
 
   readonly layouts = this.savedLayouts.layouts;
   readonly selectedLayoutId = this.savedLayouts.selectedLayoutId;
@@ -215,7 +217,7 @@ export class CanvasComponent {
     const selected = this.savedLayouts.selectedLayout();
     const dialogRef = this.dialog.open(LayoutNameDialogComponent, {
       data: {
-        title: "Save layout",
+        title: "Save",
         defaultValue: selected?.name ?? "",
         layoutId: selected?.id ?? null,
       },
@@ -292,5 +294,25 @@ export class CanvasComponent {
     a.download = filename;
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  /** Returns HTML with same layout but all component tags stripped (only inputs, checkboxes, labels, etc.). */
+  getPublishHtml(): string {
+    const container = document.body.querySelector("form.canvas-form") as HTMLElement | null;
+    if (!container) return "";
+    const clone = container.cloneNode(true) as HTMLElement;
+    copyFormValues(container, clone);
+    stripBuilderChrome(clone, { stripAngular: true });
+    stripComponentWrappers(clone);
+    return clone.outerHTML;
+  }
+
+  /** Logs the published HTML (layout + native elements only) to the console. */
+  publish(): void {
+    const html = this.getPublishHtml();
+    console.log("[Publish] HTML (layout kept, component tags removed):", html);
+    this.snackBar.open("Form published. HTML (layout only, no component tags) has been logged to the console.", undefined, {
+      duration: 4000,
+    });
   }
 }

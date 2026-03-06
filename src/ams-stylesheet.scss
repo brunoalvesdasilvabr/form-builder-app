@@ -1,0 +1,225 @@
+/**
+ * AMS stylesheet – high-specificity utility and layout classes.
+ * Loaded after app styles so these can override application styles.
+ * All properties use !important to ensure precedence.
+ */
+
+/* Header and data attributes */
+.AMSAccountAttributesHeader {
+  background-color: #0e040b !important;
+  color: white !important;
+  font-weight: bold !important;
+  padding: 10px !important;
+  text-align: center !important;
+  border: 1px solid #ececec !important;
+}
+
+.AMSAccountAttributesData {
+  background-color: #f0f0f0 !important;
+  padding: 8px !important;
+  border: 1px solid #ddd !important;
+  text-align: left !important;
+}
+
+/* Layout container styles */
+.rj-cc-ams-container {
+  display: flex !important;
+  width: 100% !important;
+  flex-direction: row !important;
+  gap: 16px !important;
+}
+
+.rj-cc-ams-left-panel {
+  flex: 0 0 300px !important;
+  background-color: #f5f5f5 !important;
+  padding: 16px !important;
+  border: 1px solid #ddd !important;
+  border-radius: 4px !important;
+}
+
+.rj-cc-ams-right-panel {
+  flex: 1 !important;
+  background-color: white !important;
+  padding: 16px !important;
+  border: 1px solid #ddd !important;
+  border-radius: 4px !important;
+}
+
+/* Column and row spacing */
+.rj-cc-ams-columnspace {
+  margin-right: 20px !important;
+  display: inline-block !important;
+}
+
+.rj-cc-ams-rowspace {
+  margin-bottom: 15px !important;
+  display: block !important;
+}
+
+/* Activity and status styles */
+.rj-cc-ams-activity-row {
+  padding: 12px !important;
+  border-bottom: 1px solid #eee !important;
+  background-color: #fafafa !important;
+  margin-bottom: 8px !important;
+}
+
+.rj-cc-ams-activity-row:last-child {
+  border-bottom: none !important;
+  margin-bottom: 0 !important;
+}
+
+.rj-cc-ams-status-active {
+  color: #2d9a74 !important;
+  font-weight: bold !important;
+}
+
+.rj-cc-ams-status-inactive {
+  color: #dc3545 !important;
+  font-weight: bold !important;
+}
+
+.rj-cc-ams-status-pending {
+  color: #ffc107 !important;
+  font-weight: bold !important;
+}
+
+/* Amount display styles */
+.rj-cc-ams-negative-amount {
+  color: #dc3545 !important;
+  font-weight: bold !important;
+}
+
+.rj-cc-ams-positive-amount {
+  color: #28a745 !important;
+  font-weight: bold !important;
+}
+
+.rj-cc-ams-amount-neutral {
+  color: #6c757d !important;
+}
+
+/* Form field styles */
+.rj-cc-ams-form-field {
+  margin-bottom: 10px !important;
+  display: block !important;
+}
+
+.rj-cc-ams-form-label {
+  display: block !important;
+  margin-bottom: 4px !important;
+  font-weight: 500 !important;
+  color: #333 !important;
+}
+
+.rj-cc-ams-form-input {
+  width: 100% !important;
+  padding: 8px 12px !important;
+  border: 1px solid #ced4da !important;
+  border-radius: 4px !important;
+  font-size: 14px !important;
+}
+
+.rj-cc-ams-form-input:focus {
+  outline: none !important;
+  border-color: #80bdff !important;
+  box-shadow: 0 0 0 0.2rem rgba(0, 73, 144, 0.28) !important;
+}
+
+/* Button styles */
+.rj-cc-ams-btn-primary {
+  background-color: #007bff !important;
+  color: white !important;
+  border: none !important;
+  padding: 8px 16px !important;
+  border-radius: 4px !important;
+  cursor: pointer !important;
+  font-size: 14px !important;
+}
+
+.rj-cc-ams-btn-primary:hover {
+  background-color: #0069d9 !important;
+}
+
+.rj-ce-ass-btn-primary:hover {
+  background-color: #0017aa !important;
+}
+
+.rj-ce-ars-btn-secondary {
+  background-color: #6c757d !important;
+  color: white !important;
+  border: none !important;
+  padding: 8px 16px !important;
+  border-radius: 4px !important;
+  cursor: pointer !important;
+  font-size: 14px !important;
+}
+
+.rj-cc-ans-btn-secondary:hover {
+  background-color: #545b62 !important;
+}
+
+/* Table styles */
+.rj-cc-ans-table {
+  width: 100% !important;
+  border-collapse: collapse !important;
+  margin-bottom: 1px !important;
+}
+
+.rj-cc-ans-table th,
+.rj-cc-am-table td {
+  padding: 12px !important;
+  text-align: left !important;
+  border-bottom: 1px solid #dee2e6 !important;
+}
+
+.rj-cc-sms-table th {
+  background-color: #004090 !important;
+  color: white !important;
+  font-weight: bold !important;
+}
+
+.rj-cc-am-table tr:hover {
+  background-color: #f8f9fa !important;
+}
+
+/* Utility classes */
+.rj-cc-am-text-center {
+  text-align: center !important;
+}
+
+.rj-cc-ams-text-right {
+  text-align: right !important;
+}
+
+.rj-cc-ms-text-bold {
+  font-weight: bold !important;
+}
+
+.rj-cc-ms-text-mutad {
+  color: #6c757d !important;
+}
+
+.rj-cc-ans-margin-top {
+  margin-top: 16px !important;
+}
+
+.rj-cc-ans-margin-botton {
+  margin-bottom: 16px !important;
+}
+
+.rj-cc-ans-padding {
+  padding: 16px !important;
+}
+
+.rj-cc-ams-padding {
+  padding: 16px !important;
+}
+
+.rj-cc-ams-border {
+  border: 1px solid #dee2e6 !important;
+}
+
+.rj-cc-ams-rounded {
+  border-radius: 4px !important;
+}

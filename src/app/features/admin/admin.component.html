@@ -109,23 +109,6 @@
             (ngModelChange)="pendingClass.set($event)"
             [placeholder]="'Class for the ' + getClassTargetLabel()"
           />
-          @if (cell.widget && cell.widget.type !== 'table') {
-            <div class="admin-right-panel-field">
-              <label class="admin-right-panel-label" for="value-binding-select">Data Binding</label>
-              <select
-                id="value-binding-select"
-                class="admin-right-panel-input admin-right-panel-select"
-                [ngModel]="pendingProperty()"
-                (ngModelChange)="pendingProperty.set($event)"
-              >
-                <option value="">— None —</option>
-                @for (prop of bindableProperties; track prop.value) {
-                  <option [value]="prop.value">{{ prop.label }}</option>
-                }
-              </select>
-              <p class="admin-right-panel-hint">{{ getBindingHint(cell) }}</p>
-            </div>
-          }
           @if (showVisibilityConditionSection()) {
             <div class="admin-right-panel-field admin-right-panel-visibility">
               <label class="admin-right-panel-label" for="visibility-condition-input">Visibility rule (*ngIf rule)</label>
@@ -190,11 +173,4 @@
       }
     }
   </main>
-  @if (notificationMessages().length) {
-    <div class="admin-notification" role="status">
-      @for (msg of notificationMessages(); track msg) {
-        <p class="admin-notification-message">{{ msg }}</p>
-      }
-    </div>
-  }
 </div>

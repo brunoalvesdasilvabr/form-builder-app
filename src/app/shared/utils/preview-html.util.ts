@@ -89,3 +89,48 @@ export function stripBuilderChrome(clone: HTMLElement, options?: { stripAngular?
     stripAngularAttributes(clone);
   }
 }
+
+/** Component tag names to unwrap for publish (keep layout + native elements only). */
+const PUBLISH_UNWRAP_TAGS = [
+  "app-widget-input",
+  "app-widget-checkbox",
+  "app-widget-radio",
+  "app-widget-label",
+  "app-widget-cell-renderer",
+  "app-embedded-table",
+  "app-widget-table",
+  "app-widget-renderer",
+] as const;
+
+/**
+ * Unwraps component wrapper elements so only their inner content (inputs, labels, etc.) remains.
+ * Mutates the root in place. Process innermost first so nested components are fully flattened.
+ */
+export function stripComponentWrappers(root: HTMLElement): void {
+  const tags = new Set(PUBLISH_UNWRAP_TAGS);
+  const getDepth = (el: Element, top: Element): number => {
+    let d = 0;
+    let cur: Element | null = el;
+    while (cur && cur !== top) {
+      d++;
+      cur = cur.parentElement;
+    }
+    return d;
+  };
+
+  let found: Element[];
+  do {
+    found = Array.from(root.querySelectorAll("*")).filter((el) =>
+      tags.has(el.tagName.toLowerCase() as (typeof PUBLISH_UNWRAP_TAGS)[number])
+    );
+    found.sort((a, b) => getDepth(b, root) - getDepth(a, root));
+    for (const el of found) {
+      const parent = el.parentElement;
+      if (!parent) continue;
+      while (el.firstChild) {
+        parent.insertBefore(el.firstChild, el);
+      }
+      el.remove();
+    }
+  } while (found.length > 0);
+}

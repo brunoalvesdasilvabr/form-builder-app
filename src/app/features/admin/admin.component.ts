@@ -1,6 +1,7 @@
 import { Component, inject, signal, effect, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { PaletteComponent } from './components/palette/palette.component';
 import { CanvasComponent } from './components/canvas/canvas.component';
 import { CanvasService } from '../../core/services/canvas.service';
@@ -23,6 +24,7 @@ import { slugify } from '../../shared/utils/slugify.util';
 export class AdminComponent {
   private readonly canvas = inject(CanvasService);
   private readonly savedLayouts = inject(SavedLayoutsService);
+  private readonly snackBar = inject(MatSnackBar);
 
   readonly selectedCell = this.canvas.selectedCell;
   readonly selectedNestedPath = this.canvas.selectedNestedPath;
@@ -70,9 +72,6 @@ export class AdminComponent {
     if (!cell?.widget) return false;
     return (cell.widget.type as string) !== 'table';
   });
-
-  /** Notifications to show after Apply (e.g. "Your class was bound to the component"). */
-  readonly notificationMessages = signal<string[]>([]);
 
   constructor() {
     effect(() => {
@@ -155,9 +154,6 @@ export class AdminComponent {
     if (this.pendingClass() !== this.initialClass) {
       this.applyClassChange(cell, messages);
     }
-    if (this.pendingProperty() !== this.initialProperty) {
-      this.applyPropertyChange(cell, messages);
-    }
     if (this.pendingFormControlName() !== this.initialFormControlName && cell.widget && ['input', 'checkbox', 'radio'].includes(cell.widget.type)) {
       this.applyFormControlNameChange(cell, messages);
     }
@@ -173,8 +169,7 @@ export class AdminComponent {
     }
 
     if (messages.length) {
-      this.notificationMessages.set(messages);
-      setTimeout(() => this.notificationMessages.set([]), 4000);
+      this.snackBar.open(messages.join(' '), undefined, { duration: 4000 });
     }
   }
 

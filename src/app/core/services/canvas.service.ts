@@ -74,11 +74,14 @@ export class CanvasService {
 
   /** Available properties for binding dropdown; value is used as {{ value }} in component input/value. */
   readonly bindableProperties: BindableProperty[] = [
-    { value: 'listValue1', label: 'List Value 1' },
-    { value: 'listValue2', label: 'List Value 2' },
-    { value: 'listValue3', label: 'List Value 3' },
-    { value: 'listValue4', label: 'List Value 4' },
-    { value: 'listValue5', label: 'List Value 5' },
+    { value: 'arrangements[0].accountArrangement.taxOverlayAccountSetup.lifeCycleStatusType.name', label: 'taxOverlayStatus' },
+    { value: 'arrangements[0].accountArrangement.taxOverlayAccountSetup.strategyType.name', label: 'taxOverlayEnrollmentStrategy' },
+    { value: 'arrangements[0].accountArrangement.taxOverlayAccountSetup.activationDate', label: 'taxOverlayEnrollmentDate' },
+    { value: 'arrangements[0].accountArrangement.assetAccountSetups[0].assetManagementSetup.accountPlatform.name', label: 'platform' },
+    { value: 'arrangements[0].accountArrangement.assetAccountSetups[0].assetManagementSetup.moneyManagerDisplayName', label: 'manager' },
+    { value: 'arrangements[0].accountArrangement.assetAccountSetups[0].assetManagementSetup.disciplineTypeDisplayName', label: 'discipline' },
+    { value: 'arrangements[0].accountArrangement.assetAccountSetups[0].assetManagementSetup.billingStartDate', label: 'platformBeginDate' },
+    { value: 'arrangements[0].fees.assetManagementFees[0].customizedRate', label: 'feeRate' },
   ];
 
   setSelectedCell(

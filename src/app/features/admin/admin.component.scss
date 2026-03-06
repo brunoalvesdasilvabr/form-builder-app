@@ -380,25 +380,3 @@
 .admin-right-panel-apply:hover {
   opacity: 0.9;
 }
-
-.admin-notification {
-  position: fixed;
-  bottom: 1.5rem;
-  right: 1.5rem;
-  padding: 1rem 1.25rem;
-  background: var(--bg-panel);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  z-index: 100;
-}
-
-.admin-notification-message {
-  margin: 0;
-  font-size: 0.9rem;
-  color: var(--text);
-}
-
-.admin-notification-message + .admin-notification-message {
-  margin-top: 0.35rem;
-}

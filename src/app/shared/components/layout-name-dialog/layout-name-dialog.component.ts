@@ -24,7 +24,7 @@ export class LayoutNameDialogComponent {
   readonly name = signal(this.data?.defaultValue?.trim() ?? '');
 
   get title(): string {
-    return this.data?.title ?? 'Save layout';
+    return this.data?.title ?? 'Save';
   }
 
   onNameInput(value: string): void {
