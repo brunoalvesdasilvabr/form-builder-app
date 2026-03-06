@@ -52,7 +52,13 @@ input, button, select, textarea {
   app-widget-label:hover,
   app-widget-table:hover,
   app-widget-cell-renderer:hover,
-  [data-class-target]:hover,
+  .widget-input-control:hover,
+  .widget-label-control:hover,
+  .widget-checkbox-control:hover,
+  .widget-checkbox-label:hover,
+  .widget-radio-group-label:hover,
+  .widget-radio-item:hover,
+  .widget-radio-option-input:hover,
   .widget-table-wrap:hover {
     outline: none !important;
   }

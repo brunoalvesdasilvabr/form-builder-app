@@ -19,6 +19,7 @@ import {
   canMergeFromRange,
   updateSelectionForCtrlClick,
 } from "../../../../shared/utils/grid-selection.util";
+import { getElementKeyFromElement } from "../../../../shared/utils/element-target.util";
 import { FormLayoutNameDirective } from "../../../../shared/directives/form-layout-name.directive";
 import { toSafeFilename } from "../../../../shared/utils/safe-filename.util";
 
@@ -70,7 +71,7 @@ export class CanvasComponent {
         const hasFormControl = cell.widget && ["input", "checkbox", "radio"].includes(cell.widget.type);
         const doSelect = () => {
           const el = e.target as Element;
-          const elementTarget = el?.closest?.("[data-class-target]")?.getAttribute?.("data-class-target");
+          const elementTarget = getElementKeyFromElement(el);
           if (elementTarget) {
             this.canvas.setSelectedCell(cell.id, "element", elementTarget);
           } else if (

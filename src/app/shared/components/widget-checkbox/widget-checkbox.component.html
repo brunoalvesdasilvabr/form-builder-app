@@ -3,7 +3,6 @@
     type="checkbox"
     [attr.name]="w.formControlName || w.id"
     class="widget-checkbox-control"
-    data-class-target="checkbox"
     [ngClass]="getElementClassObj('checkbox')"
     [id]="w.id"
     [attr.data-form-control-name]="w.formControlName ?? null"
@@ -13,7 +12,6 @@
   <input
     type="text"
     class="widget-checkbox-label"
-    data-class-target="label"
     [ngClass]="getElementClassObj('label')"
     [value]="w.label ?? ''"
     (input)="onLabelInput($any($event.target).value)"

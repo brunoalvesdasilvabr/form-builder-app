@@ -2,7 +2,6 @@
   <input
     type="text"
     class="widget-radio-group-label"
-    data-class-target="group-label"
     [ngClass]="getElementClassObj('group-label')"
     [value]="w.label ?? ''"
     (input)="onLabelInput($any($event.target).value)"
@@ -10,7 +9,7 @@
   />
   <div class="widget-radio-group">
     @for (opt of (w.options ?? ['Option 1', 'Option 2']); track $index) {
-      <div class="widget-radio-item" (click)="onRadioOptionClick($index)" [attr.data-class-target]="'option-' + $index" [ngClass]="getElementClassObj('option-' + $index)">
+      <div class="widget-radio-item" (click)="onRadioOptionClick($index)" [ngClass]="getElementClassObj('option-' + $index)">
         <input
           type="radio"
           [attr.name]="'radio-' + w.id"
@@ -23,7 +22,6 @@
         <input
           type="text"
           class="widget-radio-option-input"
-          [attr.data-class-target]="'option-' + $index + '-input'"
           [ngClass]="getElementClassObj('option-' + $index + '-input')"
           [value]="opt"
           (input)="onOptionChange(w.options ?? [], $index, $any($event.target).value)"

@@ -22,6 +22,7 @@ import * as gridMerge from '../../utils/grid-merge.util';
 import { generateId } from '../../utils/id.util';
 import { createDefaultNestedTable } from '../../utils/nested-table.util';
 import { computeMergeRange, canMergeFromRange, updateSelectionForCtrlClick } from '../../utils/grid-selection.util';
+import { getElementKeyFromElement } from '../../utils/element-target.util';
 import { CanvasService } from '../../../core/services/canvas.service';
 import { LayoutGuardService } from '../../../core/services/layout-guard.service';
 
@@ -256,7 +257,7 @@ export class EmbeddedTableComponent {
       const doSelect = () => {
         if (parentCellId && parentWidgetId && cell.widget && cell.widget.type !== 'table') {
           const el = e.target as Element;
-          const elementTarget = el?.closest?.('[data-class-target]')?.getAttribute?.('data-class-target');
+          const elementTarget = getElementKeyFromElement(el);
           if (elementTarget) {
             this.canvas.setSelectedNestedCell(parentCellId, parentWidgetId, cell.id, 'element', elementTarget);
           } else if (
