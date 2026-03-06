@@ -57,6 +57,3 @@ input, button, select, textarea {
     outline: none !important;
   }
 }
-
-/* AMS stylesheet – loaded last so these classes override all other application styles */
-@import 'ams-stylesheet.scss';
