@@ -1,0 +1,17 @@
+:host {
+  display: block;
+  width: 100%;
+  min-height: 2rem;
+
+  &:hover {
+    outline: 2px dashed var(--accent);
+    outline-offset: 2px;
+  }
+}
+
+.widget-panel-inner {
+  min-height: 2rem;
+  background: var(--bg-main);
+  border: 1px dashed var(--border);
+  border-radius: 4px;
+}

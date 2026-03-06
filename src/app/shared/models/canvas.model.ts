@@ -1,4 +1,4 @@
-export type WidgetType = "input" | "checkbox" | "radio" | "table" | "label" | "grid";
+export type WidgetType = "input" | "checkbox" | "radio" | "table" | "label" | "grid" | "panel";
 
 /** Option for the property binding dropdown; value is used in {{ value }} inside components. */
 export interface BindableProperty {
@@ -13,6 +13,7 @@ export const WIDGET_LABELS: Record<WidgetType, string> = {
   table: "Table",
   label: "Label",
   grid: "Grid",
+  panel: "Panel",
 };
 
 /** Default label for a new widget of the given type (e.g. "Choose one" for radio). Use when creating widgets. */
@@ -22,7 +23,7 @@ export function getDefaultWidgetLabel(type: WidgetType, labelOverride?: string):
 }
 
 /** Ordered list of widget types shown in the palette; single source of truth for builders. */
-export const WIDGET_TYPES: WidgetType[] = ["input", "checkbox", "radio", "table", "label", "grid"];
+export const WIDGET_TYPES: WidgetType[] = ["input", "checkbox", "radio", "table", "label", "grid", "panel"];
 
 /** Icons for palette items; reusable across admin palette and any other consumer. */
 export const WIDGET_PALETTE_ICONS: Record<WidgetType, string> = {
@@ -32,6 +33,7 @@ export const WIDGET_PALETTE_ICONS: Record<WidgetType, string> = {
   table: "⊞",
   label: "Aa",
   grid: "▦",
+  panel: "▣",
 };
 
 export interface NestedTableCell {

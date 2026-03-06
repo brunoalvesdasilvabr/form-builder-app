@@ -100,6 +100,7 @@ const PUBLISH_UNWRAP_TAGS = [
   "app-embedded-table",
   "app-widget-table",
   "app-widget-grid",
+  "app-widget-panel",
   "app-widget-renderer",
 ] as const;
 

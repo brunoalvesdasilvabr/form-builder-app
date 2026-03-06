@@ -17,11 +17,11 @@ import {
 export class PaletteComponent {
   readonly labels = signal(WIDGET_LABELS);
 
-  /** Layout section: table, grid */
-  readonly layoutWidgets: WidgetType[] = ['table', 'grid'];
+  /** Layout section: table */
+  readonly layoutWidgets: WidgetType[] = ['table'];
 
-  /** Data section: label, input, checkbox, radio */
-  readonly dataWidgets: WidgetType[] = ['label', 'input', 'checkbox', 'radio'];
+  /** Data section: label, input, grid, panel */
+  readonly dataWidgets: WidgetType[] = ['label', 'input', 'grid', 'panel'];
 
   iconFor(type: WidgetType): string {
     return WIDGET_PALETTE_ICONS[type] ?? '?';

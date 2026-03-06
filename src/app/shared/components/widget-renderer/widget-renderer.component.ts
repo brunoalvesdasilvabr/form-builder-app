@@ -6,6 +6,7 @@ import { WidgetRadioComponent } from '../widget-radio/widget-radio.component';
 import { WidgetTableComponent } from '../widget-table/widget-table.component';
 import { WidgetGridComponent } from '../widget-grid/widget-grid.component';
 import { WidgetLabelComponent } from '../widget-label/widget-label.component';
+import { WidgetPanelComponent } from '../widget-panel/widget-panel.component';
 import type { WidgetInstance, NestedTableState } from '../../models/canvas.model';
 
 const MOVE_DATA_TYPE = 'application/x-canvas-move';
@@ -21,6 +22,7 @@ const MOVE_DATA_TYPE = 'application/x-canvas-move';
     WidgetTableComponent,
     WidgetGridComponent,
     WidgetLabelComponent,
+    WidgetPanelComponent,
   ],
   templateUrl: './widget-renderer.component.html',
   styleUrl: './widget-renderer.component.scss',

@@ -32,6 +32,9 @@
           (labelChange)="labelChange.emit($event)"
         />
       }
+      @case ('panel') {
+        <app-widget-panel [widget]="w" />
+      }
   }
   <button type="button" class="widget-cell-remove" (click)="onRemove($event)" title="Remove">×</button>
 }

@@ -4,6 +4,7 @@ import { WidgetInputComponent } from '../widget-input/widget-input.component';
 import { WidgetCheckboxComponent } from '../widget-checkbox/widget-checkbox.component';
 import { WidgetRadioComponent } from '../widget-radio/widget-radio.component';
 import { WidgetLabelComponent } from '../widget-label/widget-label.component';
+import { WidgetPanelComponent } from '../widget-panel/widget-panel.component';
 import type { WidgetInstance } from '../../models/canvas.model';
 
 const NESTED_MOVE_DATA_TYPE = 'application/x-nested-move';
@@ -17,6 +18,7 @@ const NESTED_MOVE_DATA_TYPE = 'application/x-nested-move';
     WidgetCheckboxComponent,
     WidgetRadioComponent,
     WidgetLabelComponent,
+    WidgetPanelComponent,
   ],
   templateUrl: './widget-cell-renderer.component.html',
   styleUrl: './widget-cell-renderer.component.scss',
