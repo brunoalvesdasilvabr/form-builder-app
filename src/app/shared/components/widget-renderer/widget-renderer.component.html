@@ -24,6 +24,9 @@
           (nestedTableChange)="nestedTableChange.emit($event)"
         />
       }
+      @case ('grid') {
+        <app-widget-grid [widget]="w" />
+      }
       @case ('label') {
         <app-widget-label
           [widget]="w"

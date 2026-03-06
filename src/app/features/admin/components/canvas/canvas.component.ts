@@ -79,7 +79,8 @@ export class CanvasComponent {
             el?.closest?.("app-widget-checkbox") ||
             el?.closest?.("app-widget-radio") ||
             el?.closest?.("app-widget-label") ||
-            el?.closest?.("app-widget-table")
+            el?.closest?.("app-widget-table") ||
+            el?.closest?.("app-widget-grid")
           ) {
             this.canvas.setSelectedCell(cell.id, "widget-inner");
           } else if (el?.closest?.("app-widget-renderer")) {

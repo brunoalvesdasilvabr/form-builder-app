@@ -17,8 +17,8 @@ import {
 export class PaletteComponent {
   readonly labels = signal(WIDGET_LABELS);
 
-  /** Layout section: table */
-  readonly layoutWidgets: WidgetType[] = ['table'];
+  /** Layout section: table, grid */
+  readonly layoutWidgets: WidgetType[] = ['table', 'grid'];
 
   /** Data section: label, input, checkbox, radio */
   readonly dataWidgets: WidgetType[] = ['label', 'input', 'checkbox', 'radio'];

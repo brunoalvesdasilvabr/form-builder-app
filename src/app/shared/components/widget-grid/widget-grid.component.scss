@@ -1,0 +1,42 @@
+:host {
+  display: block;
+  width: 100%;
+  min-height: 80px;
+  max-width: 100%;
+
+  &:hover {
+    outline: 2px dashed var(--accent);
+    outline-offset: 2px;
+  }
+}
+
+.widget-grid-wrap {
+  display: block;
+  width: 100%;
+  min-height: 80px;
+  max-width: 100%;
+
+  &:hover {
+    outline: 2px dashed var(--accent);
+    outline-offset: 2px;
+  }
+}
+
+:host:has(.widget-grid-wrap:hover) {
+  outline: none;
+}
+
+.widget-grid-table {
+  width: 100%;
+  background: var(--bg-panel, #fff);
+}
+
+::ng-deep .widget-grid-table {
+  .mat-mdc-header-row {
+    background: var(--bg-cell, #fafafa);
+  }
+  .mat-mdc-cell,
+  .mat-mdc-header-cell {
+    border-color: var(--border, #e0e0e0);
+  }
+}

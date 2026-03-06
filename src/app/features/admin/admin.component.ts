@@ -376,6 +376,7 @@ export class AdminComponent {
       radio: 'Radio',
       label: 'Label',
       table: 'Table',
+      grid: 'Grid',
     };
     const name = typeLabels[cell.widget.type] ?? cell.widget.type;
     return `${name} Properties`;
@@ -401,6 +402,7 @@ export class AdminComponent {
       label: 'Label',
       radio: 'Radio',
       table: 'Table',
+      grid: 'Grid',
     };
     const base = typeLabels[w.type] ?? w.type;
     if (w.type === 'radio' && this.selectedOptionIndex() !== null) {

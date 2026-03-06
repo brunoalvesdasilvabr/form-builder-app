@@ -1,4 +1,4 @@
-export type WidgetType = "input" | "checkbox" | "radio" | "table" | "label";
+export type WidgetType = "input" | "checkbox" | "radio" | "table" | "label" | "grid";
 
 /** Option for the property binding dropdown; value is used in {{ value }} inside components. */
 export interface BindableProperty {
@@ -12,6 +12,7 @@ export const WIDGET_LABELS: Record<WidgetType, string> = {
   radio: "Radio",
   table: "Table",
   label: "Label",
+  grid: "Grid",
 };
 
 /** Default label for a new widget of the given type (e.g. "Choose one" for radio). Use when creating widgets. */
@@ -21,7 +22,7 @@ export function getDefaultWidgetLabel(type: WidgetType, labelOverride?: string):
 }
 
 /** Ordered list of widget types shown in the palette; single source of truth for builders. */
-export const WIDGET_TYPES: WidgetType[] = ["input", "checkbox", "radio", "table", "label"];
+export const WIDGET_TYPES: WidgetType[] = ["input", "checkbox", "radio", "table", "label", "grid"];
 
 /** Icons for palette items; reusable across admin palette and any other consumer. */
 export const WIDGET_PALETTE_ICONS: Record<WidgetType, string> = {
@@ -30,6 +31,7 @@ export const WIDGET_PALETTE_ICONS: Record<WidgetType, string> = {
   radio: "◉",
   table: "⊞",
   label: "Aa",
+  grid: "▦",
 };
 
 export interface NestedTableCell {
@@ -64,6 +66,8 @@ export interface WidgetInstance {
   colspan?: number;
   rowspan?: number;
   nestedTable?: NestedTableState; // only for type 'table'
+  /** Column definitions for type 'grid' (mat-table). When empty, one default column is shown. */
+  gridColumns?: { id: string; columnName: string; headerName: string }[];
   /** Value binding template e.g. "{{ listValue1 }}" for input, checkbox, label */
   valueBinding?: string;
   /** Per-option value bindings for radio, e.g. ["{{ listValue1 }}", "{{ listValue2 }}"] */

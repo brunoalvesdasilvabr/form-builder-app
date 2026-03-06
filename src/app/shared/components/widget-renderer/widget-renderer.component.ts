@@ -4,6 +4,7 @@ import { WidgetInputComponent } from '../widget-input/widget-input.component';
 import { WidgetCheckboxComponent } from '../widget-checkbox/widget-checkbox.component';
 import { WidgetRadioComponent } from '../widget-radio/widget-radio.component';
 import { WidgetTableComponent } from '../widget-table/widget-table.component';
+import { WidgetGridComponent } from '../widget-grid/widget-grid.component';
 import { WidgetLabelComponent } from '../widget-label/widget-label.component';
 import type { WidgetInstance, NestedTableState } from '../../models/canvas.model';
 
@@ -18,6 +19,7 @@ const MOVE_DATA_TYPE = 'application/x-canvas-move';
     WidgetCheckboxComponent,
     WidgetRadioComponent,
     WidgetTableComponent,
+    WidgetGridComponent,
     WidgetLabelComponent,
   ],
   templateUrl: './widget-renderer.component.html',
@@ -37,7 +39,7 @@ export class WidgetRendererComponent {
 
   @HostBinding('class') get hostClass(): string {
     const parts: string[] = ['widget'];
-    if (this.widget()?.type === 'table') parts.push('widget--no-padding');
+    if (this.widget()?.type === 'table' || this.widget()?.type === 'grid') parts.push('widget--no-padding');
     if (this.isDragging) parts.push('widget-dragging');
     const custom = this.widget()?.className?.trim();
     if (custom) parts.push(custom);
