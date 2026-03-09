@@ -88,24 +88,27 @@ export class CanvasService {
     { value: 'amsInformation.arrangements[0].amsActivity.totalAmount', label: 'AMS Activity totalAmount' },
   ];
 
-  /** Parent-level only (grid-level): no AMS/Non-AMS Activities. */
-  readonly bindablePropertiesGrid: BindableProperty[] = [
-    { value: 'arrangements[0].accountArrangement.taxOverlayAccountSetup.lifeCycleStatusType.name', label: 'taxOverlayStatus' },
-    { value: 'arrangements[0].accountArrangement.taxOverlayAccountSetup.strategyType.name', label: 'taxOverlayEnrollmentStrategy' },
-    { value: 'arrangements[0].accountArrangement.taxOverlayAccountSetup.activationDate', label: 'taxOverlayEnrollmentDate' },
-    { value: 'arrangements[0].accountArrangement.assetAccountSetups[0].assetManagementSetup.accountPlatform.name', label: 'platform' },
-    { value: 'arrangements[0].accountArrangement.assetAccountSetups[0].assetManagementSetup.moneyManagerDisplayName', label: 'manager' },
-    { value: 'arrangements[0].accountArrangement.assetAccountSetups[0].assetManagementSetup.disciplineTypeDisplayName', label: 'discipline' },
-    { value: 'arrangements[0].accountArrangement.assetAccountSetups[0].assetManagementSetup.billingStartDate', label: 'platformBeginDate' },
-    { value: 'arrangements[0].fees.assetManagementFees[0].customizedRate', label: 'feeRate' },
-    { value: 'amsInformation.arrangements[0].amsActivity.totalAmount', label: 'AMS Activity totalAmount' },
+  /** Paths for activities arrays (column-level only for grid). */
+  private static readonly ACTIVITIES_PATHS: string[] = [
+    'amsInformation.arrangements[0].amsActivity.activities',
+    'nonAmsActivity.activities',
   ];
 
+  private filterBindableProperties(includeOnlyActivities: boolean): BindableProperty[] {
+    return this.bindableProperties.filter((p) =>
+      CanvasService.ACTIVITIES_PATHS.includes(p.value) === includeOnlyActivities
+    );
+  }
+
+  /** Parent-level only (grid-level): excludes AMS/Non-AMS Activities arrays. */
+  get bindablePropertiesGrid(): BindableProperty[] {
+    return this.filterBindableProperties(false);
+  }
+
   /** Column-level only (child): AMS Activities, Non-AMS Activities. */
-  readonly bindablePropertiesColumn: BindableProperty[] = [
-    { value: 'amsInformation.arrangements[0].amsActivity.activities', label: 'AMS Activities' },
-    { value: 'nonAmsActivity.activities', label: 'Non-AMS Activities' },
-  ];
+  get bindablePropertiesColumn(): BindableProperty[] {
+    return this.filterBindableProperties(true);
+  }
 
   /** When a grid cell is selected and user clicked a column header, this is the column index; null = grid-level. */
   readonly selectedGridColumnIndex = signal<number | null>(null);
@@ -790,8 +793,8 @@ export class CanvasService {
     { entryDate: '2024-03-10', effectiveDate: '2024-03-10', amount: 99.99, additionalDescription: 'Sample 3', description: 'Activity 3', activityTypeCode: 'TYPE_A', categoryCode: 'CAT1', currencyCode: 'USD', transactionId: 'TXN-003', transactionDate: '2024-03-10' },
   ];
 
-  /** Update column binding for a grid; when binding to activities, populates preview data so the column shows values. */
-  updateGridColumnBinding(cellId: string, widgetId: string, columnIndex: number, valueBinding: string, activityDataProperty: string): void {
+  /** Update column binding for a grid; when binding to activities, populates preview data and sets column header to the chosen label (e.g. "Entry Date"). */
+  updateGridColumnBinding(cellId: string, widgetId: string, columnIndex: number, valueBinding: string, activityDataProperty: string, headerLabel?: string): void {
     this.pushHistory();
     const isActivities = valueBinding === 'amsInformation.arrangements[0].amsActivity.activities' || valueBinding === 'nonAmsActivity.activities';
     const sampleData = isActivities ? CanvasService.SAMPLE_ACTIVITIES : undefined;
@@ -804,7 +807,12 @@ export class CanvasService {
         if (columnIndex < 0 || columnIndex >= cols.length) return c;
         const col = cols[columnIndex];
         const newCol = valueBinding
-          ? { ...col, valueBinding, activityDataProperty: isActivities ? activityDataProperty : undefined }
+          ? {
+              ...col,
+              valueBinding,
+              activityDataProperty: isActivities ? activityDataProperty : undefined,
+              headerName: isActivities && headerLabel ? headerLabel : col.headerName,
+            }
           : { ...col, valueBinding: undefined, activityDataProperty: undefined };
         cols[columnIndex] = newCol;
         const newWidget = { ...c.widget, gridColumns: cols };
@@ -812,6 +820,27 @@ export class CanvasService {
           (newWidget as WidgetInstance & { gridDataSourcePreview: Record<string, unknown>[] }).gridDataSourcePreview = sampleData;
         }
         return { ...c, widget: newWidget };
+      }),
+    }));
+    this.state.set({ rows });
+  }
+
+  /** Update column class and alignment for a grid column. */
+  updateGridColumnClassAndAlignment(cellId: string, widgetId: string, columnIndex: number, className: string, alignment: 'left' | 'center' | 'right' | ''): void {
+    this.pushHistory();
+    const rows = this.state().rows.map((row) => ({
+      ...row,
+      cells: row.cells.map((c) => {
+        if (c.id !== cellId || !c.widget || c.widget.id !== widgetId || c.widget.type !== 'grid') return c;
+        const cols = [...(c.widget.gridColumns ?? [])];
+        if (columnIndex < 0 || columnIndex >= cols.length) return c;
+        const col = cols[columnIndex];
+        cols[columnIndex] = {
+          ...col,
+          className: className?.trim() || undefined,
+          alignment: (alignment === 'left' || alignment === 'center' || alignment === 'right') ? alignment : undefined,
+        };
+        return { ...c, widget: { ...c.widget, gridColumns: cols } };
       }),
     }));
     this.state.set({ rows });

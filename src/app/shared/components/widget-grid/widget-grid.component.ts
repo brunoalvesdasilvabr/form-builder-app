@@ -36,6 +36,17 @@ export class WidgetGridComponent extends BaseWidgetComponent {
     return col.activityDataProperty ?? col.columnName;
   }
 
+  /** CSS class(es) for column cells. */
+  getColumnClass(col: Record<string, unknown>): string {
+    return (col['className'] as string) ?? '';
+  }
+
+  /** Text alignment for column cells. */
+  getColumnAlignment(col: Record<string, unknown>): string {
+    const a = col['alignment'];
+    return (a === 'left' || a === 'center' || a === 'right') ? a : 'left';
+  }
+
   /** Data source: uses widget.gridDataSourcePreview when defined, otherwise placeholder. */
   readonly dataSource = new MatTableDataSource<Record<string, unknown>>(PLACEHOLDER_ROW);
 

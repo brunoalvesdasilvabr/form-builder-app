@@ -110,6 +110,22 @@
               [placeholder]="'Class for the ' + getClassTargetLabel()"
             />
           </div>
+          @if (cell.widget?.type === 'grid' && selectedGridColumnIndex() !== null) {
+            <div class="admin-right-panel-field">
+              <label class="admin-right-panel-label" for="grid-column-alignment-select">Alignment</label>
+              <select
+                id="grid-column-alignment-select"
+                class="admin-right-panel-input admin-right-panel-select"
+                [ngModel]="pendingGridColumnAlignment()"
+                (ngModelChange)="pendingGridColumnAlignment.set($event)"
+              >
+                <option value="">— Left —</option>
+                <option value="left">Left</option>
+                <option value="center">Center</option>
+                <option value="right">Right</option>
+              </select>
+            </div>
+          }
           @if (cell.widget && cell.widget.type !== 'table') {
             <div class="admin-right-panel-field">
               <label class="admin-right-panel-label" for="value-binding-select">Data Binding</label>

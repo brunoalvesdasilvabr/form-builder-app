@@ -71,6 +71,8 @@ export class AdminComponent {
   /** Pending values in the form (not applied until Apply is clicked). */
   readonly pendingClass = signal('');
   readonly pendingProperty = signal('');
+  /** For grid column: alignment only. Class reuses pendingClass. */
+  readonly pendingGridColumnAlignment = signal<'left' | 'center' | 'right' | ''>('');
   /** When binding is Activities/Non-AMS Activities, selected property from the activity object (e.g. entryDate, amount). */
   readonly pendingActivityDataProperty = signal('');
   readonly pendingFormControlName = signal('');
@@ -88,6 +90,7 @@ export class AdminComponent {
   private initialClass = '';
   private initialProperty = '';
   private initialActivityDataProperty = '';
+  private initialGridColumnAlignment: 'left' | 'center' | 'right' | '' = '';
   private initialFormControlName = '';
   private initialVisibilityCondition = '';
   private initialMinLength = '';
@@ -118,6 +121,7 @@ export class AdminComponent {
       if (cell) {
         this.syncInitialClassFromCell(cell);
         this.syncInitialBindingAndFormControl(cell);
+        this.syncInitialGridColumnStyle(cell);
         this.syncInitialVisibilityFromCell(cell);
         this.syncInitialValidatorValuesFromCell(cell);
         this.copyInitialsToPending();
@@ -130,8 +134,14 @@ export class AdminComponent {
     });
   }
 
-  /** Fills initialClass from the selected cell (element, widget, widget-inner, or cell). */
+  /** Fills initialClass from the selected cell (element, widget, widget-inner, cell, or grid column). */
   private syncInitialClassFromCell(cell: CanvasCell): void {
+    if (cell.widget?.type === 'grid' && this.selectedGridColumnIndex() !== null) {
+      const cols = cell.widget.gridColumns ?? [];
+      const col = cols[this.selectedGridColumnIndex()!];
+      this.initialClass = col?.className ?? '';
+      return;
+    }
     const target = this.selectedTarget();
     const elementKey = this.selectedElementKey();
     if (target === 'element' && elementKey) {
@@ -152,6 +162,16 @@ export class AdminComponent {
     this.initialFormControlName = (cell.widget && ['label', 'input', 'checkbox', 'radio'].includes(cell.widget.type))
       ? (cell.widget.formControlName ?? '')
       : '';
+  }
+
+  /** Fills initial grid column alignment when a column is selected. Class comes from syncInitialClassFromCell. */
+  private syncInitialGridColumnStyle(cell: CanvasCell): void {
+    if (cell.widget?.type !== 'grid') return;
+    const colIdx = this.selectedGridColumnIndex();
+    if (colIdx === null) return;
+    const cols = cell.widget.gridColumns ?? [];
+    const col = cols[colIdx];
+    this.initialGridColumnAlignment = (col?.alignment === 'left' || col?.alignment === 'center' || col?.alignment === 'right') ? col.alignment : '';
   }
 
   /** Fills initial visibility condition (for label, input, checkbox, radio). */
@@ -176,6 +196,7 @@ export class AdminComponent {
     this.pendingClass.set(this.initialClass);
     this.pendingProperty.set(this.initialProperty);
     this.pendingActivityDataProperty.set(this.initialActivityDataProperty);
+    this.pendingGridColumnAlignment.set(this.initialGridColumnAlignment);
     this.pendingFormControlName.set(this.initialFormControlName);
     this.pendingVisibilityCondition.set(this.initialVisibilityCondition);
     this.pendingMinLength.set(this.initialMinLength);
@@ -224,18 +245,28 @@ export class AdminComponent {
         cell.widget?.type === 'input') {
       this.applyValidatorValuesChange(cell, messages);
     }
+    if (cell.widget?.type === 'grid' && this.selectedGridColumnIndex() !== null && this.pendingGridColumnAlignment() !== this.initialGridColumnAlignment) {
+      this.applyGridColumnAlignmentChange(cell, messages);
+    }
 
     if (messages.length) {
       this.snackBar.open(messages.join(' '), undefined, { duration: 4000 });
     }
   }
 
-  /** Applies the pending class to the cell/widget/element and records the message. */
+  /** Applies the pending class to the cell/widget/element/grid-column and records the message. */
   private applyClassChange(cell: CanvasCell, messages: string[]): void {
+    const newClass = this.pendingClass();
+    if (cell.widget?.type === 'grid' && this.selectedGridColumnIndex() !== null) {
+      const colIdx = this.selectedGridColumnIndex()!;
+      this.canvas.updateGridColumnClassAndAlignment(cell.id, cell.widget.id, colIdx, newClass, this.pendingGridColumnAlignment());
+      this.initialClass = newClass;
+      messages.push(`Your class was bound to the column.`);
+      return;
+    }
     const target = this.selectedTarget();
     const elementKey = this.selectedElementKey();
     const nested = this.selectedNestedPath();
-    const newClass = this.pendingClass();
     if (nested) {
       const { parentCellId, parentWidgetId, nestedCellId } = nested;
       if (target === 'element' && elementKey && cell.widget) {
@@ -266,9 +297,11 @@ export class AdminComponent {
   private applyPropertyChange(cell: CanvasCell, messages: string[]): void {
     const colIdx = this.selectedGridColumnIndex();
     if (cell.widget?.type === 'grid' && colIdx !== null) {
-      this.canvas.updateGridColumnBinding(cell.id, cell.widget.id, colIdx, this.pendingProperty(), this.pendingActivityDataProperty());
+      const activityProp = this.pendingActivityDataProperty();
+      const headerLabel = this.activityDataProperties.find((p) => p.value === activityProp)?.label;
+      this.canvas.updateGridColumnBinding(cell.id, cell.widget.id, colIdx, this.pendingProperty(), activityProp, headerLabel);
       this.initialProperty = this.pendingProperty();
-      this.initialActivityDataProperty = this.pendingActivityDataProperty();
+      this.initialActivityDataProperty = activityProp;
     } else {
       this.applyPropertyBinding(cell, this.pendingProperty());
       this.initialProperty = this.pendingProperty();
@@ -281,6 +314,15 @@ export class AdminComponent {
     this.applyFormControlName(cell);
     messages.push('Control name (data-form-control-name) was applied.');
     this.initialFormControlName = this.pendingFormControlName();
+  }
+
+  /** Applies grid column alignment when a column is selected. Class uses applyClassChange. */
+  private applyGridColumnAlignmentChange(cell: CanvasCell, messages: string[]): void {
+    const colIdx = this.selectedGridColumnIndex();
+    if (colIdx === null || cell.widget?.type !== 'grid') return;
+    this.canvas.updateGridColumnClassAndAlignment(cell.id, cell.widget.id, colIdx, this.pendingClass(), this.pendingGridColumnAlignment());
+    this.initialGridColumnAlignment = this.pendingGridColumnAlignment();
+    messages.push('Column alignment was applied.');
   }
 
   /** Applies visibility condition to the selected data component (label, input, checkbox, radio). */
@@ -450,6 +492,9 @@ export class AdminComponent {
 
   /** Label for which element gets the class (cell, component wrapper, component, or child element). */
   getClassTargetLabel(): string {
+    const colIdx = this.selectedGridColumnIndex();
+    const cell = this.selectedCell();
+    if (cell?.widget?.type === 'grid' && colIdx !== null) return `column ${colIdx + 1}`;
     const t = this.selectedTarget();
     const key = this.selectedElementKey();
     if (t === 'cell') return 'cell';

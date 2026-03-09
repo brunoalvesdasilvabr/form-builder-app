@@ -106,13 +106,19 @@ export class CanvasComponent {
     }
   }
 
-  /** When cell is a grid: set selectedGridColumnIndex from header click, or null for grid-level. */
+  /** When cell is a grid: set selectedGridColumnIndex from header or body cell click (any column cell), or null for grid-level. */
   private setGridColumnSelection(cell: CanvasCell, e: MouseEvent): void {
     if (cell.widget?.type !== 'grid') return;
-    const th = (e.target as Element).closest('th[mat-header-cell]');
-    if (th) {
-      const tr = th.closest('tr');
-      const idx = tr ? Array.from(tr.children).indexOf(th) : -1;
+    const el = e.target as Element;
+    const headerCell = el.closest('th[mat-header-cell]');
+    const bodyCell = el.closest('td[mat-cell]');
+    if (headerCell) {
+      const tr = headerCell.closest('tr');
+      const idx = tr ? Array.from(tr.children).indexOf(headerCell) : -1;
+      this.canvas.setSelectedGridColumnIndex(idx >= 0 ? idx : null);
+    } else if (bodyCell) {
+      const tr = bodyCell.closest('tr');
+      const idx = tr ? Array.from(tr.children).indexOf(bodyCell) : -1;
       this.canvas.setSelectedGridColumnIndex(idx >= 0 ? idx : null);
     } else {
       this.canvas.setSelectedGridColumnIndex(null);
