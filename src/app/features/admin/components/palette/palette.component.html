@@ -22,7 +22,12 @@
       </mat-expansion-panel-header>
       <div class="palette-list">
         @for (type of dataWidgets; track type) {
-          <div class="palette-item" draggable="true" (dragstart)="onDragStart($event, type)" (dragend)="onDragEnd($event)">
+          <div
+            class="palette-item"
+            [attr.draggable]="type !== 'panel' ? 'true' : 'false'"
+            (dragstart)="onDragStart($event, type)"
+            (dragend)="onDragEnd($event)"
+          >
             <span class="palette-item-icon">{{ iconFor(type) }}</span>
             <span class="palette-item-label">{{ labels()[type] }}</span>
           </div>

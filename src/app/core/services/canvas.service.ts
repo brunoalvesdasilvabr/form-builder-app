@@ -88,6 +88,32 @@ export class CanvasService {
     { value: 'amsInformation.arrangements[0].amsActivity.totalAmount', label: 'AMS Activity totalAmount' },
   ];
 
+  /** Parent-level only (grid-level): no AMS/Non-AMS Activities. */
+  readonly bindablePropertiesGrid: BindableProperty[] = [
+    { value: 'arrangements[0].accountArrangement.taxOverlayAccountSetup.lifeCycleStatusType.name', label: 'taxOverlayStatus' },
+    { value: 'arrangements[0].accountArrangement.taxOverlayAccountSetup.strategyType.name', label: 'taxOverlayEnrollmentStrategy' },
+    { value: 'arrangements[0].accountArrangement.taxOverlayAccountSetup.activationDate', label: 'taxOverlayEnrollmentDate' },
+    { value: 'arrangements[0].accountArrangement.assetAccountSetups[0].assetManagementSetup.accountPlatform.name', label: 'platform' },
+    { value: 'arrangements[0].accountArrangement.assetAccountSetups[0].assetManagementSetup.moneyManagerDisplayName', label: 'manager' },
+    { value: 'arrangements[0].accountArrangement.assetAccountSetups[0].assetManagementSetup.disciplineTypeDisplayName', label: 'discipline' },
+    { value: 'arrangements[0].accountArrangement.assetAccountSetups[0].assetManagementSetup.billingStartDate', label: 'platformBeginDate' },
+    { value: 'arrangements[0].fees.assetManagementFees[0].customizedRate', label: 'feeRate' },
+    { value: 'amsInformation.arrangements[0].amsActivity.totalAmount', label: 'AMS Activity totalAmount' },
+  ];
+
+  /** Column-level only (child): AMS Activities, Non-AMS Activities. */
+  readonly bindablePropertiesColumn: BindableProperty[] = [
+    { value: 'amsInformation.arrangements[0].amsActivity.activities', label: 'AMS Activities' },
+    { value: 'nonAmsActivity.activities', label: 'Non-AMS Activities' },
+  ];
+
+  /** When a grid cell is selected and user clicked a column header, this is the column index; null = grid-level. */
+  readonly selectedGridColumnIndex = signal<number | null>(null);
+
+  setSelectedGridColumnIndex(index: number | null): void {
+    this.selectedGridColumnIndex.set(index);
+  }
+
   setSelectedCell(
     cellId: string | null,
     target: 'cell' | 'widget' | 'widget-inner' | 'element' = 'cell',
@@ -98,6 +124,12 @@ export class CanvasService {
     this.selectedTarget.set(target);
     this.selectedElementKey.set(target === 'element' ? (elementKey ?? null) : null);
     this.selectedOptionIndex.set(null);
+    if (!cellId) {
+      this.selectedGridColumnIndex.set(null);
+    } else {
+      const cell = this.state().rows.flatMap((r) => r.cells).find((c) => c.id === cellId);
+      if (cell?.widget?.type !== 'grid') this.selectedGridColumnIndex.set(null);
+    }
   }
 
   setSelectedNestedCell(
@@ -644,6 +676,15 @@ export class CanvasService {
     return Array.from(set).sort();
   }
 
+  /** Default 3 columns for new grid widgets. */
+  private createDefaultGridColumns(): { id: string; columnName: string; headerName: string }[] {
+    return [
+      { id: generateId('id'), columnName: 'column1', headerName: 'Column 1' },
+      { id: generateId('id'), columnName: 'column2', headerName: 'Column 2' },
+      { id: generateId('id'), columnName: 'column3', headerName: 'Column 3' },
+    ];
+  }
+
   setWidgetAt(rowIndex: number, colIndex: number, type: WidgetType, label?: string, options?: string[]): void {
     this.pushHistory();
     const rows = this.state().rows.map((r, ri) => ({
@@ -659,6 +700,9 @@ export class CanvasService {
         };
         if (type === 'table') {
           (widget as WidgetInstance & { nestedTable: NestedTableState }).nestedTable = this.createDefaultNestedTable();
+        }
+        if (type === 'grid') {
+          (widget as WidgetInstance & { gridColumns: { id: string; columnName: string; headerName: string }[] }).gridColumns = this.createDefaultGridColumns();
         }
         return { ...cell, widget };
       }),
@@ -703,6 +747,88 @@ export class CanvasService {
       cells: row.cells.map((c) => {
         if (c.id !== cellId || !c.widget || c.widget.id !== widgetId || c.widget.type !== 'grid') return c;
         return { ...c, widget: { ...c.widget, gridDataSourcePreview: data } };
+      }),
+    }));
+    this.state.set({ rows });
+  }
+
+  /** Add a column to the right of the grid. */
+  addGridColumn(cellId: string, widgetId: string): void {
+    this.pushHistory();
+    const rows = this.state().rows.map((row) => ({
+      ...row,
+      cells: row.cells.map((c) => {
+        if (c.id !== cellId || !c.widget || c.widget.id !== widgetId || c.widget.type !== 'grid') return c;
+        const cols = c.widget.gridColumns ?? [];
+        const n = cols.length + 1;
+        const newCol = { id: generateId('id'), columnName: `column${n}`, headerName: `Column ${n}` };
+        return { ...c, widget: { ...c.widget, gridColumns: [...cols, newCol] } };
+      }),
+    }));
+    this.state.set({ rows });
+  }
+
+  /** Remove the rightmost column only. */
+  removeGridColumn(cellId: string, widgetId: string): void {
+    this.pushHistory();
+    const rows = this.state().rows.map((row) => ({
+      ...row,
+      cells: row.cells.map((c) => {
+        if (c.id !== cellId || !c.widget || c.widget.id !== widgetId || c.widget.type !== 'grid') return c;
+        const cols = c.widget.gridColumns ?? [];
+        if (cols.length <= 1) return c;
+        return { ...c, widget: { ...c.widget, gridColumns: cols.slice(0, -1) } };
+      }),
+    }));
+    this.state.set({ rows });
+  }
+
+  /** Sample activity data for grid preview when columns are bound to AMS/Non-AMS Activities. */
+  private static readonly SAMPLE_ACTIVITIES: Record<string, unknown>[] = [
+    { entryDate: '2024-01-15', effectiveDate: '2024-01-15', amount: 150.50, additionalDescription: 'Sample 1', description: 'Activity 1', activityTypeCode: 'TYPE_A', categoryCode: 'CAT1', currencyCode: 'USD', transactionId: 'TXN-001', transactionDate: '2024-01-15' },
+    { entryDate: '2024-02-20', effectiveDate: '2024-02-20', amount: 275.00, additionalDescription: 'Sample 2', description: 'Activity 2', activityTypeCode: 'TYPE_B', categoryCode: 'CAT2', currencyCode: 'EUR', transactionId: 'TXN-002', transactionDate: '2024-02-20' },
+    { entryDate: '2024-03-10', effectiveDate: '2024-03-10', amount: 99.99, additionalDescription: 'Sample 3', description: 'Activity 3', activityTypeCode: 'TYPE_A', categoryCode: 'CAT1', currencyCode: 'USD', transactionId: 'TXN-003', transactionDate: '2024-03-10' },
+  ];
+
+  /** Update column binding for a grid; when binding to activities, populates preview data so the column shows values. */
+  updateGridColumnBinding(cellId: string, widgetId: string, columnIndex: number, valueBinding: string, activityDataProperty: string): void {
+    this.pushHistory();
+    const isActivities = valueBinding === 'amsInformation.arrangements[0].amsActivity.activities' || valueBinding === 'nonAmsActivity.activities';
+    const sampleData = isActivities ? CanvasService.SAMPLE_ACTIVITIES : undefined;
+
+    const rows = this.state().rows.map((row) => ({
+      ...row,
+      cells: row.cells.map((c) => {
+        if (c.id !== cellId || !c.widget || c.widget.id !== widgetId || c.widget.type !== 'grid') return c;
+        const cols = [...(c.widget.gridColumns ?? [])];
+        if (columnIndex < 0 || columnIndex >= cols.length) return c;
+        const col = cols[columnIndex];
+        const newCol = valueBinding
+          ? { ...col, valueBinding, activityDataProperty: isActivities ? activityDataProperty : undefined }
+          : { ...col, valueBinding: undefined, activityDataProperty: undefined };
+        cols[columnIndex] = newCol;
+        const newWidget = { ...c.widget, gridColumns: cols };
+        if (sampleData?.length) {
+          (newWidget as WidgetInstance & { gridDataSourcePreview: Record<string, unknown>[] }).gridDataSourcePreview = sampleData;
+        }
+        return { ...c, widget: newWidget };
+      }),
+    }));
+    this.state.set({ rows });
+  }
+
+  /** Add a row at the bottom of the grid preview data. */
+  addGridRow(cellId: string, widgetId: string): void {
+    this.pushHistory();
+    const rows = this.state().rows.map((row) => ({
+      ...row,
+      cells: row.cells.map((c) => {
+        if (c.id !== cellId || !c.widget || c.widget.id !== widgetId || c.widget.type !== 'grid') return c;
+        const cols = c.widget.gridColumns ?? [];
+        const newRow: Record<string, unknown> = {};
+        cols.forEach((col) => { newRow[col.columnName] = ''; });
+        const data = c.widget.gridDataSourcePreview ?? [];
+        return { ...c, widget: { ...c.widget, gridDataSourcePreview: [...data, newRow] } };
       }),
     }));
     this.state.set({ rows });

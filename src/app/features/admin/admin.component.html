@@ -120,7 +120,7 @@
                 (ngModelChange)="onDataBindingChange($event)"
               >
                 <option value="">— None —</option>
-                @for (prop of bindableProperties; track prop.value) {
+                @for (prop of effectiveBindableProperties(); track prop.value) {
                   <option [value]="prop.value">{{ prop.label }}</option>
                 }
               </select>

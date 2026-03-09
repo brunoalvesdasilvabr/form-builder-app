@@ -233,6 +233,46 @@
   margin-top: 1rem;
 }
 
+.admin-right-panel-grid-actions .admin-right-panel-button-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.admin-right-panel-btn {
+  padding: 0.4rem 0.6rem;
+  font-size: 0.85rem;
+  border-radius: 6px;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--bg-main);
+  color: var(--text);
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.admin-right-panel-btn-add {
+  color: var(--primary, #2563eb);
+
+  &:hover:not(:disabled) {
+    background: var(--bg-cell-hover);
+    border-color: var(--primary);
+  }
+}
+
+.admin-right-panel-btn-remove {
+  color: var(--text-muted);
+
+  &:hover:not(:disabled) {
+    background: var(--bg-cell-hover);
+    color: var(--text);
+  }
+}
+
 .admin-right-panel-validator-values .admin-right-panel-hint {
   margin-bottom: 0.5rem;
 }

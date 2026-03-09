@@ -4,7 +4,11 @@ import { MatTableModule, MatTableDataSource } from '@angular/material/table';
 import type { WidgetInstance } from '../../models/canvas.model';
 import { BaseWidgetComponent } from '../base-widget.component';
 
-const DEFAULT_COLUMNS = [{ id: 'col0', columnName: 'column1', headerName: 'Column 1' }];
+const DEFAULT_COLUMNS = [
+  { id: 'col0', columnName: 'column1', headerName: 'Column 1' },
+  { id: 'col1', columnName: 'column2', headerName: 'Column 2' },
+  { id: 'col2', columnName: 'column3', headerName: 'Column 3' },
+];
 const PLACEHOLDER_ROW = [{ placeholder: 'No data' }];
 
 @Component({
@@ -26,6 +30,11 @@ export class WidgetGridComponent extends BaseWidgetComponent {
 
   /** Column ids for matColumnDef and displayedColumns. */
   readonly displayedColumns = computed(() => this.columns().map((c) => c.columnName));
+
+  /** Key used to read cell value from row; uses activityDataProperty when column is bound to activities. */
+  getDisplayKey(col: { columnName: string; activityDataProperty?: string }): string {
+    return col.activityDataProperty ?? col.columnName;
+  }
 
   /** Data source: uses widget.gridDataSourcePreview when defined, otherwise placeholder. */
   readonly dataSource = new MatTableDataSource<Record<string, unknown>>(PLACEHOLDER_ROW);

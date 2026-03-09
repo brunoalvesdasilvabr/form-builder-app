@@ -93,14 +93,29 @@ export class CanvasComponent {
           this.layoutGuard.ensureLayoutNamed().then((ok) => {
             if (ok) {
               doSelect();
+              this.setGridColumnSelection(cell, e);
               this.cdr.detectChanges();
             }
           });
         } else {
           doSelect();
+          this.setGridColumnSelection(cell, e);
         }
       }
       this.clearSelection();
+    }
+  }
+
+  /** When cell is a grid: set selectedGridColumnIndex from header click, or null for grid-level. */
+  private setGridColumnSelection(cell: CanvasCell, e: MouseEvent): void {
+    if (cell.widget?.type !== 'grid') return;
+    const th = (e.target as Element).closest('th[mat-header-cell]');
+    if (th) {
+      const tr = th.closest('tr');
+      const idx = tr ? Array.from(tr.children).indexOf(th) : -1;
+      this.canvas.setSelectedGridColumnIndex(idx >= 0 ? idx : null);
+    } else {
+      this.canvas.setSelectedGridColumnIndex(null);
     }
   }
 

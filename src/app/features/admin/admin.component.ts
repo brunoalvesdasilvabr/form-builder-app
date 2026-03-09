@@ -31,7 +31,18 @@ export class AdminComponent {
   readonly selectedTarget = this.canvas.selectedTarget;
   readonly selectedElementKey = this.canvas.selectedElementKey;
   readonly bindableProperties = this.canvas.bindableProperties;
+  readonly bindablePropertiesGrid = this.canvas.bindablePropertiesGrid;
+  readonly bindablePropertiesColumn = this.canvas.bindablePropertiesColumn;
+  readonly selectedGridColumnIndex = this.canvas.selectedGridColumnIndex;
   readonly selectedOptionIndex = this.canvas.selectedOptionIndex;
+
+  /** For grid: parent-level when grid selected, column-level when a column selected; for non-grid use full list. */
+  readonly effectiveBindableProperties = computed(() => {
+    const cell = this.selectedCell();
+    if (!cell?.widget || cell.widget.type !== 'grid') return this.bindableProperties;
+    const colIdx = this.selectedGridColumnIndex();
+    return colIdx === null ? this.bindablePropertiesGrid : this.bindablePropertiesColumn;
+  });
 
   /** Property names from activity objects (for inner dropdown when Activities / Non-AMS Activities is selected). */
   readonly activityDataProperties: { value: string; label: string }[] = [
@@ -47,13 +58,14 @@ export class AdminComponent {
     { value: 'transactionDate', label: 'Transaction Date' },
   ];
 
-  /** True when the selected data binding is one of the activities arrays (show inner dropdown with activity fields). */
+  /** True when the selected data binding is one of the activities arrays (show inner dropdown with activity fields). Column-level only for grid. */
   readonly showActivityDataDropdown = computed(() => {
     const v = this.pendingProperty();
-    return (
-      v === 'amsInformation.arrangements[0].amsActivity.activities' ||
-      v === 'nonAmsActivity.activities'
-    );
+    const isActivities = v === 'amsInformation.arrangements[0].amsActivity.activities' || v === 'nonAmsActivity.activities';
+    if (!isActivities) return false;
+    const cell = this.selectedCell();
+    if (cell?.widget?.type === 'grid') return this.selectedGridColumnIndex() !== null;
+    return true;
   });
 
   /** Pending values in the form (not applied until Apply is clicked). */
@@ -75,6 +87,7 @@ export class AdminComponent {
   /** Snapshot when panel opened / last apply (to detect what changed). */
   private initialClass = '';
   private initialProperty = '';
+  private initialActivityDataProperty = '';
   private initialFormControlName = '';
   private initialVisibilityCondition = '';
   private initialMinLength = '';
@@ -108,6 +121,11 @@ export class AdminComponent {
         this.syncInitialVisibilityFromCell(cell);
         this.syncInitialValidatorValuesFromCell(cell);
         this.copyInitialsToPending();
+        // At grid-level, column-only bindings are not in the list; show None.
+        if (cell.widget?.type === 'grid' && this.selectedGridColumnIndex() === null &&
+            this.bindablePropertiesColumn.some((p) => p.value === this.pendingProperty())) {
+          this.pendingProperty.set('');
+        }
       }
     });
   }
@@ -127,9 +145,10 @@ export class AdminComponent {
     }
   }
 
-  /** Fills initialProperty and initialFormControlName from the cell. */
+  /** Fills initialProperty, initialActivityDataProperty, and initialFormControlName from the cell. */
   private syncInitialBindingAndFormControl(cell: CanvasCell): void {
     this.initialProperty = this.getCurrentBindingProperty(cell);
+    this.initialActivityDataProperty = this.getCurrentActivityDataProperty(cell);
     this.initialFormControlName = (cell.widget && ['label', 'input', 'checkbox', 'radio'].includes(cell.widget.type))
       ? (cell.widget.formControlName ?? '')
       : '';
@@ -156,7 +175,7 @@ export class AdminComponent {
   private copyInitialsToPending(): void {
     this.pendingClass.set(this.initialClass);
     this.pendingProperty.set(this.initialProperty);
-    this.pendingActivityDataProperty.set(''); // not persisted on widget yet
+    this.pendingActivityDataProperty.set(this.initialActivityDataProperty);
     this.pendingFormControlName.set(this.initialFormControlName);
     this.pendingVisibilityCondition.set(this.initialVisibilityCondition);
     this.pendingMinLength.set(this.initialMinLength);
@@ -189,7 +208,7 @@ export class AdminComponent {
     if (this.pendingClass() !== this.initialClass) {
       this.applyClassChange(cell, messages);
     }
-    if (this.pendingProperty() !== this.initialProperty) {
+    if (this.pendingProperty() !== this.initialProperty || (cell.widget?.type === 'grid' && this.selectedGridColumnIndex() !== null && this.pendingActivityDataProperty() !== this.initialActivityDataProperty)) {
       this.applyPropertyChange(cell, messages);
     }
     if (this.pendingFormControlName() !== this.initialFormControlName && cell.widget && ['label', 'input', 'checkbox', 'radio'].includes(cell.widget.type)) {
@@ -245,9 +264,16 @@ export class AdminComponent {
 
   /** Applies the pending property binding and records the message. */
   private applyPropertyChange(cell: CanvasCell, messages: string[]): void {
-    this.applyPropertyBinding(cell, this.pendingProperty());
+    const colIdx = this.selectedGridColumnIndex();
+    if (cell.widget?.type === 'grid' && colIdx !== null) {
+      this.canvas.updateGridColumnBinding(cell.id, cell.widget.id, colIdx, this.pendingProperty(), this.pendingActivityDataProperty());
+      this.initialProperty = this.pendingProperty();
+      this.initialActivityDataProperty = this.pendingActivityDataProperty();
+    } else {
+      this.applyPropertyBinding(cell, this.pendingProperty());
+      this.initialProperty = this.pendingProperty();
+    }
     messages.push('Your property was bound to the component.');
-    this.initialProperty = this.pendingProperty();
   }
 
   /** Applies the pending form control name for input/checkbox/radio and records the message. */
@@ -400,18 +426,22 @@ export class AdminComponent {
     }
   }
 
-  /** Right panel title based on selection: "Cell Properties", "Label Properties", "Input Properties", etc. */
+  /** Right panel title based on selection: "Cell Properties", "Label Properties", "Grid Properties", "Column 1 Properties", etc. */
   getPropertiesPanelTitle(): string {
     const cell = this.selectedCell();
     if (!cell) return 'Properties';
     if (!cell.widget) return 'Cell Properties';
+    if (cell.widget.type === 'grid') {
+      const colIdx = this.selectedGridColumnIndex();
+      if (colIdx !== null) return `Column ${colIdx + 1} Properties`;
+      return 'Grid Properties';
+    }
     const typeLabels: Record<string, string> = {
       input: 'Input',
       checkbox: 'Checkbox',
       radio: 'Radio',
       label: 'Label',
       table: 'Table',
-      grid: 'Grid',
       panel: 'Panel',
     };
     const name = typeLabels[cell.widget.type] ?? cell.widget.type;
@@ -502,10 +532,26 @@ export class AdminComponent {
   getCurrentBindingProperty(cell: CanvasCell): string {
     const w = cell.widget;
     if (!w) return '';
+    if (w.type === 'grid' && this.selectedGridColumnIndex() !== null) {
+      const cols = w.gridColumns ?? [];
+      const col = cols[this.selectedGridColumnIndex()!];
+      return col?.valueBinding ?? '';
+    }
     if (w.type === 'radio' && this.selectedOptionIndex() !== null) {
       const binding = w.optionBindings?.[this.selectedOptionIndex()!];
       return parseBindingProperty(binding);
     }
     return parseBindingProperty(w.valueBinding);
+  }
+
+  /** For grid column: the activity field (e.g. amount, entryDate). */
+  private getCurrentActivityDataProperty(cell: CanvasCell): string {
+    const w = cell.widget;
+    if (!w || w.type !== 'grid') return '';
+    const colIdx = this.selectedGridColumnIndex();
+    if (colIdx === null) return '';
+    const cols = w.gridColumns ?? [];
+    const col = cols[colIdx];
+    return col?.activityDataProperty ?? '';
   }
 }
