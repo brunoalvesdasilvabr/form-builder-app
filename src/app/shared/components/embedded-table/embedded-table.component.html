@@ -1,4 +1,4 @@
-<div class="embedded-table-wrap">
+<div class="embedded-table-wrap" (mouseleave)="hoveredCell.set(null)">
   <div class="embedded-table-scroll">
     <table
       class="embedded-table"
@@ -10,16 +10,16 @@
         }
       </colgroup>
       <tbody>
-        @for (row of rows(); track row.id; let rowIdx = $index) {
+        @for (row of rows(); track row.id) {
           <tr
             [class.layout-drop-row-before]="
               layoutDropPreview()?.type === 'row' &&
-              layoutDropPreview()?.rowIndex === (row.cells[0]?.rowIndex ?? rowIdx) &&
+              layoutDropPreview()?.rowIndex === row.cells[0].rowIndex &&
               layoutDropPreview()?.position === 'before'
             "
             [class.layout-drop-row-after]="
               layoutDropPreview()?.type === 'row' &&
-              layoutDropPreview()?.rowIndex === (row.cells[0]?.rowIndex ?? rowIdx) &&
+              layoutDropPreview()?.rowIndex === row.cells[0].rowIndex &&
               layoutDropPreview()?.position === 'after'
             "
           >
@@ -47,6 +47,7 @@
                   (drop)="onDrop($event, cell)"
                   (dragover)="onDragOver($event, cell)"
                   (dragleave)="onDragLeave($event)"
+                  (mouseenter)="hoveredCell.set({ rowIndex: cell.rowIndex, colIndex: cell.colIndex })"
                 >
                   @if (cell.widget) {
                     @if (cell.widget.type === 'table') {
@@ -79,6 +80,14 @@
   <div class="embedded-sidebar" (click)="$event.stopPropagation()">
     @if (canMerge()) {
       <button type="button" class="embedded-btn embedded-btn-merge" (click)="mergeSelection()" title="Merge selected">Merge</button>
+    }
+    @if (hoveredCell(); as h) {
+      @if (rows().length > 1) {
+        <button type="button" class="embedded-btn embedded-btn-minus" (click)="removeRowAt(h.rowIndex)" title="Remove row">− Row</button>
+      }
+      @if (rows().length > 0 && rows()[0].cells.length > 1) {
+        <button type="button" class="embedded-btn embedded-btn-minus" (click)="removeColumnAt(h.colIndex)" title="Remove column">− Col</button>
+      }
     }
   </div>
 </div>

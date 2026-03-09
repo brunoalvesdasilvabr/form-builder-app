@@ -155,6 +155,64 @@
   flex-shrink: 0;
 }
 
+.canvas-table-wrap {
+  position: relative;
+  flex: 0 1 auto;
+}
+
+.canvas-sidebar {
+  position: absolute;
+  top: 0.35rem;
+  right: 0.35rem;
+  bottom: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.25rem;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.canvas-table-wrap:hover .canvas-sidebar {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Hide canvas sidebar when hovering a nested table (it shows its own) */
+.canvas-table-wrap:has(.embedded-table-wrap:hover) .canvas-sidebar {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.canvas-sidebar-btn {
+  padding: 0.2rem 0.35rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-cell);
+  color: var(--text);
+  font-size: 0.75rem;
+  cursor: pointer;
+  white-space: nowrap;
+
+  &:hover:not(:disabled) {
+    background: var(--bg-cell-hover);
+    border-color: var(--accent);
+  }
+}
+
+.canvas-sidebar-btn-minus {
+  color: var(--danger);
+
+  &:hover:not(:disabled) {
+    border-color: var(--danger);
+  }
+}
+
 .canvas-table {
   flex: 0 1 auto;
   width: 100%;
@@ -244,4 +302,29 @@
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.canvas-empty-state {
+  min-height: 200px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 2rem;
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-cell);
+  transition: border-color 0.15s, background 0.15s;
+
+  .canvas-empty-state-text {
+    margin: 0;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+  }
+
+  &.canvas-empty-state-drag-over {
+    border-color: var(--accent);
+    background: rgba(99, 102, 241, 0.08);
+  }
 }

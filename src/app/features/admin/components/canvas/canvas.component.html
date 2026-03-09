@@ -7,12 +7,13 @@
           id="layoutSelect"
           name="layoutSelect"
           class="canvas-toolbar-select"
-          [ngModel]="selectedLayoutId()"
+          [ngModel]="selectedLayoutId() ?? null"
           (ngModelChange)="onLayoutSelect($event)"
           [ngModelOptions]="{ standalone: true }"
           title="Switch layout"
         >
-          <option [ngValue]="null">— New layout —</option>
+          <option [ngValue]="null">Select layout</option>
+          <option [ngValue]="layoutOptionNew">New layout</option>
           @for (layout of layouts(); track layout.id) {
             <option [ngValue]="layout.id">{{ layout.name }}</option>
           }
@@ -54,21 +55,36 @@
         <button type="button" class="btn btn-secondary" (click)="mergeSelection()">Merge selected</button>
       }
     </div>
+    @if (rows().length === 0) {
+      <div
+        class="canvas-empty-state"
+        (drop)="onEmptyStateDrop($event)"
+        (dragover)="onEmptyStateDragOver($event)"
+        (dragleave)="onEmptyStateDragLeave($event)"
+      >
+        @if (!selectedLayoutId()) {
+          <p class="canvas-empty-state-text">Select a layout or choose <strong>New layout</strong>.</p>
+        } @else {
+          <p class="canvas-empty-state-text">Drop <strong>Table</strong> from the Layout section here to begin.</p>
+        }
+      </div>
+    } @else {
+    <div class="canvas-table-wrap" (mouseleave)="hoveredCell.set(null)">
     <table
       class="canvas-table"
       (dragleave)="onTableDragLeave($event)"
     >
       <tbody>
-        @for (row of rows(); track row.id; let rowIdx = $index) {
+        @for (row of rows(); track row.id) {
           <tr
             [class.layout-drop-row-before]="
               layoutDropPreview()?.type === 'row' &&
-              layoutDropPreview()?.rowIndex === (row.cells[0]?.rowIndex ?? rowIdx) &&
+              layoutDropPreview()?.rowIndex === row.cells[0].rowIndex &&
               layoutDropPreview()?.position === 'before'
             "
             [class.layout-drop-row-after]="
               layoutDropPreview()?.type === 'row' &&
-              layoutDropPreview()?.rowIndex === (row.cells[0]?.rowIndex ?? rowIdx) &&
+              layoutDropPreview()?.rowIndex === row.cells[0].rowIndex &&
               layoutDropPreview()?.position === 'after'
             "
           >
@@ -106,6 +122,7 @@
                   (drop)="onDrop($event, cell)"
                   (dragover)="onDragOver($event, cell)"
                   (dragleave)="onDragLeave($event)"
+                  (mouseenter)="hoveredCell.set({ rowIndex: cell.rowIndex, colIndex: cell.colIndex })"
                 >
                   @if (cell.widget) {
                     <app-widget-renderer
@@ -127,5 +144,20 @@
         }
       </tbody>
     </table>
+    <div class="canvas-sidebar" (click)="$event.stopPropagation()">
+      @if (canMerge()) {
+        <button type="button" class="canvas-sidebar-btn" (click)="mergeSelection()" title="Merge selected">Merge</button>
+      }
+      @if (hoveredCell(); as h) {
+        @if (rows().length > 1) {
+          <button type="button" class="canvas-sidebar-btn canvas-sidebar-btn-minus" (click)="removeRowAt(h.rowIndex)" title="Remove row">− Row</button>
+        }
+        @if (rows().length > 0 && rows()[0].cells.length > 1) {
+          <button type="button" class="canvas-sidebar-btn canvas-sidebar-btn-minus" (click)="removeColumnAt(h.colIndex)" title="Remove column">− Col</button>
+        }
+      }
+    </div>
+    </div>
+    }
   </div>
 </form>

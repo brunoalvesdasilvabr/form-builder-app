@@ -1,19 +1,30 @@
 import { Injectable, signal, computed } from '@angular/core';
-import type { CanvasState, CanvasRow, CanvasCell, WidgetInstance, WidgetType, NestedTableState, NestedTableRow, NestedTableCell, BindableProperty } from '../../shared/models/canvas.model';
-import { getDefaultWidgetLabel } from '../../shared/models/canvas.model';
+import type {
+  CanvasState,
+  CanvasRow,
+  CanvasCell,
+  WidgetInstance,
+  WidgetType,
+  NestedTableState,
+  BindableProperty,
+} from '../../shared/models/canvas.model';
+import { ACTIVITIES_BINDING_PATHS, TextAlignment, ValidatorKey } from '../../shared/enums';
+import { getDefaultWidgetLabel, FORM_CONTROL_WIDGET_TYPES } from '../../shared/models/canvas.model';
 import * as gridMerge from '../../shared/utils/grid-merge.util';
 import { generateId } from '../../shared/utils/id.util';
 import { createDefaultNestedTable } from '../../shared/utils/nested-table.util';
 
 const UNDO_LIMIT = 50;
 
+/** Returns trimmed string or undefined if empty. */
+function trimOrUndefined(s: string | undefined): string | undefined {
+  const t = s?.trim();
+  return t ? t : undefined;
+}
+
 @Injectable({ providedIn: 'root' })
 export class CanvasService {
-  private readonly state = signal<CanvasState>({
-    rows: [
-      this.createRow(0, 3),
-    ],
-  });
+  private readonly state = signal<CanvasState>({ rows: [] });
 
   private undoStack: CanvasState[] = [];
   readonly canUndo = signal(false);
@@ -44,7 +55,7 @@ export class CanvasService {
   /** Nested cell selection: parent canvas cell + table widget + nested cell id */
   readonly selectedNestedPath = signal<{ parentCellId: string; parentWidgetId: string; nestedCellId: string } | null>(null);
   /** What was clicked: 'cell' = td, 'widget' = app-widget-renderer host, 'widget-inner' = inner component, 'element' = child element */
-  readonly selectedTarget = signal<'cell' | 'widget' | 'widget-inner' | 'element'>('cell');
+  readonly selectedTarget = signal<'cell' | 'widget' | 'widget-inner' | 'element'>('cell'); // uses SelectedTarget values
   /** When selectedTarget is 'element', the data-class-target key (e.g. 'label', 'control', 'option-0') */
   readonly selectedElementKey = signal<string | null>(null);
 
@@ -88,16 +99,15 @@ export class CanvasService {
     { value: 'amsInformation.arrangements[0].amsActivity.totalAmount', label: 'AMS Activity totalAmount' },
   ];
 
-  /** Paths for activities arrays (column-level only for grid). */
-  private static readonly ACTIVITIES_PATHS: string[] = [
-    'amsInformation.arrangements[0].amsActivity.activities',
-    'nonAmsActivity.activities',
-  ];
-
   private filterBindableProperties(includeOnlyActivities: boolean): BindableProperty[] {
     return this.bindableProperties.filter((p) =>
-      CanvasService.ACTIVITIES_PATHS.includes(p.value) === includeOnlyActivities
+      (ACTIVITIES_BINDING_PATHS as readonly string[]).includes(p.value) === includeOnlyActivities
     );
+  }
+
+  /** True when valueBinding points to an activities array. */
+  private static isActivitiesBinding(valueBinding: string): boolean {
+    return (ACTIVITIES_BINDING_PATHS as readonly string[]).includes(valueBinding);
   }
 
   /** Parent-level only (grid-level): excludes AMS/Non-AMS Activities arrays. */
@@ -157,9 +167,7 @@ export class CanvasService {
     this.pushHistory();
     const rows = this.state().rows.map((row) => ({
       ...row,
-      cells: row.cells.map((c) =>
-        c.id === cellId ? { ...c, className: className.trim() || undefined } : c
-      ),
+      cells: row.cells.map((c) => (c.id === cellId ? { ...c, className: trimOrUndefined(className) } : c)),
     }));
     this.state.set({ rows });
   }
@@ -170,10 +178,7 @@ export class CanvasService {
       ...row,
       cells: row.cells.map((c) => {
         if (c.id !== cellId || !c.widget || c.widget.id !== widgetId) return c;
-        return {
-          ...c,
-          widget: { ...c.widget, className: className.trim() || undefined },
-        };
+        return { ...c, widget: { ...c.widget, className: trimOrUndefined(className) } };
       }),
     }));
     this.state.set({ rows });
@@ -185,10 +190,7 @@ export class CanvasService {
       ...row,
       cells: row.cells.map((c) => {
         if (c.id !== cellId || !c.widget || c.widget.id !== widgetId) return c;
-        return {
-          ...c,
-          widget: { ...c.widget, innerClassName: className.trim() || undefined },
-        };
+        return { ...c, widget: { ...c.widget, innerClassName: trimOrUndefined(className) } };
       }),
     }));
     this.state.set({ rows });
@@ -202,7 +204,7 @@ export class CanvasService {
         if (c.id !== cellId || !c.widget || c.widget.id !== widgetId) return c;
         const prev = c.widget.elementClasses ?? {};
         const next = { ...prev };
-        const val = className.trim();
+        const val = trimOrUndefined(className);
         if (val) next[elementKey] = val;
         else delete next[elementKey];
         return {
@@ -226,7 +228,7 @@ export class CanvasService {
           if (!nested?.rows) return c;
           const nestedRows = nested.rows.map((r) => ({
             ...r,
-            cells: r.cells.map((nc) => nc.id === nestedCellId ? { ...nc, className: className.trim() || undefined } : nc),
+            cells: r.cells.map((nc) => nc.id === nestedCellId ? { ...nc, className: trimOrUndefined(className) } : nc),
           }));
           return { ...c, widget: { ...c.widget, nestedTable: { rows: nestedRows } } };
         }),
@@ -248,7 +250,7 @@ export class CanvasService {
             ...r,
             cells: r.cells.map((nc) => {
               if (nc.id !== nestedCellId || !nc.widget || nc.widget.id !== nestedWidgetId) return nc;
-              return { ...nc, widget: { ...nc.widget, className: className.trim() || undefined } };
+              return { ...nc, widget: { ...nc.widget, className: trimOrUndefined(className) } };
             }),
           }));
           return { ...c, widget: { ...c.widget, nestedTable: { rows: nestedRows } } };
@@ -271,7 +273,7 @@ export class CanvasService {
             ...r,
             cells: r.cells.map((nc) => {
               if (nc.id !== nestedCellId || !nc.widget || nc.widget.id !== nestedWidgetId) return nc;
-              return { ...nc, widget: { ...nc.widget, innerClassName: className.trim() || undefined } };
+              return { ...nc, widget: { ...nc.widget, innerClassName: trimOrUndefined(className) } };
             }),
           }));
           return { ...c, widget: { ...c.widget, nestedTable: { rows: nestedRows } } };
@@ -296,7 +298,7 @@ export class CanvasService {
               if (nc.id !== nestedCellId || !nc.widget || nc.widget.id !== nestedWidgetId) return nc;
               const prev = nc.widget.elementClasses ?? {};
               const next = { ...prev };
-              const val = className.trim();
+              const val = trimOrUndefined(className);
               if (val) next[elementKey] = val;
               else delete next[elementKey];
               return { ...nc, widget: { ...nc.widget, elementClasses: Object.keys(next).length ? next : undefined } };
@@ -362,7 +364,7 @@ export class CanvasService {
 
   updateWidgetFormControlName(cellId: string, widgetId: string, formControlName: string): void {
     this.pushHistory();
-    const val = formControlName.trim() || undefined;
+    const val = trimOrUndefined(formControlName);
     const rows = this.state().rows.map((row) => ({
       ...row,
       cells: row.cells.map((c) => {
@@ -381,7 +383,7 @@ export class CanvasService {
     formControlName: string
   ): void {
     this.pushHistory();
-    const val = formControlName.trim() || undefined;
+    const val = trimOrUndefined(formControlName);
     this.state.update((s) => {
       const rows = s.rows.map((row) => ({
         ...row,
@@ -405,7 +407,7 @@ export class CanvasService {
 
   updateWidgetVisibilityCondition(cellId: string, widgetId: string, visibilityCondition: string): void {
     this.pushHistory();
-    const val = visibilityCondition.trim() || undefined;
+    const val = trimOrUndefined(visibilityCondition);
     const rows = this.state().rows.map((row) => ({
       ...row,
       cells: row.cells.map((c) => {
@@ -424,7 +426,7 @@ export class CanvasService {
     visibilityCondition: string
   ): void {
     this.pushHistory();
-    const val = visibilityCondition.trim() || undefined;
+    const val = trimOrUndefined(visibilityCondition);
     this.state.update((s) => {
       const rows = s.rows.map((row) => ({
         ...row,
@@ -449,7 +451,7 @@ export class CanvasService {
   private updateWidgetValidatorValue(
     cellId: string,
     widgetId: string,
-    key: 'minLength' | 'maxLength' | 'min' | 'max',
+    key: (typeof ValidatorKey)[keyof typeof ValidatorKey],
     value: number | undefined
   ): void {
     this.pushHistory();
@@ -464,24 +466,24 @@ export class CanvasService {
   }
 
   updateWidgetMinLength(cellId: string, widgetId: string, value: number | undefined): void {
-    this.updateWidgetValidatorValue(cellId, widgetId, 'minLength', value);
+    this.updateWidgetValidatorValue(cellId, widgetId, ValidatorKey.MinLength, value);
   }
 
   updateWidgetMaxLength(cellId: string, widgetId: string, value: number | undefined): void {
-    this.updateWidgetValidatorValue(cellId, widgetId, 'maxLength', value);
+    this.updateWidgetValidatorValue(cellId, widgetId, ValidatorKey.MaxLength, value);
   }
 
   updateWidgetMin(cellId: string, widgetId: string, value: number | undefined): void {
-    this.updateWidgetValidatorValue(cellId, widgetId, 'min', value);
+    this.updateWidgetValidatorValue(cellId, widgetId, ValidatorKey.Min, value);
   }
 
   updateWidgetMax(cellId: string, widgetId: string, value: number | undefined): void {
-    this.updateWidgetValidatorValue(cellId, widgetId, 'max', value);
+    this.updateWidgetValidatorValue(cellId, widgetId, ValidatorKey.Max, value);
   }
 
   updateWidgetPattern(cellId: string, widgetId: string, value: string | undefined): void {
     this.pushHistory();
-    const val = (value?.trim() || undefined) as string | undefined;
+    const val = trimOrUndefined(value ?? '') as string | undefined;
     const rows = this.state().rows.map((row) => ({
       ...row,
       cells: row.cells.map((c) => {
@@ -497,7 +499,7 @@ export class CanvasService {
     parentWidgetId: string,
     nestedCellId: string,
     nestedWidgetId: string,
-    key: 'minLength' | 'maxLength' | 'min' | 'max',
+    key: (typeof ValidatorKey)[keyof typeof ValidatorKey],
     value: number | undefined
   ): void {
     this.pushHistory();
@@ -529,7 +531,7 @@ export class CanvasService {
     nestedWidgetId: string,
     value: number | undefined
   ): void {
-    this.updateNestedWidgetValidatorValue(parentCellId, parentWidgetId, nestedCellId, nestedWidgetId, 'minLength', value);
+    this.updateNestedWidgetValidatorValue(parentCellId, parentWidgetId, nestedCellId, nestedWidgetId, ValidatorKey.MinLength, value);
   }
 
   updateNestedWidgetMaxLength(
@@ -539,7 +541,7 @@ export class CanvasService {
     nestedWidgetId: string,
     value: number | undefined
   ): void {
-    this.updateNestedWidgetValidatorValue(parentCellId, parentWidgetId, nestedCellId, nestedWidgetId, 'maxLength', value);
+    this.updateNestedWidgetValidatorValue(parentCellId, parentWidgetId, nestedCellId, nestedWidgetId, ValidatorKey.MaxLength, value);
   }
 
   updateNestedWidgetMin(
@@ -549,7 +551,7 @@ export class CanvasService {
     nestedWidgetId: string,
     value: number | undefined
   ): void {
-    this.updateNestedWidgetValidatorValue(parentCellId, parentWidgetId, nestedCellId, nestedWidgetId, 'min', value);
+    this.updateNestedWidgetValidatorValue(parentCellId, parentWidgetId, nestedCellId, nestedWidgetId, ValidatorKey.Min, value);
   }
 
   updateNestedWidgetMax(
@@ -559,7 +561,7 @@ export class CanvasService {
     nestedWidgetId: string,
     value: number | undefined
   ): void {
-    this.updateNestedWidgetValidatorValue(parentCellId, parentWidgetId, nestedCellId, nestedWidgetId, 'max', value);
+    this.updateNestedWidgetValidatorValue(parentCellId, parentWidgetId, nestedCellId, nestedWidgetId, ValidatorKey.Max, value);
   }
 
   updateNestedWidgetPattern(
@@ -570,7 +572,7 @@ export class CanvasService {
     value: string | undefined
   ): void {
     this.pushHistory();
-    const val = value?.trim() || undefined;
+    const val = trimOrUndefined(value ?? '');
     this.state.update((s) => {
       const rows = s.rows.map((row) => ({
         ...row,
@@ -650,6 +652,39 @@ export class CanvasService {
     this.state.set({ rows });
   }
 
+  /** Remove the row at the given index. Requires at least 2 rows. */
+  removeRowAt(rowIndex: number): boolean {
+    const rows = this.state().rows;
+    if (rows.length <= 1) return false;
+    if (rowIndex < 0 || rowIndex >= rows.length) return false;
+    this.pushHistory();
+    const next = rows.filter((_, i) => i !== rowIndex).map((r, ri) => ({
+      ...r,
+      cells: r.cells.map((c, ci) => ({ ...c, rowIndex: ri, colIndex: ci })),
+    }));
+    this.state.set({ rows: next });
+    return true;
+  }
+
+  /** Remove the column at the given index. Requires at least 2 columns. */
+  removeColumnAt(colIndex: number): boolean {
+    const rows = this.state().rows;
+    const colCount = rows[0]?.cells.length ?? 0;
+    if (colCount <= 1) return false;
+    if (colIndex < 0 || colIndex >= colCount) return false;
+    this.pushHistory();
+    const next = rows.map((row, ri) => {
+      const cells = row.cells.filter((_, ci) => ci !== colIndex).map((c, ci) => ({
+        ...c,
+        rowIndex: ri,
+        colIndex: ci,
+      }));
+      return { ...row, cells };
+    });
+    this.state.set({ rows: next });
+    return true;
+  }
+
   createDefaultNestedTable(): NestedTableState {
     return createDefaultNestedTable('id');
   }
@@ -661,7 +696,7 @@ export class CanvasService {
       for (const row of rows) {
         for (const cell of row.cells) {
           const w = cell.widget;
-          if (w && ['input', 'checkbox', 'radio'].includes(w.type) && w.formControlName?.trim()) {
+          if (w && FORM_CONTROL_WIDGET_TYPES.includes(w.type) && w.formControlName?.trim()) {
             set.add(w.formControlName.trim());
           }
           if (w?.type === 'table' && w.nestedTable?.rows?.length) {
@@ -681,6 +716,30 @@ export class CanvasService {
       { id: generateId('id'), columnName: 'column2', headerName: 'Column 2' },
       { id: generateId('id'), columnName: 'column3', headerName: 'Column 3' },
     ];
+  }
+
+  /** When canvas is empty, creates initial row and sets the widget. Use for first drop on empty state. */
+  setWidgetOnEmptyCanvas(type: WidgetType, label?: string, options?: string[]): void {
+    const rows = this.state().rows;
+    if (rows.length > 0) return;
+    this.pushHistory();
+    const newRow = this.createRow(0, 1);
+    const cell = newRow.cells[0]!;
+    const widget: WidgetInstance = {
+      id: generateId('id'),
+      type,
+      label: getDefaultWidgetLabel(type, label),
+      options: options ?? (type === 'radio' ? ['Option 1', 'Option 2'] : undefined),
+      placeholder: type === 'input' ? 'Enter text...' : undefined,
+    };
+    if (type === 'table') {
+      (widget as WidgetInstance & { nestedTable: NestedTableState }).nestedTable = this.createDefaultNestedTable();
+    }
+    if (type === 'grid') {
+      (widget as WidgetInstance & { gridColumns: { id: string; columnName: string; headerName: string }[] }).gridColumns = this.createDefaultGridColumns();
+    }
+    const updatedRow = { ...newRow, cells: [{ ...cell, widget }] };
+    this.state.set({ rows: [updatedRow] });
   }
 
   setWidgetAt(rowIndex: number, colIndex: number, type: WidgetType, label?: string, options?: string[]): void {
@@ -766,21 +825,6 @@ export class CanvasService {
     this.state.set({ rows });
   }
 
-  /** Remove the rightmost column only. */
-  removeGridColumn(cellId: string, widgetId: string): void {
-    this.pushHistory();
-    const rows = this.state().rows.map((row) => ({
-      ...row,
-      cells: row.cells.map((c) => {
-        if (c.id !== cellId || !c.widget || c.widget.id !== widgetId || c.widget.type !== 'grid') return c;
-        const cols = c.widget.gridColumns ?? [];
-        if (cols.length <= 1) return c;
-        return { ...c, widget: { ...c.widget, gridColumns: cols.slice(0, -1) } };
-      }),
-    }));
-    this.state.set({ rows });
-  }
-
   /** Sample activity data for grid preview when columns are bound to AMS/Non-AMS Activities. */
   private static readonly SAMPLE_ACTIVITIES: Record<string, unknown>[] = [
     { entryDate: '2024-01-15', effectiveDate: '2024-01-15', amount: 150.50, additionalDescription: 'Sample 1', description: 'Activity 1', activityTypeCode: 'TYPE_A', categoryCode: 'CAT1', currencyCode: 'USD', transactionId: 'TXN-001', transactionDate: '2024-01-15' },
@@ -791,7 +835,7 @@ export class CanvasService {
   /** Update column binding for a grid; when binding to activities, populates preview data and sets column header to the chosen label (e.g. "Entry Date"). */
   updateGridColumnBinding(cellId: string, widgetId: string, columnIndex: number, valueBinding: string, activityDataProperty: string, headerLabel?: string): void {
     this.pushHistory();
-    const isActivities = valueBinding === 'amsInformation.arrangements[0].amsActivity.activities' || valueBinding === 'nonAmsActivity.activities';
+    const isActivities = CanvasService.isActivitiesBinding(valueBinding);
     const sampleData = isActivities ? CanvasService.SAMPLE_ACTIVITIES : undefined;
 
     const rows = this.state().rows.map((row) => ({
@@ -832,8 +876,8 @@ export class CanvasService {
         const col = cols[columnIndex];
         cols[columnIndex] = {
           ...col,
-          className: className?.trim() || undefined,
-          alignment: (alignment === 'left' || alignment === 'center' || alignment === 'right') ? alignment : undefined,
+          className: trimOrUndefined(className),
+          alignment: (alignment === TextAlignment.Left || alignment === TextAlignment.Center || alignment === TextAlignment.Right) ? alignment : undefined,
         };
         return { ...c, widget: { ...c.widget, gridColumns: cols } };
       }),
@@ -1014,8 +1058,14 @@ export class CanvasService {
     this.selectedOptionIndex.set(null);
   }
 
-  /** Returns a fresh default canvas state (one row, three cells). */
+  /** Returns a fresh empty canvas state (no layout selected). */
   getDefaultState(): CanvasState {
-    return { rows: [this.createRow(0, 3)] };
+    return { rows: [] };
+  }
+
+  /** Returns the initial layout state: 1 row with 3 empty columns (no components). Use when creating a new layout. */
+  getInitialLayoutState(): CanvasState {
+    const row = this.createRow(0, 3);
+    return { rows: [row] };
   }
 }

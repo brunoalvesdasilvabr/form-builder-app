@@ -13,6 +13,7 @@ import { WidgetRendererComponent } from "../../../../shared/components/widget-re
 import { PreviewModalComponent } from "../../../../shared/components/preview-modal/preview-modal.component";
 import { LayoutNameDialogComponent } from "../../../../shared/components/layout-name-dialog/layout-name-dialog.component";
 import type { CanvasCell, WidgetType, NestedTableState, WidgetInstance } from "../../../../shared/models/canvas.model";
+import { LayoutOption } from "../../../../shared/enums";
 import { WIDGET_TYPES } from "../../../../shared/models/canvas.model";
 import {
   computeMergeRange,
@@ -53,6 +54,9 @@ export class CanvasComponent {
 
   readonly selectionCells = signal<string[]>([]); // "row,col" keys, merge only if they form a rectangle
 
+  /** Cell being hovered (for - Row / - Col buttons). */
+  readonly hoveredCell = signal<{ rowIndex: number; colIndex: number } | null>(null);
+
   /** When dragging Row/Col from palette: { type, rowIndex, colIndex, position } for drop line preview. */
   readonly layoutDropPreview = signal<{
     type: 'row' | 'col';
@@ -63,6 +67,8 @@ export class CanvasComponent {
 
   readonly mergeRange = computed(() => computeMergeRange(this.selectionCells()));
   readonly canMerge = computed(() => canMergeFromRange(this.mergeRange()));
+
+  readonly layoutOptionNew = LayoutOption.NewLayout;
 
   @ViewChild('canvasFormRef') private canvasFormRef?: ElementRef<HTMLFormElement>;
 
@@ -225,6 +231,33 @@ export class CanvasComponent {
     (e.currentTarget as HTMLElement)?.classList.remove("canvas-cell-drag-over");
   }
 
+  onEmptyStateDrop(e: DragEvent): void {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!this.selectedLayoutId()) return;
+    const raw = (e.dataTransfer?.getData("application/widget-type") || e.dataTransfer?.getData("text/plain") || "").trim();
+    const type = raw.toLowerCase() as WidgetType;
+    if (type !== "table") return;
+    (e.currentTarget as HTMLElement)?.classList.remove("canvas-empty-state-drag-over");
+    this.canvas.setWidgetOnEmptyCanvas(type);
+  }
+
+  onEmptyStateDragOver(e: DragEvent): void {
+    e.preventDefault();
+    if (!this.selectedLayoutId()) {
+      e.dataTransfer!.dropEffect = "none";
+      return;
+    }
+    const raw = (e.dataTransfer?.getData("application/widget-type") || e.dataTransfer?.getData("text/plain") || "").trim();
+    const type = raw.toLowerCase();
+    (e.currentTarget as HTMLElement)?.classList.toggle("canvas-empty-state-drag-over", type === "table");
+    e.dataTransfer!.dropEffect = type === "table" ? "copy" : "none";
+  }
+
+  onEmptyStateDragLeave(e: DragEvent): void {
+    (e.currentTarget as HTMLElement)?.classList.remove("canvas-empty-state-drag-over");
+  }
+
   onTableDragLeave(e: DragEvent): void {
     const related = e.relatedTarget as Node | null;
     const table = e.currentTarget as HTMLElement;
@@ -243,6 +276,16 @@ export class CanvasComponent {
 
   removeWidget(cellId: string): void {
     this.canvas.removeWidget(cellId);
+  }
+
+  removeRowAt(rowIndex: number): void {
+    this.canvas.removeRowAt(rowIndex);
+    this.clearSelection();
+  }
+
+  removeColumnAt(colIndex: number): void {
+    this.canvas.removeColumnAt(colIndex);
+    this.clearSelection();
   }
 
   onRadioOptionSelect(cellId: string, optionIndex: number): void {
@@ -293,17 +336,48 @@ export class CanvasComponent {
     });
   }
 
-  onLayoutSelect(layoutId: string | null): void {
-    this.savedLayouts.selectLayout(layoutId);
+  onLayoutSelect(value: string | null): void {
+    if (value === LayoutOption.NewLayout) {
+      this.openNewLayoutDialog();
+      return;
+    }
+    this.savedLayouts.selectLayout(value);
     this.canvas.clearUndoHistory();
-    if (layoutId) {
-      const layout = this.savedLayouts.getLayoutById(layoutId);
+    if (value) {
+      const layout = this.savedLayouts.getLayoutById(value);
       if (layout) {
         this.canvas.loadState(layout.state);
       }
     } else {
       this.canvas.loadState(this.canvas.getDefaultState());
     }
+  }
+
+  /** Opens name dialog for new layout; on save creates layout with empty state. User must save to start. */
+  private openNewLayoutDialog(): void {
+    this.savedLayouts.selectLayout(null);
+    this.canvas.loadState(this.canvas.getDefaultState());
+    this.canvas.clearUndoHistory();
+    const dialogRef = this.dialog.open(LayoutNameDialogComponent, {
+      data: {
+        title: "Please enter layout name.",
+        defaultValue: "",
+        layoutId: null,
+      },
+      width: "400px",
+    });
+    dialogRef.afterClosed().subscribe((result: { name: string; layoutId: string | null } | undefined) => {
+      if (!result) {
+        this.cdr.detectChanges();
+        return;
+      }
+      const name = result.name.trim() || "Untitled";
+      const state = this.canvas.getInitialLayoutState();
+      this.savedLayouts.addLayout(name, state);
+      this.canvas.loadState(state);
+      this.canvas.clearUndoHistory();
+      this.cdr.detectChanges();
+    });
   }
 
   undo(): void {

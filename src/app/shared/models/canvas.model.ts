@@ -1,3 +1,22 @@
+/** Re-export enums from shared location. */
+export {
+  ACTIVITIES_BINDING_PATHS,
+  LayoutAction,
+  LayoutDropPosition,
+  LayoutOption,
+  SelectedTarget,
+  TextAlignment,
+  ValidatorKey,
+} from '../enums';
+export type {
+  LayoutActionType,
+  LayoutDropPositionType,
+  LayoutOptionType,
+  SelectedTargetType,
+  TextAlignmentType,
+  ValidatorKeyType,
+} from '../enums';
+
 export type WidgetType = "input" | "checkbox" | "radio" | "table" | "label" | "grid" | "panel";
 
 /** Option for the property binding dropdown; value is used in {{ value }} inside components. */
@@ -24,6 +43,9 @@ export function getDefaultWidgetLabel(type: WidgetType, labelOverride?: string):
 
 /** Ordered list of widget types shown in the palette; single source of truth for builders. */
 export const WIDGET_TYPES: WidgetType[] = ["input", "checkbox", "radio", "table", "label", "grid", "panel"];
+
+/** Widget types that have a form control (input, checkbox, radio). */
+export const FORM_CONTROL_WIDGET_TYPES: WidgetType[] = ["input", "checkbox", "radio"];
 
 /** Icons for palette items; reusable across admin palette and any other consumer. */
 export const WIDGET_PALETTE_ICONS: Record<WidgetType, string> = {

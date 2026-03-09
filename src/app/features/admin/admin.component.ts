@@ -7,6 +7,7 @@ import { CanvasComponent } from './components/canvas/canvas.component';
 import { CanvasService } from '../../core/services/canvas.service';
 import { SavedLayoutsService } from '../../core/services/saved-layouts.service';
 import type { CanvasCell } from '../../shared/models/canvas.model';
+import { ACTIVITIES_BINDING_PATHS } from '../../shared/models/canvas.model';
 import { parseBindingProperty } from '../../shared/utils/binding.util';
 import {
   VISIBILITY_CONDITION_SNIPPETS,
@@ -61,7 +62,7 @@ export class AdminComponent {
   /** True when the selected data binding is one of the activities arrays (show inner dropdown with activity fields). Column-level only for grid. */
   readonly showActivityDataDropdown = computed(() => {
     const v = this.pendingProperty();
-    const isActivities = v === 'amsInformation.arrangements[0].amsActivity.activities' || v === 'nonAmsActivity.activities';
+    const isActivities = (ACTIVITIES_BINDING_PATHS as readonly string[]).includes(v ?? '');
     if (!isActivities) return false;
     const cell = this.selectedCell();
     if (cell?.widget?.type === 'grid') return this.selectedGridColumnIndex() !== null;

@@ -52,6 +52,9 @@ export class EmbeddedTableComponent {
 
   private readonly initialDefault = this.defaultState(); // fallback before widget has nestedTable
 
+  /** Cell being hovered (for - Row / - Col buttons). */
+  readonly hoveredCell = signal<{ rowIndex: number; colIndex: number } | null>(null);
+
   /** When dragging Row/Col: { type, rowIndex, colIndex, position } for drop line preview. */
   readonly layoutDropPreview = signal<{
     type: 'row' | 'col';
@@ -120,6 +123,37 @@ export class EmbeddedTableComponent {
     }));
     this.state.set({ rows: updated });
     this.emitState();
+  }
+
+  /** Remove the row at the given index. Requires at least 2 rows. */
+  removeRowAt(rowIndex: number): boolean {
+    const s = this.state();
+    if (!s?.rows?.length || s.rows.length <= 1) return false;
+    if (rowIndex < 0 || rowIndex >= s.rows.length) return false;
+    const rows = s.rows.filter((_, i) => i !== rowIndex).map((r, ri) => ({
+      ...r,
+      cells: r.cells.map((c, ci) => ({ ...c, rowIndex: ri, colIndex: ci })),
+    }));
+    this.state.set({ rows });
+    this.emitState();
+    return true;
+  }
+
+  /** Remove the column at the given index. Requires at least 2 columns. */
+  removeColumnAt(colIndex: number): boolean {
+    const s = this.state();
+    const colCount = s?.rows?.[0]?.cells?.length ?? 0;
+    if (!s?.rows?.length || colCount <= 1) return false;
+    if (colIndex < 0 || colIndex >= colCount) return false;
+    const rows = s.rows.map((row, ri) => {
+      const cells = row.cells
+        .filter((_, ci) => ci !== colIndex)
+        .map((c, ci) => ({ ...c, rowIndex: ri, colIndex: ci }));
+      return { ...row, cells };
+    });
+    this.state.set({ rows });
+    this.emitState();
+    return true;
   }
 
   /** Add a column at the given index (before that column). Index 0 = insert at left. */

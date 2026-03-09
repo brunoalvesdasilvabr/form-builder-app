@@ -2,10 +2,8 @@ import { Component, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatExpansionModule } from '@angular/material/expansion';
 import type { WidgetType } from '../../../../shared/models/canvas.model';
-import {
-  WIDGET_LABELS,
-  WIDGET_PALETTE_ICONS,
-} from '../../../../shared/models/canvas.model';
+import { WIDGET_LABELS, WIDGET_PALETTE_ICONS } from '../../../../shared/models/canvas.model';
+import { LayoutAction } from '../../../../shared/enums';
 
 @Component({
   selector: 'app-palette',
@@ -21,9 +19,9 @@ export class PaletteComponent {
   readonly layoutWidgets: WidgetType[] = ['table'];
 
   /** Layout actions: row, col (drag to add row/column) */
-  readonly layoutActions = ['row', 'col'] as const;
-  readonly layoutActionLabels: Record<string, string> = { row: 'Row', col: 'Col' };
-  readonly layoutActionIcons: Record<string, string> = { row: '↕', col: '↔' };
+  readonly layoutActions = [LayoutAction.Row, LayoutAction.Col] as const;
+  readonly layoutActionLabels: Record<string, string> = { [LayoutAction.Row]: 'Row', [LayoutAction.Col]: 'Col' };
+  readonly layoutActionIcons: Record<string, string> = { [LayoutAction.Row]: '↕', [LayoutAction.Col]: '↔' };
 
   /** Data section: label, input, grid, panel */
   readonly dataWidgets: WidgetType[] = ['label', 'input', 'grid', 'panel'];
