@@ -9,9 +9,15 @@
       </mat-expansion-panel-header>
       <div class="palette-list">
         @for (type of layoutWidgets; track type) {
-          <div class="palette-item" draggable="true" (dragstart)="onDragStart($event, type)" (dragend)="onDragEnd($event)">
+          <div class="palette-item" draggable="true" (dragstart)="onWidgetDragStart($event, type)" (dragend)="onDragEnd($event)">
             <span class="palette-item-icon">{{ iconFor(type) }}</span>
             <span class="palette-item-label">{{ labels()[type] }}</span>
+          </div>
+        }
+        @for (action of layoutActions; track action) {
+          <div class="palette-item" draggable="true" (dragstart)="onLayoutActionDragStart($event, action)" (dragend)="onDragEnd($event)">
+            <span class="palette-item-icon">{{ layoutActionIcons[action] }}</span>
+            <span class="palette-item-label">{{ layoutActionLabels[action] }}</span>
           </div>
         }
       </div>
@@ -25,7 +31,7 @@
           <div
             class="palette-item"
             [attr.draggable]="type !== 'panel' ? 'true' : 'false'"
-            (dragstart)="onDragStart($event, type)"
+            (dragstart)="onWidgetDragStart($event, type)"
             (dragend)="onDragEnd($event)"
           >
             <span class="palette-item-icon">{{ iconFor(type) }}</span>

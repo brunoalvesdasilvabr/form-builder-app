@@ -52,6 +52,14 @@ export class EmbeddedTableComponent {
 
   private readonly initialDefault = this.defaultState(); // fallback before widget has nestedTable
 
+  /** When dragging Row/Col: { type, rowIndex, colIndex, position } for drop line preview. */
+  readonly layoutDropPreview = signal<{
+    type: 'row' | 'col';
+    rowIndex: number;
+    colIndex: number;
+    position: 'before' | 'after';
+  } | null>(null);
+
   readonly rows = computed(() => {
     const s = this.state();
     if (s?.rows?.length) return s.rows;
@@ -87,7 +95,8 @@ export class EmbeddedTableComponent {
     if (s) this.nestedTableChange.emit(s);
   }
 
-  addRow(): void {
+  /** Add a row at the given index (before that row). Index 0 = insert at top. */
+  addRowAt(rowIndex: number): void {
     const s = this.state();
     if (!s?.rows.length) return;
     const colCount = s.rows[0].cells.length;
@@ -95,7 +104,7 @@ export class EmbeddedTableComponent {
     for (let c = 0; c < colCount; c++) {
       newCells.push({
         id: generateId('nested'),
-        rowIndex: s.rows.length,
+        rowIndex,
         colIndex: c,
         widget: null,
         colSpan: 1,
@@ -103,48 +112,37 @@ export class EmbeddedTableComponent {
         isMergedOrigin: true,
       });
     }
-    this.state.set({
-      rows: [...s.rows, { id: generateId(), cells: newCells }],
-    });
+    const rows = [...s.rows];
+    rows.splice(rowIndex, 0, { id: generateId(), cells: newCells });
+    const updated = rows.map((r, ri) => ({
+      ...r,
+      cells: r.cells.map((c, ci) => ({ ...c, rowIndex: ri, colIndex: ci })),
+    }));
+    this.state.set({ rows: updated });
     this.emitState();
   }
 
-  removeRow(): void {
-    const s = this.state();
-    if (!s || s.rows.length <= 1) return;
-    this.state.set({ rows: s.rows.slice(0, -1) });
-    this.emitState();
-  }
-
-  addColumn(): void {
+  /** Add a column at the given index (before that column). Index 0 = insert at left. */
+  addColumnAt(colIndex: number): void {
     const s = this.state();
     if (!s?.rows.length) return;
-    const rows = s.rows.map((row, ri) => ({
-      ...row,
-      cells: [
-        ...row.cells,
-        {
-          id: generateId('nested'),
-          rowIndex: ri,
-          colIndex: row.cells.length,
-          widget: null,
-          colSpan: 1,
-          rowSpan: 1,
-          isMergedOrigin: true,
-        } as NestedTableCell,
-      ],
-    }));
-    this.state.set({ rows });
-    this.emitState();
-  }
-
-  removeColumn(): void {
-    const s = this.state();
-    if (!s?.rows.length || s.rows[0].cells.length <= 1) return;
-    const rows = s.rows.map((row) => ({
-      ...row,
-      cells: row.cells.slice(0, -1),
-    }));
+    const rows = s.rows.map((row, ri) => {
+      const newCell: NestedTableCell = {
+        id: generateId('nested'),
+        rowIndex: ri,
+        colIndex,
+        widget: null,
+        colSpan: 1,
+        rowSpan: 1,
+        isMergedOrigin: true,
+      } as NestedTableCell;
+      const cells = [...row.cells];
+      cells.splice(colIndex, 0, newCell);
+      return {
+        ...row,
+        cells: cells.map((c, ci) => ({ ...c, rowIndex: ri, colIndex: ci })),
+      };
+    });
     this.state.set({ rows });
     this.emitState();
   }
@@ -161,6 +159,21 @@ export class EmbeddedTableComponent {
       } catch {
         // ignore bad drop data
       }
+      (e.currentTarget as HTMLElement)?.classList.remove('embedded-cell-drag-over');
+      return;
+    }
+    const layoutAction = e.dataTransfer?.getData('application/layout-action') || e.dataTransfer?.getData('text/plain');
+    if (layoutAction === 'row' || layoutAction === 'col') {
+      const preview = this.layoutDropPreview();
+      const pos = preview?.rowIndex === targetCell.rowIndex && preview?.colIndex === targetCell.colIndex
+        ? preview.position
+        : 'before';
+      if (layoutAction === 'row') {
+        this.addRowAt(pos === 'after' ? targetCell.rowIndex + 1 : targetCell.rowIndex);
+      } else {
+        this.addColumnAt(pos === 'after' ? targetCell.colIndex + 1 : targetCell.colIndex);
+      }
+      this.layoutDropPreview.set(null);
       (e.currentTarget as HTMLElement)?.classList.remove('embedded-cell-drag-over');
       return;
     }
@@ -209,17 +222,38 @@ export class EmbeddedTableComponent {
     this.emitState();
   }
 
-  onDragOver(e: DragEvent): void {
+  onDragOver(e: DragEvent, targetCell: NestedTableCell): void {
     e.preventDefault();
     e.stopPropagation();
     const isNestedMove = e.dataTransfer?.types.includes(NESTED_MOVE_DATA_TYPE);
+    const layoutRow = e.dataTransfer?.types.includes('application/layout-action-row');
+    const layoutCol = e.dataTransfer?.types.includes('application/layout-action-col');
     e.dataTransfer!.dropEffect = isNestedMove ? 'move' : 'copy';
-    (e.currentTarget as HTMLElement)?.classList.add('embedded-cell-drag-over');
+    const el = e.currentTarget as HTMLElement;
+    el?.classList.add('embedded-cell-drag-over');
+    if (layoutRow || layoutCol) {
+      const rect = el.getBoundingClientRect();
+      const x = (e.clientX - rect.left) / rect.width;
+      const y = (e.clientY - rect.top) / rect.height;
+      const type = layoutRow ? 'row' : 'col';
+      const position = type === 'row' ? (y < 0.5 ? 'before' : 'after') : (x < 0.5 ? 'before' : 'after');
+      this.layoutDropPreview.set({ type: type as 'row' | 'col', rowIndex: targetCell.rowIndex, colIndex: targetCell.colIndex, position: position as 'before' | 'after' });
+    } else {
+      this.layoutDropPreview.set(null);
+    }
   }
 
   onDragLeave(e: DragEvent): void {
     e.stopPropagation();
     (e.currentTarget as HTMLElement)?.classList.remove('embedded-cell-drag-over');
+  }
+
+  onTableDragLeave(e: DragEvent): void {
+    const related = e.relatedTarget as Node | null;
+    const table = e.currentTarget as HTMLElement;
+    if (!related || !table.contains(related)) {
+      this.layoutDropPreview.set(null);
+    }
   }
 
   removeNestedWidget(cellId: string): void {
@@ -354,9 +388,6 @@ export class EmbeddedTableComponent {
       colIndex
     );
   }
-
-  readonly canRemoveRow = computed(() => (this.state()?.rows.length ?? 0) > 1);
-  readonly canRemoveColumn = computed(() => (this.state()?.rows[0]?.cells.length ?? 0) > 1);
 
   onCellWidgetLabelChange(cellId: string, label: string): void {
     const s = this.state();

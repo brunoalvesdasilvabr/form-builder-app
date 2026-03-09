@@ -1,4 +1,4 @@
-import { Component, inject, signal, computed, ChangeDetectorRef } from "@angular/core";
+import { Component, inject, signal, computed, ChangeDetectorRef, ViewChild, ElementRef } from "@angular/core";
 import { CommonModule } from "@angular/common";
 import { FormsModule } from "@angular/forms";
 import { MatDialog } from "@angular/material/dialog";
@@ -53,8 +53,18 @@ export class CanvasComponent {
 
   readonly selectionCells = signal<string[]>([]); // "row,col" keys, merge only if they form a rectangle
 
+  /** When dragging Row/Col from palette: { type, rowIndex, colIndex, position } for drop line preview. */
+  readonly layoutDropPreview = signal<{
+    type: 'row' | 'col';
+    rowIndex: number;
+    colIndex: number;
+    position: 'before' | 'after';
+  } | null>(null);
+
   readonly mergeRange = computed(() => computeMergeRange(this.selectionCells()));
   readonly canMerge = computed(() => canMergeFromRange(this.mergeRange()));
+
+  @ViewChild('canvasFormRef') private canvasFormRef?: ElementRef<HTMLFormElement>;
 
   isSelected(rowIndex: number, colIndex: number): boolean {
     return this.selectionCells().includes(`${rowIndex},${colIndex}`);
@@ -129,29 +139,6 @@ export class CanvasComponent {
     this.selectionCells.set([]);
   }
 
-  readonly canRemoveRow = computed(() => (this.canvas.rows()?.length ?? 0) > 1);
-  readonly canRemoveColumn = computed(() => (this.canvas.rows()[0]?.cells.length ?? 0) > 1);
-
-  addRow(): void {
-    this.canvas.addRow();
-    this.clearSelection();
-  }
-
-  addColumn(): void {
-    this.canvas.addColumn();
-    this.clearSelection();
-  }
-
-  removeRow(): void {
-    this.canvas.removeRow();
-    this.clearSelection();
-  }
-
-  removeColumn(): void {
-    this.canvas.removeColumn();
-    this.clearSelection();
-  }
-
   mergeSelection(): void {
     const range = this.mergeRange();
     if (!range || !this.canMerge()) return;
@@ -179,6 +166,28 @@ export class CanvasComponent {
       (e.currentTarget as HTMLElement)?.classList.remove("canvas-cell-drag-over");
       return;
     }
+    const layoutAction = e.dataTransfer?.getData("application/layout-action") || e.dataTransfer?.getData("text/plain");
+    if (layoutAction === "row" || layoutAction === "col") {
+      const preview = this.layoutDropPreview();
+      const pos = preview?.rowIndex === targetCell.rowIndex && preview?.colIndex === targetCell.colIndex
+        ? preview.position
+        : 'before';
+      if (targetCell.widget?.type === "grid") {
+        if (layoutAction === "row") this.canvas.addGridRow(targetCell.id, targetCell.widget.id);
+        else this.canvas.addGridColumn(targetCell.id, targetCell.widget.id);
+      } else if (targetCell.isMergedOrigin) {
+        if (layoutAction === "row") {
+          this.canvas.addRowAt(pos === 'after' ? targetCell.rowIndex + 1 : targetCell.rowIndex);
+        } else {
+          this.canvas.addColumnAt(pos === 'after' ? targetCell.colIndex + 1 : targetCell.colIndex);
+        }
+      }
+      this.layoutDropPreview.set(null);
+      (e.currentTarget as HTMLElement)?.classList.remove("canvas-cell-drag-over");
+      this.layoutDropPreview.set(null);
+      return;
+    }
+    this.layoutDropPreview.set(null);
     const raw = (
       e.dataTransfer?.getData("application/widget-type") ||
       e.dataTransfer?.getData("text/plain") ||
@@ -191,15 +200,37 @@ export class CanvasComponent {
     (e.currentTarget as HTMLElement)?.classList.remove("canvas-cell-drag-over");
   }
 
-  onDragOver(e: DragEvent): void {
+  onDragOver(e: DragEvent, targetCell: CanvasCell): void {
     e.preventDefault();
     const moveData = e.dataTransfer?.types.includes("application/x-canvas-move");
+    const layoutRow = e.dataTransfer?.types.includes("application/layout-action-row");
+    const layoutCol = e.dataTransfer?.types.includes("application/layout-action-col");
     e.dataTransfer!.dropEffect = moveData ? "move" : "copy";
-    (e.currentTarget as HTMLElement)?.classList.add("canvas-cell-drag-over");
+    const el = e.currentTarget as HTMLElement;
+    el?.classList.add("canvas-cell-drag-over");
+    if (layoutRow || layoutCol) {
+      if (targetCell.widget?.type === "grid" || !targetCell.isMergedOrigin) return;
+      const rect = el.getBoundingClientRect();
+      const x = (e.clientX - rect.left) / rect.width;
+      const y = (e.clientY - rect.top) / rect.height;
+      const type = layoutRow ? "row" : "col";
+      const position = type === "row" ? (y < 0.5 ? "before" : "after") : (x < 0.5 ? "before" : "after");
+      this.layoutDropPreview.set({ type: type as 'row' | 'col', rowIndex: targetCell.rowIndex, colIndex: targetCell.colIndex, position: position as 'before' | 'after' });
+    } else {
+      this.layoutDropPreview.set(null);
+    }
   }
 
   onDragLeave(e: DragEvent): void {
     (e.currentTarget as HTMLElement)?.classList.remove("canvas-cell-drag-over");
+  }
+
+  onTableDragLeave(e: DragEvent): void {
+    const related = e.relatedTarget as Node | null;
+    const table = e.currentTarget as HTMLElement;
+    if (!related || !table.contains(related)) {
+      this.layoutDropPreview.set(null);
+    }
   }
 
   shouldSkipCell(rowIndex: number, colIndex: number): boolean {
@@ -282,7 +313,8 @@ export class CanvasComponent {
 
   /** Returns the cloned form element (builder chrome stripped). Use for preview/export or inspection. */
   getPreviewClone(): HTMLElement | null {
-    const container = document.body.querySelector("form.canvas-form") as HTMLElement | null;
+    this.cdr.detectChanges();
+    const container = (this.canvasFormRef?.nativeElement ?? document.body.querySelector("form.canvas-form")) as HTMLElement | null;
     if (!container) return null;
     const clone = container.cloneNode(true) as HTMLElement;
     copyFormValues(container, clone);
@@ -297,12 +329,15 @@ export class CanvasComponent {
   }
 
   openPreview(): void {
-    const html = this.getPreviewHtml();
-    this.dialog.open(PreviewModalComponent, {
-      data: { title: "HTML Preview", html },
-      width: "90vw",
-      maxWidth: "800px",
-    });
+    this.cdr.detectChanges();
+    setTimeout(() => {
+      const html = this.getPreviewHtml();
+      this.dialog.open(PreviewModalComponent, {
+        data: { title: "HTML Preview", html },
+        width: "90vw",
+        maxWidth: "800px",
+      });
+    }, 0);
   }
 
   downloadCanvasHtml(): void {
@@ -321,7 +356,8 @@ export class CanvasComponent {
 
   /** Returns HTML with same layout but all component tags stripped (only inputs, checkboxes, labels, etc.). */
   getPublishHtml(): string {
-    const container = document.body.querySelector("form.canvas-form") as HTMLElement | null;
+    this.cdr.detectChanges();
+    const container = (this.canvasFormRef?.nativeElement ?? document.body.querySelector("form.canvas-form")) as HTMLElement | null;
     if (!container) return "";
     const clone = container.cloneNode(true) as HTMLElement;
     copyFormValues(container, clone);

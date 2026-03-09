@@ -35,8 +35,7 @@
 
 .preview-modal-layout {
   max-height: 50vh;
-  overflow-x: hidden !important;
-  overflow-y: auto;
+  overflow: auto;
   padding: 0;
   margin-bottom: 1rem;
   width: 100%;
@@ -44,19 +43,13 @@
   box-sizing: border-box;
 }
 
-.preview-modal-layout-inner {
-  overflow: hidden !important;
-  max-width: 100%;
+.preview-modal-iframe {
+  display: block;
   width: 100%;
-  box-sizing: border-box;
-
-  > table {
-    max-width: 100% !important;
-  }
-
-  [class*="scroll"] {
-    overflow: hidden !important;
-  }
+  min-height: 200px;
+  border: 1px solid var(--border, #e0e0e4);
+  border-radius: var(--radius, 8px);
+  background: var(--bg-cell, #fafafa);
 }
 
 /* Pierce encapsulation so styles apply to [innerHTML] content (no Angular host attributes). */

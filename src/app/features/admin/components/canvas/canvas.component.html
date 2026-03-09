@@ -1,4 +1,4 @@
-<form appFormLayoutName class="canvas-form canvas-wrapper">
+<form #canvasFormRef appFormLayoutName class="canvas-form canvas-wrapper">
   <div class="canvas-toolbar">
     <div class="canvas-toolbar-row">
       <div class="canvas-toolbar-left">
@@ -50,34 +50,28 @@
   </div>
   <div class="canvas-content">
     <div class="canvas-table-toolbar">
-      <button type="button" class="btn btn-primary" (click)="addColumn()" title="Add column">+ Col</button>
-      <button
-        type="button"
-        class="btn btn-danger"
-        (click)="removeColumn()"
-        [disabled]="!canRemoveColumn()"
-        title="Remove column"
-      >
-        − Col
-      </button>
-      <button type="button" class="btn btn-primary" (click)="addRow()" title="Add row">+ Row</button>
-      <button
-        type="button"
-        class="btn btn-danger"
-        (click)="removeRow()"
-        [disabled]="!canRemoveRow()"
-        title="Remove row"
-      >
-        − Row
-      </button>
       @if (canMerge()) {
         <button type="button" class="btn btn-secondary" (click)="mergeSelection()">Merge selected</button>
       }
     </div>
-    <table class="canvas-table">
+    <table
+      class="canvas-table"
+      (dragleave)="onTableDragLeave($event)"
+    >
       <tbody>
-        @for (row of rows(); track row.id) {
-          <tr>
+        @for (row of rows(); track row.id; let rowIdx = $index) {
+          <tr
+            [class.layout-drop-row-before]="
+              layoutDropPreview()?.type === 'row' &&
+              layoutDropPreview()?.rowIndex === (row.cells[0]?.rowIndex ?? rowIdx) &&
+              layoutDropPreview()?.position === 'before'
+            "
+            [class.layout-drop-row-after]="
+              layoutDropPreview()?.type === 'row' &&
+              layoutDropPreview()?.rowIndex === (row.cells[0]?.rowIndex ?? rowIdx) &&
+              layoutDropPreview()?.position === 'after'
+            "
+          >
             @for (cell of row.cells; track cell.id) {
               @if (shouldSkipCell(cell.rowIndex, cell.colIndex)) {
                 <!-- slot is part of a merged cell, origin td has the colspan/rowspan -->
@@ -86,7 +80,17 @@
                   [class]="
                     'canvas-cell' +
                     (cell.className ? ' ' + cell.className : '') +
-                    (isSelected(cell.rowIndex, cell.colIndex) ? ' canvas-cell-selected' : '')
+                    (isSelected(cell.rowIndex, cell.colIndex) ? ' canvas-cell-selected' : '') +
+                    (layoutDropPreview()?.type === 'col' &&
+                    layoutDropPreview()?.colIndex === cell.colIndex &&
+                    layoutDropPreview()?.position === 'before'
+                      ? ' layout-drop-col-before'
+                      : '') +
+                    (layoutDropPreview()?.type === 'col' &&
+                    layoutDropPreview()?.colIndex === cell.colIndex &&
+                    layoutDropPreview()?.position === 'after'
+                      ? ' layout-drop-col-after'
+                      : '')
                   "
                   [attr.colspan]="
                     getSpan(cell.rowIndex, cell.colIndex).colSpan > 1
@@ -100,7 +104,7 @@
                   "
                   (click)="onCellClick($event, cell.rowIndex, cell.colIndex, cell)"
                   (drop)="onDrop($event, cell)"
-                  (dragover)="onDragOver($event)"
+                  (dragover)="onDragOver($event, cell)"
                   (dragleave)="onDragLeave($event)"
                 >
                   @if (cell.widget) {

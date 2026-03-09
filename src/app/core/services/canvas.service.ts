@@ -608,51 +608,46 @@ export class CanvasService {
     return { id: generateId('id'), cells };
   }
 
-  addRow(): void {
+  /** Add a row at the given index (before that row). Index 0 = insert at top. */
+  addRowAt(rowIndex: number): void {
     this.pushHistory();
     const rows = [...this.state().rows];
     const colCount = rows[0]?.cells.length ?? 3;
-    rows.push(this.createRow(rows.length, colCount));
-    this.state.set({ rows });
-  }
-
-  addColumn(): void {
-    this.pushHistory();
-    const rows = this.state().rows.map((row, ri) => ({
-      ...row,
-      cells: [
-        ...row.cells,
-        {
-          id: generateId('id'),
-          rowIndex: ri,
-          colIndex: row.cells.length,
-          widget: null,
-          colSpan: 1,
-          rowSpan: 1,
-          isMergedOrigin: true,
-        } as CanvasCell,
-      ],
-    }));
-    this.state.set({ rows });
-  }
-
-  removeRow(): void {
-    this.pushHistory();
-    const rows = this.state().rows;
-    if (rows.length <= 1) return;
-    this.state.set({ rows: rows.slice(0, -1) });
-  }
-
-  removeColumn(): void {
-    this.pushHistory();
-    const rows = this.state().rows;
-    if (!rows.length || rows[0].cells.length <= 1) return;
-    this.state.set({
-      rows: rows.map((row) => ({
-        ...row,
-        cells: row.cells.slice(0, -1),
+    const newRow = this.createRow(rowIndex, colCount);
+    rows.splice(rowIndex, 0, newRow);
+    // Update rowIndex/colIndex for rows after insert
+    const updated = rows.map((r, ri) => ({
+      ...r,
+      cells: r.cells.map((c, ci) => ({
+        ...c,
+        rowIndex: ri,
+        colIndex: ci,
       })),
+    }));
+    this.state.set({ rows: updated });
+  }
+
+  /** Add a column at the given index (before that column). Index 0 = insert at left. */
+  addColumnAt(colIndex: number): void {
+    this.pushHistory();
+    const rows = this.state().rows.map((row, ri) => {
+      const newCell: CanvasCell = {
+        id: generateId('id'),
+        rowIndex: ri,
+        colIndex,
+        widget: null,
+        colSpan: 1,
+        rowSpan: 1,
+        isMergedOrigin: true,
+      };
+      const cells = [...row.cells];
+      cells.splice(colIndex, 0, newCell);
+      return {
+        ...row,
+        cells: cells.map((c, ci) => ({ ...c, rowIndex: ri, colIndex: ci })),
+      };
     });
+    this.state.set({ rows });
   }
 
   createDefaultNestedTable(): NestedTableState {

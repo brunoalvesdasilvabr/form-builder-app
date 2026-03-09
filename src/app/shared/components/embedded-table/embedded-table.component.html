@@ -1,14 +1,28 @@
 <div class="embedded-table-wrap">
   <div class="embedded-table-scroll">
-    <table class="embedded-table">
+    <table
+      class="embedded-table"
+      (dragleave)="onTableDragLeave($event)"
+    >
       <colgroup>
         @for (i of columnIndices(); track i) {
           <col />
         }
       </colgroup>
       <tbody>
-        @for (row of rows(); track row.id) {
-          <tr>
+        @for (row of rows(); track row.id; let rowIdx = $index) {
+          <tr
+            [class.layout-drop-row-before]="
+              layoutDropPreview()?.type === 'row' &&
+              layoutDropPreview()?.rowIndex === (row.cells[0]?.rowIndex ?? rowIdx) &&
+              layoutDropPreview()?.position === 'before'
+            "
+            [class.layout-drop-row-after]="
+              layoutDropPreview()?.type === 'row' &&
+              layoutDropPreview()?.rowIndex === (row.cells[0]?.rowIndex ?? rowIdx) &&
+              layoutDropPreview()?.position === 'after'
+            "
+          >
             @for (cell of row.cells; track cell.id) {
               @if (shouldSkipCell(cell.rowIndex, cell.colIndex)) {
                 <!-- merged slot, origin cell spans here -->
@@ -17,11 +31,21 @@
                   class="embedded-cell"
                   [attr.data-cell-id]="cell.id"
                   [class.embedded-cell-selected]="isSelected(cell.rowIndex, cell.colIndex)"
+                  [class.layout-drop-col-before]="
+                    layoutDropPreview()?.type === 'col' &&
+                    layoutDropPreview()?.colIndex === cell.colIndex &&
+                    layoutDropPreview()?.position === 'before'
+                  "
+                  [class.layout-drop-col-after]="
+                    layoutDropPreview()?.type === 'col' &&
+                    layoutDropPreview()?.colIndex === cell.colIndex &&
+                    layoutDropPreview()?.position === 'after'
+                  "
                   [attr.colspan]="getSpan(cell.rowIndex, cell.colIndex).colSpan > 1 ? getSpan(cell.rowIndex, cell.colIndex).colSpan : null"
                   [attr.rowspan]="getSpan(cell.rowIndex, cell.colIndex).rowSpan > 1 ? getSpan(cell.rowIndex, cell.colIndex).rowSpan : null"
                   (click)="onCellClick($event, cell.rowIndex, cell.colIndex, cell)"
                   (drop)="onDrop($event, cell)"
-                  (dragover)="onDragOver($event)"
+                  (dragover)="onDragOver($event, cell)"
                   (dragleave)="onDragLeave($event)"
                 >
                   @if (cell.widget) {
@@ -56,9 +80,5 @@
     @if (canMerge()) {
       <button type="button" class="embedded-btn embedded-btn-merge" (click)="mergeSelection()" title="Merge selected">Merge</button>
     }
-    <button type="button" class="embedded-btn embedded-btn-plus" (click)="addColumn()" title="Add column">+</button>
-    <button type="button" class="embedded-btn embedded-btn-minus" (click)="removeColumn()" [disabled]="!canRemoveColumn()" title="Remove column">−</button>
-    <button type="button" class="embedded-btn embedded-btn-plus" (click)="addRow()" title="Add row">+</button>
-    <button type="button" class="embedded-btn embedded-btn-minus" (click)="removeRow()" [disabled]="!canRemoveRow()" title="Remove row">−</button>
   </div>
 </div>

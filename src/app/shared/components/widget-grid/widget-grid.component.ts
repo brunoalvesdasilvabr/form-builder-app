@@ -50,6 +50,32 @@ export class WidgetGridComponent extends BaseWidgetComponent {
   /** Data source: uses widget.gridDataSourcePreview when defined, otherwise placeholder. */
   readonly dataSource = new MatTableDataSource<Record<string, unknown>>(PLACEHOLDER_ROW);
 
+  /** Total row: first column shows "Total", numeric columns show sum. Only when we have real data (not placeholder). */
+  readonly totalRow = computed(() => {
+    const w = this.widget();
+    const data = w?.type === 'grid' && w.gridDataSourcePreview?.length ? w.gridDataSourcePreview : null;
+    if (!data?.length || data.some((r) => 'placeholder' in r)) return null;
+    const cols = this.columns();
+    const row: Record<string, unknown> = {};
+    cols.forEach((col, i) => {
+      const key = this.getDisplayKey(col);
+      if (i === 0) {
+        row[key] = 'Total';
+        return;
+      }
+      const values = data.map((r) => r[key]);
+      const nums = values
+        .map((v) => {
+          if (typeof v === 'number' && !Number.isNaN(v)) return v;
+          if (typeof v === 'string') return parseFloat(String(v).replace(/,/g, '')) || null;
+          return null;
+        })
+        .filter((n): n is number => n !== null && !Number.isNaN(n));
+      row[key] = nums.length ? nums.reduce((a, b) => a + b, 0) : '—';
+    });
+    return row;
+  });
+
   constructor() {
     super();
     effect(() => {

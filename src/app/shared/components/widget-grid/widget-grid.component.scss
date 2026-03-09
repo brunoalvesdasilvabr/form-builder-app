@@ -36,7 +36,12 @@
     background: var(--bg-cell, #fafafa);
   }
   .mat-mdc-cell,
-  .mat-mdc-header-cell {
+  .mat-mdc-header-cell,
+  .mat-mdc-footer-cell {
     border-color: var(--border, #e0e0e0);
+  }
+  .mat-mdc-footer-row {
+    font-weight: 600;
+    background: var(--bg-cell, #f5f5f5);
   }
 }

@@ -20,6 +20,11 @@ export class PaletteComponent {
   /** Layout section: table */
   readonly layoutWidgets: WidgetType[] = ['table'];
 
+  /** Layout actions: row, col (drag to add row/column) */
+  readonly layoutActions = ['row', 'col'] as const;
+  readonly layoutActionLabels: Record<string, string> = { row: 'Row', col: 'Col' };
+  readonly layoutActionIcons: Record<string, string> = { row: '↕', col: '↔' };
+
   /** Data section: label, input, grid, panel */
   readonly dataWidgets: WidgetType[] = ['label', 'input', 'grid', 'panel'];
 
@@ -27,11 +32,22 @@ export class PaletteComponent {
     return WIDGET_PALETTE_ICONS[type] ?? '?';
   }
 
-  onDragStart(e: DragEvent, type: WidgetType): void {
+  onWidgetDragStart(e: DragEvent, type: WidgetType): void {
     if (!e.dataTransfer) return;
     e.dataTransfer.effectAllowed = 'copy';
     e.dataTransfer.setData('application/widget-type', type);
     e.dataTransfer.setData('text/plain', type);
+    if (e.target instanceof HTMLElement) {
+      e.target.classList.add('palette-item-dragging');
+    }
+  }
+
+  onLayoutActionDragStart(e: DragEvent, action: 'row' | 'col'): void {
+    if (!e.dataTransfer) return;
+    e.dataTransfer.effectAllowed = 'copy';
+    e.dataTransfer.setData('application/layout-action', action);
+    e.dataTransfer.setData(`application/layout-action-${action}`, '');
+    e.dataTransfer.setData('text/plain', action);
     if (e.target instanceof HTMLElement) {
       e.target.classList.add('palette-item-dragging');
     }
