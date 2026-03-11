@@ -17,7 +17,15 @@ import type {
   NestedTableRow,
   NestedTableCell,
 } from '../../models/canvas.model';
-import { WIDGET_TYPES, getDefaultWidgetLabel } from '../../models/canvas.model';
+import {
+  FORM_CONTROL_WIDGET_TYPES,
+  WIDGET_TYPES,
+  getDefaultWidgetLabel,
+  WIDGET_TYPE_INPUT,
+  WIDGET_TYPE_LABEL,
+  WIDGET_TYPE_RADIO,
+  WIDGET_TYPE_TABLE,
+} from '../../models/canvas.model';
 import * as gridMerge from '../../utils/grid-merge.util';
 import { generateId } from '../../utils/id.util';
 import { createDefaultNestedTable } from '../../utils/nested-table.util';
@@ -26,8 +34,9 @@ import { getElementKeyFromElement } from '../../utils/element-target.util';
 import { computeLayoutDropPosition } from '../../utils/layout-drop.util';
 import { CanvasService } from '../../../core/services/canvas.service';
 import { LayoutGuardService } from '../../../core/services/layout-guard.service';
-
-const NESTED_MOVE_DATA_TYPE = 'application/x-nested-move';
+import { DragDropDataKey } from '../../constants/drag-drop.constants';
+import type { LayoutActionType, LayoutDropPositionType } from '../../enums';
+import { LayoutAction, LayoutDropPosition, SelectedTarget } from '../../enums';
 
 const EMBEDDED_TABLE_IMPORTS = [CommonModule, WidgetCellRendererComponent];
 
@@ -55,17 +64,17 @@ export class EmbeddedTableComponent {
 
   /** When dragging Row/Col: { type, rowIndex, colIndex, position } for drop line preview. */
   readonly layoutDropPreview = signal<{
-    type: 'row' | 'col';
+    type: LayoutActionType;
     rowIndex: number;
     colIndex: number;
-    position: 'before' | 'after';
+    position: LayoutDropPositionType;
   } | null>(null);
 
   readonly rows = computed(() => {
     const s = this.state();
     if (s?.rows?.length) return s.rows;
     const w = this.widget();
-    const nested = w?.type === 'table' ? w.nestedTable : undefined;
+    const nested = w?.type === WIDGET_TYPE_TABLE ? w.nestedTable : undefined;
     if (nested?.rows?.length) return nested.rows;
     return this.initialDefault.rows;
   });
@@ -78,7 +87,7 @@ export class EmbeddedTableComponent {
   constructor() {
     effect(() => {
       const w = this.widget();
-      const nested = w?.type === 'table' ? w.nestedTable : undefined;
+      const nested = w?.type === WIDGET_TYPE_TABLE ? w.nestedTable : undefined;
       if (nested?.rows?.length) {
         this.state.set(nested);
       } else if (!this.state()) {
@@ -190,7 +199,7 @@ export class EmbeddedTableComponent {
   onDrop(e: DragEvent, targetCell: NestedTableCell): void {
     e.preventDefault();
     e.stopPropagation();
-    const nestedMove = e.dataTransfer?.getData(NESTED_MOVE_DATA_TYPE);
+    const nestedMove = e.dataTransfer?.getData(DragDropDataKey.NestedMove);
     if (nestedMove) {
       try {
         const { fromCellId, widget } = JSON.parse(nestedMove) as { fromCellId: string; widget: WidgetInstance };
@@ -202,22 +211,22 @@ export class EmbeddedTableComponent {
       (e.currentTarget as HTMLElement)?.classList.remove('embedded-cell-drag-over');
       return;
     }
-    const layoutAction = e.dataTransfer?.getData('application/layout-action') || e.dataTransfer?.getData('text/plain');
-    if (layoutAction === 'row' || layoutAction === 'col') {
+    const layoutAction = e.dataTransfer?.getData(DragDropDataKey.LayoutAction) || e.dataTransfer?.getData('text/plain');
+    if (layoutAction === LayoutAction.Row || layoutAction === LayoutAction.Col) {
       const preview = this.layoutDropPreview();
       const pos = preview?.rowIndex === targetCell.rowIndex && preview?.colIndex === targetCell.colIndex
         ? preview.position
-        : 'before';
-      if (layoutAction === 'row') {
-        this.addRowAt(pos === 'after' ? targetCell.rowIndex + 1 : targetCell.rowIndex);
+        : LayoutDropPosition.Before;
+      if (layoutAction === LayoutAction.Row) {
+        this.addRowAt(pos === LayoutDropPosition.After ? targetCell.rowIndex + 1 : targetCell.rowIndex);
       } else {
-        this.addColumnAt(pos === 'after' ? targetCell.colIndex + 1 : targetCell.colIndex);
+        this.addColumnAt(pos === LayoutDropPosition.After ? targetCell.colIndex + 1 : targetCell.colIndex);
       }
       this.layoutDropPreview.set(null);
       (e.currentTarget as HTMLElement)?.classList.remove('embedded-cell-drag-over');
       return;
     }
-    const type = (e.dataTransfer?.getData('application/widget-type') ||
+    const type = (e.dataTransfer?.getData(DragDropDataKey.WidgetType) ||
       e.dataTransfer?.getData('text/plain')) as WidgetType;
     if (!type || !WIDGET_TYPES.includes(type))
       return;
@@ -227,10 +236,10 @@ export class EmbeddedTableComponent {
       id: generateId('nested'),
       type,
       label: getDefaultWidgetLabel(type),
-      placeholder: type === 'input' ? 'Enter text...' : undefined,
-      options: type === 'radio' ? ['Option 1', 'Option 2'] : undefined,
+      placeholder: type === WIDGET_TYPE_INPUT ? 'Enter text...' : undefined,
+      options: type === WIDGET_TYPE_RADIO ? ['Option 1', 'Option 2'] : undefined,
     };
-    if (type === 'table') {
+    if (type === WIDGET_TYPE_TABLE) {
       (newWidget as WidgetInstance & { nestedTable: NestedTableState }).nestedTable =
         this.defaultState();
     }
@@ -265,15 +274,15 @@ export class EmbeddedTableComponent {
   onDragOver(e: DragEvent, targetCell: NestedTableCell): void {
     e.preventDefault();
     e.stopPropagation();
-    const isNestedMove = e.dataTransfer?.types.includes(NESTED_MOVE_DATA_TYPE);
-    const layoutRow = e.dataTransfer?.types.includes('application/layout-action-row');
-    const layoutCol = e.dataTransfer?.types.includes('application/layout-action-col');
+    const isNestedMove = e.dataTransfer?.types.includes(DragDropDataKey.NestedMove);
+    const layoutRow = e.dataTransfer?.types.includes(DragDropDataKey.LayoutActionRow);
+    const layoutCol = e.dataTransfer?.types.includes(DragDropDataKey.LayoutActionCol);
     e.dataTransfer!.dropEffect = isNestedMove ? 'move' : 'copy';
     const el = e.currentTarget as HTMLElement;
     el?.classList.add('embedded-cell-drag-over');
     if (layoutRow || layoutCol) {
       const rect = el.getBoundingClientRect();
-      const type = layoutRow ? 'row' : 'col';
+      const type = layoutRow ? LayoutAction.Row : LayoutAction.Col;
       const position = computeLayoutDropPosition(rect, e.clientX, e.clientY, type);
       this.layoutDropPreview.set({ type, rowIndex: targetCell.rowIndex, colIndex: targetCell.colIndex, position });
     } else {
@@ -332,29 +341,29 @@ export class EmbeddedTableComponent {
       this.clearMergeSelection();
       const parentCellId = this.parentCellId();
       const parentWidgetId = this.parentWidgetId();
-      const hasFormControl = cell.widget && ['input', 'checkbox', 'radio'].includes(cell.widget.type);
+      const hasFormControl = cell.widget && (FORM_CONTROL_WIDGET_TYPES as readonly string[]).includes(cell.widget.type);
       const doSelect = () => {
-        if (parentCellId && parentWidgetId && cell.widget && cell.widget.type !== 'table') {
+        if (parentCellId && parentWidgetId && cell.widget && cell.widget.type !== WIDGET_TYPE_TABLE) {
           const el = e.target as Element;
           const elementTarget = getElementKeyFromElement(el);
           if (elementTarget) {
-            this.canvas.setSelectedNestedCell(parentCellId, parentWidgetId, cell.id, 'element', elementTarget);
+            this.canvas.setSelectedNestedCell(parentCellId, parentWidgetId, cell.id, SelectedTarget.Element, elementTarget);
           } else if (
             el?.closest?.('app-widget-input') ||
             el?.closest?.('app-widget-checkbox') ||
             el?.closest?.('app-widget-radio') ||
             el?.closest?.('app-widget-label')
           ) {
-            this.canvas.setSelectedNestedCell(parentCellId, parentWidgetId, cell.id, 'widget-inner');
+            this.canvas.setSelectedNestedCell(parentCellId, parentWidgetId, cell.id, SelectedTarget.WidgetInner);
           } else if (el?.closest?.('app-widget-cell-renderer')) {
-            this.canvas.setSelectedNestedCell(parentCellId, parentWidgetId, cell.id, 'widget');
+            this.canvas.setSelectedNestedCell(parentCellId, parentWidgetId, cell.id, SelectedTarget.Widget);
           } else {
-            this.canvas.setSelectedNestedCell(parentCellId, parentWidgetId, cell.id, 'cell');
+            this.canvas.setSelectedNestedCell(parentCellId, parentWidgetId, cell.id, SelectedTarget.Cell);
           }
         } else if (parentCellId && parentWidgetId && cell.widget) {
           // table widget: don't open panel (same as canvas)
         } else if (parentCellId && parentWidgetId) {
-          this.canvas.setSelectedNestedCell(parentCellId, parentWidgetId, cell.id, 'cell');
+          this.canvas.setSelectedNestedCell(parentCellId, parentWidgetId, cell.id, SelectedTarget.Cell);
         }
       };
       if (hasFormControl && !this.layoutGuard.hasLayoutNamed()) {
@@ -488,8 +497,8 @@ export class EmbeddedTableComponent {
   ): { cell: NestedTableCell; cellEl: HTMLElement; controlEl: HTMLElement; isLabel: boolean; isInput: boolean } | null {
     const cell = this.findCellById(s.rows, cellId);
     if (!cell?.widget) return null;
-    const isLabel = cell.widget.type === 'label';
-    const isInput = cell.widget.type === 'input';
+    const isLabel = cell.widget.type === WIDGET_TYPE_LABEL;
+    const isInput = cell.widget.type === WIDGET_TYPE_INPUT;
     if (!isLabel && !isInput) return null;
     const cellEl = this.hostRef.nativeElement.querySelector(`[data-cell-id="${cellId}"]`) as HTMLElement | null;
     const controlEl = cellEl?.querySelector(isLabel ? '.widget-label-control' : '.widget-input-control') as HTMLElement | null;
@@ -577,7 +586,7 @@ export class EmbeddedTableComponent {
     const parentCellId = this.parentCellId();
     const parentWidgetId = this.parentWidgetId();
     if (parentCellId && parentWidgetId && cell.widget) {
-      this.canvas.setSelectedNestedCell(parentCellId, parentWidgetId, cell.id, 'widget-inner');
+      this.canvas.setSelectedNestedCell(parentCellId, parentWidgetId, cell.id, SelectedTarget.WidgetInner);
       this.canvas.setSelectedOptionIndex(optionIndex);
     }
   }

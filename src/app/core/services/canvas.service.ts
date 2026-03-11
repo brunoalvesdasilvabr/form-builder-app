@@ -11,14 +11,21 @@ import type {
   BindableProperty,
 } from '../../shared/models/canvas.model';
 import { computeMergeRange, canMergeFromRange } from '../../shared/utils/grid-selection.util';
-import { ACTIVITIES_BINDING_PATHS, TextAlignment, ValidatorKey } from '../../shared/enums';
-import { getDefaultWidgetLabel, FORM_CONTROL_WIDGET_TYPES } from '../../shared/models/canvas.model';
+import { ACTIVITIES_BINDING_PATHS, SelectedTarget, TextAlignment, ValidatorKey } from '../../shared/enums';
+import type { SelectedTargetType, TextAlignmentType } from '../../shared/enums';
+import {
+  getDefaultWidgetLabel,
+  FORM_CONTROL_WIDGET_TYPES,
+  WIDGET_TYPE_GRID,
+  WIDGET_TYPE_INPUT,
+  WIDGET_TYPE_RADIO,
+  WIDGET_TYPE_TABLE,
+} from '../../shared/models/canvas.model';
 import * as gridMerge from '../../shared/utils/grid-merge.util';
 import { generateId } from '../../shared/utils/id.util';
 import { createDefaultNestedTable } from '../../shared/utils/nested-table.util';
 import { parseBindingProperty } from '../../shared/utils/binding.util';
-
-const UNDO_LIMIT = 50;
+import { UNDO_LIMIT } from '../../shared/constants/canvas.constants';
 
 /** Returns trimmed string or undefined if empty. */
 function trimOrUndefined(s: string | undefined): string | undefined {
@@ -58,8 +65,8 @@ export class CanvasService {
   readonly selectedCellId = signal<string | null>(null);
   /** Nested cell selection: parent canvas cell + table widget + nested cell id */
   readonly selectedNestedPath = signal<{ parentCellId: string; parentWidgetId: string; nestedCellId: string } | null>(null);
-  /** What was clicked: 'cell' = td, 'widget' = app-widget-renderer host, 'widget-inner' = inner component, 'element' = child element */
-  readonly selectedTarget = signal<'cell' | 'widget' | 'widget-inner' | 'element'>('cell'); // uses SelectedTarget values
+  /** What was clicked: cell (td), widget host, widget-inner, or element (child). */
+  readonly selectedTarget = signal<SelectedTargetType>(SelectedTarget.Cell);
   /** When selectedTarget is 'element', the data-class-target key (e.g. 'label', 'control', 'option-0') */
   readonly selectedElementKey = signal<string | null>(null);
 
@@ -67,7 +74,7 @@ export class CanvasService {
     const nested = this.selectedNestedPath();
     if (nested) {
       const parent = this.state().rows.flatMap((r) => r.cells).find((c) => c.id === nested.parentCellId);
-      const table = parent?.widget?.type === 'table' ? parent.widget : null;
+      const table = parent?.widget?.type === WIDGET_TYPE_TABLE ? parent.widget : null;
       const nestedRows = table?.nestedTable?.rows ?? [];
       for (const row of nestedRows) {
         const cell = row.cells.find((c) => c.id === nested.nestedCellId);
@@ -158,7 +165,7 @@ export class CanvasService {
 
   setSelectedCell(
     cellId: string | null,
-    target: 'cell' | 'widget' | 'widget-inner' | 'element' = 'cell',
+    target: SelectedTargetType = SelectedTarget.Cell,
     elementKey?: string
   ): void {
     this.selectedCellId.set(cellId);
@@ -166,13 +173,13 @@ export class CanvasService {
     this.nestedSelectionPath.set(null);
     this.nestedSelectionCells.set([]);
     this.selectedTarget.set(target);
-    this.selectedElementKey.set(target === 'element' ? (elementKey ?? null) : null);
+    this.selectedElementKey.set(target === SelectedTarget.Element ? (elementKey ?? null) : null);
     this.selectedOptionIndex.set(null);
     if (!cellId) {
       this.selectedGridColumnIndex.set(null);
     } else {
       const cell = this.state().rows.flatMap((r) => r.cells).find((c) => c.id === cellId);
-      if (cell?.widget?.type !== 'grid') this.selectedGridColumnIndex.set(null);
+      if (cell?.widget?.type !== WIDGET_TYPE_GRID) this.selectedGridColumnIndex.set(null);
     }
   }
 
@@ -180,13 +187,13 @@ export class CanvasService {
     parentCellId: string,
     parentWidgetId: string,
     nestedCellId: string,
-    target: 'cell' | 'widget' | 'widget-inner' | 'element' = 'cell',
+    target: SelectedTargetType = SelectedTarget.Cell,
     elementKey?: string
   ): void {
     this.selectedCellId.set(null);
     this.selectedNestedPath.set({ parentCellId, parentWidgetId, nestedCellId });
     this.selectedTarget.set(target);
-    this.selectedElementKey.set(target === 'element' ? (elementKey ?? null) : null);
+    this.selectedElementKey.set(target === SelectedTarget.Element ? (elementKey ?? null) : null);
     this.selectedOptionIndex.set(null);
   }
 
@@ -254,7 +261,7 @@ export class CanvasService {
       const rows = s.rows.map((row) => ({
         ...row,
         cells: row.cells.map((c) => {
-          if (c.id !== parentCellId || !c.widget || c.widget.id !== parentWidgetId || c.widget.type !== 'table') return c;
+          if (c.id !== parentCellId || !c.widget || c.widget.id !== parentWidgetId || c.widget.type !== WIDGET_TYPE_TABLE) return c;
           const nested = c.widget.nestedTable;
           if (!nested?.rows) return c;
           const nestedRows = nested.rows.map((r) => ({
@@ -274,7 +281,7 @@ export class CanvasService {
       const rows = s.rows.map((row) => ({
         ...row,
         cells: row.cells.map((c) => {
-          if (c.id !== parentCellId || !c.widget || c.widget.id !== parentWidgetId || c.widget.type !== 'table') return c;
+          if (c.id !== parentCellId || !c.widget || c.widget.id !== parentWidgetId || c.widget.type !== WIDGET_TYPE_TABLE) return c;
           const nested = c.widget.nestedTable;
           if (!nested?.rows) return c;
           const nestedRows = nested.rows.map((r) => ({
@@ -297,7 +304,7 @@ export class CanvasService {
       const rows = s.rows.map((row) => ({
         ...row,
         cells: row.cells.map((c) => {
-          if (c.id !== parentCellId || !c.widget || c.widget.id !== parentWidgetId || c.widget.type !== 'table') return c;
+          if (c.id !== parentCellId || !c.widget || c.widget.id !== parentWidgetId || c.widget.type !== WIDGET_TYPE_TABLE) return c;
           const nested = c.widget.nestedTable;
           if (!nested?.rows) return c;
           const nestedRows = nested.rows.map((r) => ({
@@ -320,7 +327,7 @@ export class CanvasService {
       const rows = s.rows.map((row) => ({
         ...row,
         cells: row.cells.map((c) => {
-          if (c.id !== parentCellId || !c.widget || c.widget.id !== parentWidgetId || c.widget.type !== 'table') return c;
+          if (c.id !== parentCellId || !c.widget || c.widget.id !== parentWidgetId || c.widget.type !== WIDGET_TYPE_TABLE) return c;
           const nested = c.widget.nestedTable;
           if (!nested?.rows) return c;
           const nestedRows = nested.rows.map((r) => ({
@@ -349,7 +356,7 @@ export class CanvasService {
       const rows = s.rows.map((row) => ({
         ...row,
         cells: row.cells.map((c) => {
-          if (c.id !== parentCellId || !c.widget || c.widget.id !== parentWidgetId || c.widget.type !== 'table') return c;
+          if (c.id !== parentCellId || !c.widget || c.widget.id !== parentWidgetId || c.widget.type !== WIDGET_TYPE_TABLE) return c;
           const nested = c.widget.nestedTable;
           if (!nested?.rows) return c;
           const nestedRows = nested.rows.map((r) => ({
@@ -373,7 +380,7 @@ export class CanvasService {
       const rows = s.rows.map((row) => ({
         ...row,
         cells: row.cells.map((c) => {
-          if (c.id !== parentCellId || !c.widget || c.widget.id !== parentWidgetId || c.widget.type !== 'table') return c;
+          if (c.id !== parentCellId || !c.widget || c.widget.id !== parentWidgetId || c.widget.type !== WIDGET_TYPE_TABLE) return c;
           const nested = c.widget.nestedTable;
           if (!nested?.rows) return c;
           const nestedRows = nested.rows.map((r) => ({
@@ -419,7 +426,7 @@ export class CanvasService {
       const rows = s.rows.map((row) => ({
         ...row,
         cells: row.cells.map((c) => {
-          if (c.id !== parentCellId || !c.widget || c.widget.id !== parentWidgetId || c.widget.type !== 'table') return c;
+          if (c.id !== parentCellId || !c.widget || c.widget.id !== parentWidgetId || c.widget.type !== WIDGET_TYPE_TABLE) return c;
           const nested = c.widget.nestedTable;
           if (!nested?.rows) return c;
           const nestedRows = nested.rows.map((r) => ({
@@ -462,7 +469,7 @@ export class CanvasService {
       const rows = s.rows.map((row) => ({
         ...row,
         cells: row.cells.map((c) => {
-          if (c.id !== parentCellId || !c.widget || c.widget.id !== parentWidgetId || c.widget.type !== 'table') return c;
+          if (c.id !== parentCellId || !c.widget || c.widget.id !== parentWidgetId || c.widget.type !== WIDGET_TYPE_TABLE) return c;
           const nested = c.widget.nestedTable;
           if (!nested?.rows) return c;
           const nestedRows = nested.rows.map((r) => ({
@@ -538,7 +545,7 @@ export class CanvasService {
       const rows = s.rows.map((row) => ({
         ...row,
         cells: row.cells.map((c) => {
-          if (c.id !== parentCellId || !c.widget || c.widget.id !== parentWidgetId || c.widget.type !== 'table') return c;
+          if (c.id !== parentCellId || !c.widget || c.widget.id !== parentWidgetId || c.widget.type !== WIDGET_TYPE_TABLE) return c;
           const nested = c.widget.nestedTable;
           if (!nested?.rows) return c;
           const nestedRows = nested.rows.map((r) => ({
@@ -608,7 +615,7 @@ export class CanvasService {
       const rows = s.rows.map((row) => ({
         ...row,
         cells: row.cells.map((c) => {
-          if (c.id !== parentCellId || !c.widget || c.widget.id !== parentWidgetId || c.widget.type !== 'table') return c;
+          if (c.id !== parentCellId || !c.widget || c.widget.id !== parentWidgetId || c.widget.type !== WIDGET_TYPE_TABLE) return c;
           const nested = c.widget.nestedTable;
           if (!nested?.rows) return c;
           const nestedRows = nested.rows.map((r) => ({
@@ -730,7 +737,7 @@ export class CanvasService {
     const path = this.selectedNestedPath();
     if (!path) return null;
     const parent = this.state().rows.flatMap((r) => r.cells).find((c) => c.id === path.parentCellId);
-    const table = parent?.widget?.type === 'table' ? parent.widget : null;
+    const table = parent?.widget?.type === WIDGET_TYPE_TABLE ? parent.widget : null;
     const nestedRows = table?.nestedTable?.rows ?? [];
     for (const row of nestedRows) {
       const cell = row.cells.find((c) => c.id === path.nestedCellId);
@@ -742,7 +749,7 @@ export class CanvasService {
   /** Row and column count of a nested table. */
   getNestedTableSize(parentCellId: string, parentWidgetId: string): { rowCount: number; colCount: number } | null {
     const parent = this.state().rows.flatMap((r) => r.cells).find((c) => c.id === parentCellId);
-    const table = parent?.widget?.type === 'table' ? parent.widget : null;
+    const table = parent?.widget?.type === WIDGET_TYPE_TABLE ? parent.widget : null;
     const nested = table?.nestedTable?.rows;
     if (!nested?.length) return null;
     return { rowCount: nested.length, colCount: nested[0].cells.length };
@@ -750,7 +757,7 @@ export class CanvasService {
 
   removeNestedRowAt(parentCellId: string, parentWidgetId: string, rowIndex: number): boolean {
     const parent = this.state().rows.flatMap((r) => r.cells).find((c) => c.id === parentCellId);
-    const table = parent?.widget?.type === 'table' ? parent.widget : null;
+    const table = parent?.widget?.type === WIDGET_TYPE_TABLE ? parent.widget : null;
     const nested = table?.nestedTable?.rows;
     if (!nested || nested.length <= 1) return false;
     if (rowIndex < 0 || rowIndex >= nested.length) return false;
@@ -764,7 +771,7 @@ export class CanvasService {
 
   removeNestedColumnAt(parentCellId: string, parentWidgetId: string, colIndex: number): boolean {
     const parent = this.state().rows.flatMap((r) => r.cells).find((c) => c.id === parentCellId);
-    const table = parent?.widget?.type === 'table' ? parent.widget : null;
+    const table = parent?.widget?.type === WIDGET_TYPE_TABLE ? parent.widget : null;
     const nested = table?.nestedTable?.rows;
     const colCount = nested?.[0]?.cells.length ?? 0;
     if (!nested?.length || colCount <= 1) return false;
@@ -783,49 +790,13 @@ export class CanvasService {
     const range = this.getNestedMergeRange();
     if (!path || !range || !canMergeFromRange(range)) return;
     const parent = this.state().rows.flatMap((r) => r.cells).find((c) => c.id === path.parentCellId);
-    const table = parent?.widget?.type === 'table' ? parent.widget : null;
+    const table = parent?.widget?.type === WIDGET_TYPE_TABLE ? parent.widget : null;
     const nested = table?.nestedTable?.rows;
     if (!nested) return;
     this.pushHistory();
     const mergedRows = gridMerge.mergeCells(nested as gridMerge.MergeableRow[], range.r0, range.c0, range.r1, range.c1);
     this.updateNestedTable(path.parentCellId, path.parentWidgetId, { rows: mergedRows as NestedTableRow[] });
     this.clearNestedSelection();
-  }
-
-  deleteNestedSelection(): void {
-    const path = this.nestedSelectionPath();
-    const cells = this.nestedSelectionCells();
-    if (!path || !cells.length) return;
-    const parent = this.state().rows.flatMap((r) => r.cells).find((c) => c.id === path.parentCellId);
-    const table = parent?.widget?.type === 'table' ? parent.widget : null;
-    const nested = table?.nestedTable?.rows;
-    if (!nested) return;
-    this.pushHistory();
-    const keysSet = new Set(cells);
-    const newRows = nested.map((row) => ({
-      ...row,
-      cells: row.cells.map((c) => {
-        const key = `${c.rowIndex},${c.colIndex}`;
-        return keysSet.has(key) ? { ...c, widget: null } : c;
-      }),
-    })) as NestedTableRow[];
-    this.updateNestedTable(path.parentCellId, path.parentWidgetId, { rows: newRows });
-    this.clearNestedSelection();
-  }
-
-  deleteCanvasSelection(selectionCells: string[]): void {
-    if (!selectionCells.length) return;
-    const keysSet = new Set(selectionCells);
-    this.pushHistory();
-    const rows = this.state().rows.map((row) => ({
-      ...row,
-      cells: row.cells.map((c) => {
-        const key = `${c.rowIndex},${c.colIndex}`;
-        return keysSet.has(key) ? { ...c, widget: null } : c;
-      }),
-    }));
-    this.state.set({ rows });
-    this.clearCanvasSelection();
   }
 
   createDefaultNestedTable(): NestedTableState {
@@ -842,7 +813,7 @@ export class CanvasService {
           if (w && FORM_CONTROL_WIDGET_TYPES.includes(w.type) && w.formControlName?.trim()) {
             set.add(w.formControlName.trim());
           }
-          if (w?.type === 'table' && w.nestedTable?.rows?.length) {
+          if (w?.type === WIDGET_TYPE_TABLE && w.nestedTable?.rows?.length) {
             addFromRows(w.nestedTable.rows);
           }
         }
@@ -872,13 +843,13 @@ export class CanvasService {
       id: generateId('id'),
       type,
       label: getDefaultWidgetLabel(type, label),
-      options: options ?? (type === 'radio' ? ['Option 1', 'Option 2'] : undefined),
-      placeholder: type === 'input' ? 'Enter text...' : undefined,
+      options: options ?? (type === WIDGET_TYPE_RADIO ? ['Option 1', 'Option 2'] : undefined),
+      placeholder: type === WIDGET_TYPE_INPUT ? 'Enter text...' : undefined,
     };
-    if (type === 'table') {
+    if (type === WIDGET_TYPE_TABLE) {
       (widget as WidgetInstance & { nestedTable: NestedTableState }).nestedTable = this.createDefaultNestedTable();
     }
-    if (type === 'grid') {
+    if (type === WIDGET_TYPE_GRID) {
       (widget as WidgetInstance & { gridColumns: { id: string; columnName: string; headerName: string }[] }).gridColumns = this.createDefaultGridColumns();
     }
     const updatedRow = { ...newRow, cells: [{ ...cell, widget }] };
@@ -895,13 +866,13 @@ export class CanvasService {
           id: generateId('id'),
           type,
           label: getDefaultWidgetLabel(type, label),
-          options: options ?? (type === 'radio' ? ['Option 1', 'Option 2'] : undefined),
-          placeholder: type === 'input' ? 'Enter text...' : undefined,
+          options: options ?? (type === WIDGET_TYPE_RADIO ? ['Option 1', 'Option 2'] : undefined),
+          placeholder: type === WIDGET_TYPE_INPUT ? 'Enter text...' : undefined,
         };
-        if (type === 'table') {
+        if (type === WIDGET_TYPE_TABLE) {
           (widget as WidgetInstance & { nestedTable: NestedTableState }).nestedTable = this.createDefaultNestedTable();
         }
-        if (type === 'grid') {
+        if (type === WIDGET_TYPE_GRID) {
           (widget as WidgetInstance & { gridColumns: { id: string; columnName: string; headerName: string }[] }).gridColumns = this.createDefaultGridColumns();
         }
         return { ...cell, widget };
@@ -945,7 +916,7 @@ export class CanvasService {
     const rows = this.state().rows.map((row) => ({
       ...row,
       cells: row.cells.map((c) => {
-        if (c.id !== cellId || !c.widget || c.widget.id !== widgetId || c.widget.type !== 'grid') return c;
+        if (c.id !== cellId || !c.widget || c.widget.id !== widgetId || c.widget.type !== WIDGET_TYPE_GRID) return c;
         return { ...c, widget: { ...c.widget, gridDataSourcePreview: data } };
       }),
     }));
@@ -958,7 +929,7 @@ export class CanvasService {
     const rows = this.state().rows.map((row) => ({
       ...row,
       cells: row.cells.map((c) => {
-        if (c.id !== cellId || !c.widget || c.widget.id !== widgetId || c.widget.type !== 'grid') return c;
+        if (c.id !== cellId || !c.widget || c.widget.id !== widgetId || c.widget.type !== WIDGET_TYPE_GRID) return c;
         const cols = c.widget.gridColumns ?? [];
         const n = cols.length + 1;
         const newCol = { id: generateId('id'), columnName: `column${n}`, headerName: `Column ${n}` };
@@ -984,7 +955,7 @@ export class CanvasService {
     const rows = this.state().rows.map((row) => ({
       ...row,
       cells: row.cells.map((c) => {
-        if (c.id !== cellId || !c.widget || c.widget.id !== widgetId || c.widget.type !== 'grid') return c;
+        if (c.id !== cellId || !c.widget || c.widget.id !== widgetId || c.widget.type !== WIDGET_TYPE_GRID) return c;
         const cols = [...(c.widget.gridColumns ?? [])];
         if (columnIndex < 0 || columnIndex >= cols.length) return c;
         const col = cols[columnIndex];
@@ -1008,12 +979,12 @@ export class CanvasService {
   }
 
   /** Update column class and alignment for a grid column. */
-  updateGridColumnClassAndAlignment(cellId: string, widgetId: string, columnIndex: number, className: string, alignment: 'left' | 'center' | 'right' | ''): void {
+  updateGridColumnClassAndAlignment(cellId: string, widgetId: string, columnIndex: number, className: string, alignment: TextAlignmentType | ''): void {
     this.pushHistory();
     const rows = this.state().rows.map((row) => ({
       ...row,
       cells: row.cells.map((c) => {
-        if (c.id !== cellId || !c.widget || c.widget.id !== widgetId || c.widget.type !== 'grid') return c;
+        if (c.id !== cellId || !c.widget || c.widget.id !== widgetId || c.widget.type !== WIDGET_TYPE_GRID) return c;
         const cols = [...(c.widget.gridColumns ?? [])];
         if (columnIndex < 0 || columnIndex >= cols.length) return c;
         const col = cols[columnIndex];
@@ -1034,7 +1005,7 @@ export class CanvasService {
     const rows = this.state().rows.map((row) => ({
       ...row,
       cells: row.cells.map((c) => {
-        if (c.id !== cellId || !c.widget || c.widget.id !== widgetId || c.widget.type !== 'grid') return c;
+        if (c.id !== cellId || !c.widget || c.widget.id !== widgetId || c.widget.type !== WIDGET_TYPE_GRID) return c;
         const cols = c.widget.gridColumns ?? [];
         const newRow: Record<string, unknown> = {};
         cols.forEach((col) => { newRow[col.columnName] = ''; });
@@ -1057,7 +1028,7 @@ export class CanvasService {
       const rows = s.rows.map((row) => ({
         ...row,
         cells: row.cells.map((c) => {
-          if (c.id !== parentCellId || !c.widget || c.widget.id !== parentWidgetId || c.widget.type !== 'table') return c;
+          if (c.id !== parentCellId || !c.widget || c.widget.id !== parentWidgetId || c.widget.type !== WIDGET_TYPE_TABLE) return c;
           const nested = c.widget.nestedTable;
           if (!nested?.rows) return c;
           const nestedRows = nested.rows.map((r) => ({
@@ -1208,7 +1179,7 @@ export class CanvasService {
       if (next.optionBindings?.length) {
         next.optionBindings = next.optionBindings.map((b) => parseBindingProperty(b) || b);
       }
-      if (next.type === 'grid' && next.gridColumns?.length) {
+      if (next.type === WIDGET_TYPE_GRID && next.gridColumns?.length) {
         next.gridColumns = next.gridColumns.map((col) => ({
           ...col,
           valueBinding: col.valueBinding != null ? (parseBindingProperty(col.valueBinding) || col.valueBinding) : undefined,
@@ -1219,7 +1190,7 @@ export class CanvasService {
     const normalizeCell = (c: CanvasCell): CanvasCell => {
       const cell: CanvasCell = { ...c };
       if (cell.widget) cell.widget = normalizeWidget(cell.widget);
-      if (cell.widget?.type === 'table' && cell.widget.nestedTable?.rows) {
+      if (cell.widget?.type === WIDGET_TYPE_TABLE && cell.widget.nestedTable?.rows) {
         const nested = cell.widget.nestedTable;
         cell.widget = {
           ...cell.widget,

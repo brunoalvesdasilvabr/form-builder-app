@@ -40,7 +40,7 @@
         @for (type of dataWidgets; track type) {
           <div
             class="palette-item"
-            [attr.draggable]="type !== 'panel' ? 'true' : 'false'"
+            [attr.draggable]="type !== widgetTypePanel ? 'true' : 'false'"
             (dragstart)="onWidgetDragStart($event, type)"
             (dragend)="onDragEnd($event)"
           >

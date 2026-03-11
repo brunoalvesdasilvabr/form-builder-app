@@ -1,4 +1,5 @@
 /** Re-export enums from shared location. */
+import type { TextAlignmentType } from '../enums';
 export {
   ACTIVITIES_BINDING_PATHS,
   GridAction,
@@ -40,7 +41,7 @@ export const WIDGET_LABELS: Record<WidgetType, string> = {
 /** Default label for a new widget of the given type (e.g. "Choose one" for radio). Use when creating widgets. */
 export function getDefaultWidgetLabel(type: WidgetType, labelOverride?: string): string {
   if (labelOverride?.trim()) return labelOverride.trim();
-  return type === 'radio' ? 'Choose one' : WIDGET_LABELS[type];
+  return type === WIDGET_TYPE_RADIO ? 'Choose one' : WIDGET_LABELS[type];
 }
 
 /** Ordered list of widget types shown in the palette; single source of truth for builders. */
@@ -48,6 +49,23 @@ export const WIDGET_TYPES: WidgetType[] = ["input", "checkbox", "radio", "table"
 
 /** Widget types that have a form control (input, checkbox, radio). */
 export const FORM_CONTROL_WIDGET_TYPES: WidgetType[] = ["input", "checkbox", "radio"];
+
+/** Widget type literals for checks (avoids magic strings across the app). */
+export const WIDGET_TYPE_TABLE: WidgetType = "table";
+export const WIDGET_TYPE_GRID: WidgetType = "grid";
+export const WIDGET_TYPE_INPUT: WidgetType = "input";
+export const WIDGET_TYPE_RADIO: WidgetType = "radio";
+export const WIDGET_TYPE_LABEL: WidgetType = "label";
+export const WIDGET_TYPE_CHECKBOX: WidgetType = "checkbox";
+export const WIDGET_TYPE_PANEL: WidgetType = "panel";
+
+/** Widget types that show in the right panel Data tab (label, input, checkbox, radio). */
+export const DATA_COMPONENT_WIDGET_TYPES: readonly WidgetType[] = [
+  WIDGET_TYPE_LABEL,
+  WIDGET_TYPE_INPUT,
+  WIDGET_TYPE_CHECKBOX,
+  WIDGET_TYPE_RADIO,
+] as const;
 
 /** Icons for palette items; reusable across admin palette and any other consumer. */
 export const WIDGET_PALETTE_ICONS: Record<WidgetType, string> = {
@@ -93,7 +111,7 @@ export interface WidgetInstance {
   rowspan?: number;
   nestedTable?: NestedTableState; // only for type 'table'
   /** Column definitions for type 'grid' (mat-table). When empty, one default column is shown. */
-  gridColumns?: { id: string; columnName: string; headerName: string; valueBinding?: string; activityDataProperty?: string; className?: string; alignment?: 'left' | 'center' | 'right' }[];
+  gridColumns?: { id: string; columnName: string; headerName: string; valueBinding?: string; activityDataProperty?: string; className?: string; alignment?: TextAlignmentType }[];
   /** Preview data for the grid in the builder: array of row objects. Keys should match column columnName. When set, grid shows these rows. */
   gridDataSourcePreview?: Record<string, unknown>[];
   /** Value binding template e.g. "{{ listValue1 }}" for input, checkbox, label */

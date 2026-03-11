@@ -8,8 +8,8 @@ import { WidgetGridComponent } from '../widget-grid/widget-grid.component';
 import { WidgetLabelComponent } from '../widget-label/widget-label.component';
 import { WidgetPanelComponent } from '../widget-panel/widget-panel.component';
 import type { WidgetInstance, NestedTableState } from '../../models/canvas.model';
-
-const MOVE_DATA_TYPE = 'application/x-canvas-move';
+import { WIDGET_TYPE_GRID, WIDGET_TYPE_TABLE } from '../../models/canvas.model';
+import { DragDropDataKey } from '../../constants/drag-drop.constants';
 
 @Component({
   selector: 'app-widget-renderer',
@@ -45,7 +45,7 @@ export class WidgetRendererComponent {
 
   @HostBinding('class') get hostClass(): string {
     const parts: string[] = ['widget'];
-    if (this.widget()?.type === 'table' || this.widget()?.type === 'grid') parts.push('widget--no-padding');
+    if (this.widget()?.type === WIDGET_TYPE_TABLE || this.widget()?.type === WIDGET_TYPE_GRID) parts.push('widget--no-padding');
     if (this.isDragging) parts.push('widget-dragging');
     const custom = this.widget()?.className?.trim();
     if (custom) parts.push(custom);
@@ -59,7 +59,7 @@ export class WidgetRendererComponent {
     const id = this.cellId();
     if (!id || !e.dataTransfer) return;
     e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData(MOVE_DATA_TYPE, JSON.stringify({
+    e.dataTransfer.setData(DragDropDataKey.CanvasMove, JSON.stringify({
       fromCellId: id,
       widget: this.widget(),
     }));
@@ -71,10 +71,10 @@ export class WidgetRendererComponent {
   }
 
   @HostListener('dragover', ['$event']) onHostDragOver(e: DragEvent): void {
-    if (this.widget()?.type !== 'grid') return;
+    if (this.widget()?.type !== WIDGET_TYPE_GRID) return;
     const isGridAction =
-      e.dataTransfer?.types.includes('application/grid-action-row') ||
-      e.dataTransfer?.types.includes('application/grid-action-col');
+      e.dataTransfer?.types.includes(DragDropDataKey.GridActionRow) ||
+      e.dataTransfer?.types.includes(DragDropDataKey.GridActionCol);
     if (!isGridAction) return;
     e.preventDefault();
     e.stopPropagation();
@@ -82,10 +82,10 @@ export class WidgetRendererComponent {
   }
 
   @HostListener('drop', ['$event']) onHostDrop(e: DragEvent): void {
-    if (this.widget()?.type !== 'grid') return;
+    if (this.widget()?.type !== WIDGET_TYPE_GRID) return;
     const isGridAction =
-      e.dataTransfer?.types.includes('application/grid-action-row') ||
-      e.dataTransfer?.types.includes('application/grid-action-col');
+      e.dataTransfer?.types.includes(DragDropDataKey.GridActionRow) ||
+      e.dataTransfer?.types.includes(DragDropDataKey.GridActionCol);
     if (!isGridAction) return;
     e.preventDefault();
     e.stopPropagation();

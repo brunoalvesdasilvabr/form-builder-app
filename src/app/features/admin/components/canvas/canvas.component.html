@@ -51,9 +51,6 @@
       @if (showMerge()) {
         <button type="button" class="btn btn-secondary" (click)="runMerge()">Merge selected</button>
       }
-      @if (showDelete() && !showStructuralRemoveButtons()) {
-        <button type="button" class="btn btn-secondary" (click)="deleteSelection()" title="Delete content of selected cells">Delete</button>
-      }
       @if (showRemoveRow() || showRemoveCol()) {
         <span class="canvas-structural-buttons">
           @if (showRemoveRow()) {

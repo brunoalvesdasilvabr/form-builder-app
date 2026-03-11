@@ -2,6 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { firstValueFrom } from 'rxjs';
 import { LayoutNameDialogComponent } from '../../shared/components/layout-name-dialog/layout-name-dialog.component';
+import { DEFAULT_LAYOUT_NAME } from '../../shared/constants/canvas.constants';
 import { SavedLayoutsService } from './saved-layouts.service';
 import { CanvasService } from './canvas.service';
 
@@ -19,7 +20,7 @@ export class LayoutGuardService {
   async ensureLayoutNamed(): Promise<boolean> {
     const layout = this.savedLayouts.selectedLayout();
     const name = layout?.name?.trim() ?? '';
-    const isNamed = name.length > 0 && name.toLowerCase() !== 'untitled';
+    const isNamed = name.length > 0 && name.toLowerCase() !== DEFAULT_LAYOUT_NAME.toLowerCase();
     if (isNamed) return true;
 
     const dialogRef = this.dialog.open(LayoutNameDialogComponent, {
@@ -35,7 +36,7 @@ export class LayoutGuardService {
     if (!result) return false;
 
     const state = this.canvas.getStateForSave();
-    const trimmedName = result.name.trim() || 'Untitled';
+    const trimmedName = result.name.trim() || DEFAULT_LAYOUT_NAME;
     if (result.layoutId) {
       this.savedLayouts.updateLayout(result.layoutId, state, trimmedName);
     } else {
@@ -48,6 +49,6 @@ export class LayoutGuardService {
   hasLayoutNamed(): boolean {
     const layout = this.savedLayouts.selectedLayout();
     const name = layout?.name?.trim() ?? '';
-    return name.length > 0 && name.toLowerCase() !== 'untitled';
+    return name.length > 0 && name.toLowerCase() !== DEFAULT_LAYOUT_NAME.toLowerCase();
   }
 }

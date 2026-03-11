@@ -7,7 +7,16 @@ import { CanvasComponent } from './components/canvas/canvas.component';
 import { CanvasService } from '../../core/services/canvas.service';
 import { SavedLayoutsService } from '../../core/services/saved-layouts.service';
 import type { CanvasCell } from '../../shared/models/canvas.model';
-import { ACTIVITIES_BINDING_PATHS } from '../../shared/models/canvas.model';
+import {
+  ACTIVITIES_BINDING_PATHS,
+  DATA_COMPONENT_WIDGET_TYPES,
+  WIDGET_TYPE_GRID,
+  WIDGET_TYPE_INPUT,
+  WIDGET_TYPE_RADIO,
+  WIDGET_TYPE_TABLE,
+} from '../../shared/models/canvas.model';
+import type { TextAlignmentType } from '../../shared/enums';
+import { SelectedTarget, TextAlignment } from '../../shared/enums';
 import { getActivityPropertiesForPath } from '../../shared/constants/activity-structures.constants';
 import { parseBindingProperty } from '../../shared/utils/binding.util';
 import {
@@ -28,6 +37,10 @@ export class AdminComponent {
   private readonly savedLayouts = inject(SavedLayoutsService);
   private readonly snackBar = inject(MatSnackBar);
 
+  private static isDataComponentWidget(w: { type: string } | null | undefined): boolean {
+    return !!w && (DATA_COMPONENT_WIDGET_TYPES as readonly string[]).includes(w.type);
+  }
+
   readonly selectedCell = this.canvas.selectedCell;
   readonly selectedNestedPath = this.canvas.selectedNestedPath;
   readonly selectedTarget = this.canvas.selectedTarget;
@@ -41,7 +54,7 @@ export class AdminComponent {
   /** True when the selected grid cell has a valueBinding that points to an activities array (grid-level choice). */
   readonly gridHasActivitiesBinding = computed(() => {
     const cell = this.selectedCell();
-    if (!cell?.widget || cell.widget.type !== 'grid') return false;
+    if (!cell?.widget || cell.widget.type !== WIDGET_TYPE_GRID) return false;
     const path = parseBindingProperty(cell.widget.valueBinding);
     return (ACTIVITIES_BINDING_PATHS as readonly string[]).includes(path);
   });
@@ -49,29 +62,29 @@ export class AdminComponent {
   /** For grid: grid-level = only activities (user chooses data once); column-level uses child dropdown only. For non-grid use full list. */
   readonly effectiveBindableProperties = computed(() => {
     const cell = this.selectedCell();
-    if (!cell?.widget || cell.widget.type !== 'grid') return this.bindableProperties;
+    if (!cell?.widget || cell.widget.type !== WIDGET_TYPE_GRID) return this.bindableProperties;
     return this.bindablePropertiesColumn;
   });
 
   /** Show the main Data Binding (activities) dropdown whenever we're on a grid (grid-level or any column), so the chosen activity is always visible. */
   readonly showMainDataBindingDropdown = computed(() => {
     const cell = this.selectedCell();
-    if (!cell?.widget || cell.widget.type === 'table') return false;
-    if (cell.widget.type !== 'grid') return true;
+    if (!cell?.widget || cell.widget.type === WIDGET_TYPE_TABLE) return false;
+    if (cell.widget.type !== WIDGET_TYPE_GRID) return true;
     return true;
   });
 
   /** When a column is selected and the grid already has an activity chosen, disable the activities dropdown so the user sees the choice but only edits the child dropdown for this column. */
   readonly isActivitiesDropdownDisabled = computed(() => {
     const cell = this.selectedCell();
-    if (!cell?.widget || cell.widget.type !== 'grid') return false;
+    if (!cell?.widget || cell.widget.type !== WIDGET_TYPE_GRID) return false;
     return this.selectedGridColumnIndex() !== null && this.gridHasActivitiesBinding();
   });
 
   /** Child dropdown options: loaded from the structure for the chosen activities type (saved on grid or currently selected in dropdown). */
   readonly effectiveActivityDataProperties = computed(() => {
     const cell = this.selectedCell();
-    if (!cell?.widget || cell.widget.type !== 'grid') return getActivityPropertiesForPath('');
+    if (!cell?.widget || cell.widget.type !== WIDGET_TYPE_GRID) return getActivityPropertiesForPath('');
     const path = parseBindingProperty(cell.widget.valueBinding) || this.pendingProperty() || '';
     return getActivityPropertiesForPath(path);
   });
@@ -79,7 +92,7 @@ export class AdminComponent {
   /** True when to show the child "Property from activity" dropdown: when a column is selected AND an activity is chosen (saved on grid or currently selected in the activities dropdown). */
   readonly showActivityDataDropdown = computed(() => {
     const cell = this.selectedCell();
-    if (!cell?.widget || cell.widget.type !== 'grid') return false;
+    if (!cell?.widget || cell.widget.type !== WIDGET_TYPE_GRID) return false;
     if (this.selectedGridColumnIndex() === null) return false;
     if (this.gridHasActivitiesBinding()) return true;
     const pending = this.pendingProperty();
@@ -90,7 +103,7 @@ export class AdminComponent {
   readonly pendingClass = signal('');
   readonly pendingProperty = signal('');
   /** For grid column: alignment only. Class reuses pendingClass. */
-  readonly pendingGridColumnAlignment = signal<'left' | 'center' | 'right' | ''>('');
+  readonly pendingGridColumnAlignment = signal<TextAlignmentType | ''>('');
   /** When binding is Activities/Non-AMS Activities, selected property from the activity object (e.g. entryDate, amount). */
   readonly pendingActivityDataProperty = signal('');
   readonly pendingFormControlName = signal('');
@@ -108,7 +121,7 @@ export class AdminComponent {
   private initialClass = '';
   private initialProperty = '';
   private initialActivityDataProperty = '';
-  private initialGridColumnAlignment: 'left' | 'center' | 'right' | '' = '';
+  private initialGridColumnAlignment: TextAlignmentType | '' = '';
   private initialFormControlName = '';
   private initialVisibilityCondition = '';
   private initialMinLength = '';
@@ -133,7 +146,7 @@ export class AdminComponent {
   readonly showVisibilityConditionSection = computed(() => {
     const cell = this.selectedCell();
     if (!cell?.widget) return false;
-    return (cell.widget.type as string) !== 'table';
+    return (cell.widget.type as string) !== WIDGET_TYPE_TABLE;
   });
 
   constructor() {
@@ -153,7 +166,7 @@ export class AdminComponent {
 
   /** Fills initialClass from the selected cell (element, widget, widget-inner, cell, or grid column). */
   private syncInitialClassFromCell(cell: CanvasCell): void {
-    if (cell.widget?.type === 'grid' && this.selectedGridColumnIndex() !== null) {
+    if (cell.widget?.type === WIDGET_TYPE_GRID && this.selectedGridColumnIndex() !== null) {
       const cols = cell.widget.gridColumns ?? [];
       const col = cols[this.selectedGridColumnIndex()!];
       this.initialClass = col?.className ?? '';
@@ -161,11 +174,11 @@ export class AdminComponent {
     }
     const target = this.selectedTarget();
     const elementKey = this.selectedElementKey();
-    if (target === 'element' && elementKey) {
+    if (target === SelectedTarget.Element && elementKey) {
       this.initialClass = cell.widget?.elementClasses?.[elementKey] ?? '';
-    } else if (target === 'widget' && cell.widget) {
+    } else if (target === SelectedTarget.Widget && cell.widget) {
       this.initialClass = cell.widget.className ?? '';
-    } else if (target === 'widget-inner' && cell.widget) {
+    } else if (target === SelectedTarget.WidgetInner && cell.widget) {
       this.initialClass = cell.widget.innerClassName ?? '';
     } else {
       this.initialClass = (cell as { className?: string }).className ?? '';
@@ -176,19 +189,24 @@ export class AdminComponent {
   private syncInitialBindingAndFormControl(cell: CanvasCell): void {
     this.initialProperty = this.getCurrentBindingProperty(cell);
     this.initialActivityDataProperty = this.getCurrentActivityDataProperty(cell);
-    this.initialFormControlName = (cell.widget && ['label', 'input', 'checkbox', 'radio'].includes(cell.widget.type))
-      ? (cell.widget.formControlName ?? '')
+    this.initialFormControlName = AdminComponent.isDataComponentWidget(cell.widget)
+      ? (cell.widget?.formControlName ?? '')
       : '';
   }
 
   /** Fills initial grid column alignment when a column is selected. Class comes from syncInitialClassFromCell. */
   private syncInitialGridColumnStyle(cell: CanvasCell): void {
-    if (cell.widget?.type !== 'grid') return;
+    if (cell.widget?.type !== WIDGET_TYPE_GRID) return;
     const colIdx = this.selectedGridColumnIndex();
     if (colIdx === null) return;
     const cols = cell.widget.gridColumns ?? [];
     const col = cols[colIdx];
-    this.initialGridColumnAlignment = (col?.alignment === 'left' || col?.alignment === 'center' || col?.alignment === 'right') ? col.alignment : '';
+    this.initialGridColumnAlignment =
+      (col?.alignment === TextAlignment.Left ||
+        col?.alignment === TextAlignment.Center ||
+        col?.alignment === TextAlignment.Right)
+        ? col.alignment
+        : '';
   }
 
   /** Fills initial visibility condition (for label, input, checkbox, radio). */
@@ -201,11 +219,11 @@ export class AdminComponent {
   /** Fills initial validator values (min/max length, min/max number, pattern) for inputs. */
   private syncInitialValidatorValuesFromCell(cell: CanvasCell): void {
     const w = cell.widget;
-    this.initialMinLength = w?.type === 'input' && w.minLength != null ? String(w.minLength) : '';
-    this.initialMaxLength = w?.type === 'input' && w.maxLength != null ? String(w.maxLength) : '';
-    this.initialMin = w?.type === 'input' && w.min != null ? String(w.min) : '';
-    this.initialMax = w?.type === 'input' && w.max != null ? String(w.max) : '';
-    this.initialPattern = w?.type === 'input' && w.pattern != null ? String(w.pattern) : '';
+    this.initialMinLength = w?.type === WIDGET_TYPE_INPUT && w.minLength != null ? String(w.minLength) : '';
+    this.initialMaxLength = w?.type === WIDGET_TYPE_INPUT && w.maxLength != null ? String(w.maxLength) : '';
+    this.initialMin = w?.type === WIDGET_TYPE_INPUT && w.min != null ? String(w.min) : '';
+    this.initialMax = w?.type === WIDGET_TYPE_INPUT && w.max != null ? String(w.max) : '';
+    this.initialPattern = w?.type === WIDGET_TYPE_INPUT && w.pattern != null ? String(w.pattern) : '';
   }
 
   /** Copies all initial* values into the pending* signals. */
@@ -226,10 +244,9 @@ export class AdminComponent {
   /** Called when Data Binding dropdown changes; clears activity-field selection when switching away from Activities. */
   onDataBindingChange(value: string): void {
     this.pendingProperty.set(value);
-    const isActivities =
-      value === 'amsInformation.arrangements[0].amsActivity.activities' ||
-      value === 'nonAmsActivity.activities';
-    if (!isActivities) this.pendingActivityDataProperty.set('');
+    if (!(ACTIVITIES_BINDING_PATHS as readonly string[]).includes(value ?? '')) {
+      this.pendingActivityDataProperty.set('');
+    }
   }
 
   closePanel(): void {
@@ -243,77 +260,133 @@ export class AdminComponent {
     if (!cell) return;
 
     const messages: string[] = [];
-    if (this.pendingClass() !== this.initialClass) {
-      this.applyClassChange(cell, messages);
-    }
-    if (this.pendingProperty() !== this.initialProperty || (cell.widget?.type === 'grid' && this.selectedGridColumnIndex() !== null && this.pendingActivityDataProperty() !== this.initialActivityDataProperty)) {
-      this.applyPropertyChange(cell, messages);
-    }
-    if (this.pendingFormControlName() !== this.initialFormControlName && cell.widget && ['label', 'input', 'checkbox', 'radio'].includes(cell.widget.type)) {
-      this.applyFormControlNameChange(cell, messages);
-    }
-    const isDataComponent = cell.widget && ['label', 'input', 'checkbox', 'radio'].includes(cell.widget.type);
-    if (isDataComponent && this.pendingVisibilityCondition() !== this.initialVisibilityCondition) {
-      this.applyVisibilityConditionChange(cell, messages);
-    }
-    if ((this.pendingMinLength() !== this.initialMinLength || this.pendingMaxLength() !== this.initialMaxLength ||
-         this.pendingMin() !== this.initialMin || this.pendingMax() !== this.initialMax ||
-         this.pendingPattern() !== this.initialPattern) &&
-        cell.widget?.type === 'input') {
-      this.applyValidatorValuesChange(cell, messages);
-    }
-    if (cell.widget?.type === 'grid' && this.selectedGridColumnIndex() !== null && this.pendingGridColumnAlignment() !== this.initialGridColumnAlignment) {
-      this.applyGridColumnAlignmentChange(cell, messages);
-    }
+    this.applyClassChangeIfNeeded(cell, messages);
+    this.applyPropertyChangeIfNeeded(cell, messages);
+    this.applyFormControlNameChangeIfNeeded(cell, messages);
+    this.applyVisibilityConditionChangeIfNeeded(cell, messages);
+    this.applyValidatorValuesChangeIfNeeded(cell, messages);
+    this.applyGridColumnAlignmentChangeIfNeeded(cell, messages);
 
     if (messages.length) {
       this.snackBar.open(messages.join(' '), undefined, { duration: 4000 });
     }
   }
 
+  private applyClassChangeIfNeeded(cell: CanvasCell, messages: string[]): void {
+    if (this.pendingClass() !== this.initialClass) {
+      this.applyClassChange(cell, messages);
+    }
+  }
+
+  private applyPropertyChangeIfNeeded(cell: CanvasCell, messages: string[]): void {
+    const propertyChanged = this.pendingProperty() !== this.initialProperty;
+    const gridColumnActivityChanged =
+      cell.widget?.type === WIDGET_TYPE_GRID &&
+      this.selectedGridColumnIndex() !== null &&
+      this.pendingActivityDataProperty() !== this.initialActivityDataProperty;
+    if (propertyChanged || gridColumnActivityChanged) {
+      this.applyPropertyChange(cell, messages);
+    }
+  }
+
+  private applyFormControlNameChangeIfNeeded(cell: CanvasCell, messages: string[]): void {
+    const isFormControlWidget = AdminComponent.isDataComponentWidget(cell.widget);
+    if (isFormControlWidget && this.pendingFormControlName() !== this.initialFormControlName) {
+      this.applyFormControlNameChange(cell, messages);
+    }
+  }
+
+  private applyVisibilityConditionChangeIfNeeded(cell: CanvasCell, messages: string[]): void {
+    const isDataComponent = AdminComponent.isDataComponentWidget(cell.widget);
+    if (isDataComponent && this.pendingVisibilityCondition() !== this.initialVisibilityCondition) {
+      this.applyVisibilityConditionChange(cell, messages);
+    }
+  }
+
+  private applyValidatorValuesChangeIfNeeded(cell: CanvasCell, messages: string[]): void {
+    const validatorValuesChanged =
+      this.pendingMinLength() !== this.initialMinLength ||
+      this.pendingMaxLength() !== this.initialMaxLength ||
+      this.pendingMin() !== this.initialMin ||
+      this.pendingMax() !== this.initialMax ||
+      this.pendingPattern() !== this.initialPattern;
+    if (validatorValuesChanged && cell.widget?.type === WIDGET_TYPE_INPUT) {
+      this.applyValidatorValuesChange(cell, messages);
+    }
+  }
+
+  private applyGridColumnAlignmentChangeIfNeeded(cell: CanvasCell, messages: string[]): void {
+    const isGridColumnSelected = cell.widget?.type === WIDGET_TYPE_GRID && this.selectedGridColumnIndex() !== null;
+    const alignmentChanged = this.pendingGridColumnAlignment() !== this.initialGridColumnAlignment;
+    if (isGridColumnSelected && alignmentChanged) {
+      this.applyGridColumnAlignmentChange(cell, messages);
+    }
+  }
+
   /** Applies the pending class to the cell/widget/element/grid-column and records the message. */
   private applyClassChange(cell: CanvasCell, messages: string[]): void {
     const newClass = this.pendingClass();
-    if (cell.widget?.type === 'grid' && this.selectedGridColumnIndex() !== null) {
-      const colIdx = this.selectedGridColumnIndex()!;
-      this.canvas.updateGridColumnClassAndAlignment(cell.id, cell.widget.id, colIdx, newClass, this.pendingGridColumnAlignment());
-      this.initialClass = newClass;
-      messages.push(`Your class was bound to the column.`);
-      return;
-    }
+    if (this.tryApplyClassToGridColumn(cell, newClass, messages)) return;
+    this.applyClassToCellOrWidget(cell, newClass, messages);
+    messages.push(`Your class was bound to the ${this.getClassTargetLabel()}.`);
+    this.initialClass = newClass;
+  }
+
+  private tryApplyClassToGridColumn(cell: CanvasCell, newClass: string, messages: string[]): boolean {
+    if (cell.widget?.type !== WIDGET_TYPE_GRID || this.selectedGridColumnIndex() === null) return false;
+    const colIdx = this.selectedGridColumnIndex()!;
+    this.canvas.updateGridColumnClassAndAlignment(cell.id, cell.widget.id, colIdx, newClass, this.pendingGridColumnAlignment());
+    this.initialClass = newClass;
+    messages.push(`Your class was bound to the column.`);
+    return true;
+  }
+
+  private applyClassToCellOrWidget(cell: CanvasCell, newClass: string, _messages: string[]): void {
     const target = this.selectedTarget();
     const elementKey = this.selectedElementKey();
     const nested = this.selectedNestedPath();
     if (nested) {
-      const { parentCellId, parentWidgetId, nestedCellId } = nested;
-      if (target === 'element' && elementKey && cell.widget) {
-        this.canvas.updateNestedWidgetElementClass(parentCellId, parentWidgetId, nestedCellId, cell.widget.id, elementKey, newClass);
-      } else if (target === 'widget' && cell.widget) {
-        this.canvas.updateNestedWidgetClass(parentCellId, parentWidgetId, nestedCellId, cell.widget.id, newClass);
-      } else if (target === 'widget-inner' && cell.widget) {
-        this.canvas.updateNestedWidgetInnerClass(parentCellId, parentWidgetId, nestedCellId, cell.widget.id, newClass);
-      } else {
-        this.canvas.updateNestedCellClass(parentCellId, parentWidgetId, nestedCellId, newClass);
-      }
+      this.applyClassToNestedTarget(cell, newClass, nested, target, elementKey);
     } else {
-      if (target === 'element' && elementKey && cell.widget) {
-        this.canvas.updateWidgetElementClass(cell.id, cell.widget.id, elementKey, newClass);
-      } else if (target === 'widget' && cell.widget) {
-        this.canvas.updateWidgetClass(cell.id, cell.widget.id, newClass);
-      } else if (target === 'widget-inner' && cell.widget) {
-        this.canvas.updateWidgetInnerClass(cell.id, cell.widget.id, newClass);
-      } else {
-        this.canvas.updateCellClass(cell.id, newClass);
-      }
+      this.applyClassToTopLevelTarget(cell, newClass, target, elementKey);
     }
-    messages.push(`Your class was bound to the ${this.getClassTargetLabel()}.`);
-    this.initialClass = newClass;
+  }
+
+  private applyClassToNestedTarget(
+    cell: CanvasCell,
+    newClass: string,
+    nested: { parentCellId: string; parentWidgetId: string; nestedCellId: string },
+    target: string,
+    elementKey: string | null
+  ): void {
+    const { parentCellId, parentWidgetId, nestedCellId } = nested;
+    if (target === SelectedTarget.Element && elementKey && cell.widget) {
+      this.canvas.updateNestedWidgetElementClass(parentCellId, parentWidgetId, nestedCellId, cell.widget.id, elementKey, newClass);
+    } else if (target === SelectedTarget.Widget && cell.widget) {
+      this.canvas.updateNestedWidgetClass(parentCellId, parentWidgetId, nestedCellId, cell.widget.id, newClass);
+    } else if (target === SelectedTarget.WidgetInner && cell.widget) {
+      this.canvas.updateNestedWidgetInnerClass(parentCellId, parentWidgetId, nestedCellId, cell.widget.id, newClass);
+    } else {
+      this.canvas.updateNestedCellClass(parentCellId, parentWidgetId, nestedCellId, newClass);
+    }
+  }
+
+  private applyClassToTopLevelTarget(cell: CanvasCell, newClass: string, target: string, elementKey: string | null): void {
+    if (target === SelectedTarget.Element && elementKey && cell.widget) {
+      this.canvas.updateWidgetElementClass(cell.id, cell.widget.id, elementKey, newClass);
+    } else if (target === SelectedTarget.Widget && cell.widget) {
+      this.canvas.updateWidgetClass(cell.id, cell.widget.id, newClass);
+    } else if (target === SelectedTarget.WidgetInner && cell.widget) {
+      this.canvas.updateWidgetInnerClass(cell.id, cell.widget.id, newClass);
+    } else {
+      this.canvas.updateCellClass(cell.id, newClass);
+    }
   }
 
   /** Applies the pending property binding and records the message. */
   private applyPropertyChange(cell: CanvasCell, messages: string[]): void {
     const colIdx = this.selectedGridColumnIndex();
-    if (cell.widget?.type === 'grid' && colIdx !== null) {
+    if (cell.widget?.type === WIDGET_TYPE_GRID && colIdx !== null) {
       const activityProp = this.pendingActivityDataProperty();
       const valueBinding = this.gridHasActivitiesBinding()
         ? parseBindingProperty(cell.widget.valueBinding)
@@ -343,7 +416,7 @@ export class AdminComponent {
   /** Applies grid column alignment when a column is selected. Class uses applyClassChange. */
   private applyGridColumnAlignmentChange(cell: CanvasCell, messages: string[]): void {
     const colIdx = this.selectedGridColumnIndex();
-    if (colIdx === null || cell.widget?.type !== 'grid') return;
+    if (colIdx === null || cell.widget?.type !== WIDGET_TYPE_GRID) return;
     this.canvas.updateGridColumnClassAndAlignment(cell.id, cell.widget.id, colIdx, this.pendingClass(), this.pendingGridColumnAlignment());
     this.initialGridColumnAlignment = this.pendingGridColumnAlignment();
     messages.push('Column alignment was applied.');
@@ -422,7 +495,7 @@ export class AdminComponent {
 
   private applyValidatorValues(cell: CanvasCell): void {
     const w = cell.widget;
-    if (!w || w.type !== 'input') return;
+    if (!w || w.type !== WIDGET_TYPE_INPUT) return;
     const nested = this.selectedNestedPath();
     const minLength = this.parseOptionalNumber(this.pendingMinLength());
     const maxLength = this.parseOptionalNumber(this.pendingMaxLength());
@@ -448,7 +521,7 @@ export class AdminComponent {
   /** Apply visibility condition to the selected data component (label, input, checkbox, radio). */
   private applyVisibilityCondition(cell: CanvasCell): void {
     const w = cell.widget;
-    if (!w || !['label', 'input', 'checkbox', 'radio'].includes(w.type)) return;
+    if (!w || !AdminComponent.isDataComponentWidget(w)) return;
     const cond = this.pendingVisibilityCondition().trim() || '';
     const nested = this.selectedNestedPath();
     if (nested) {
@@ -461,7 +534,7 @@ export class AdminComponent {
 
   private applyFormControlName(cell: CanvasCell): void {
     const w = cell.widget;
-    if (!w || !['label', 'input', 'checkbox', 'radio'].includes(w.type)) return;
+    if (!w || !AdminComponent.isDataComponentWidget(w)) return;
     const nested = this.selectedNestedPath();
     const name = this.pendingFormControlName().trim() || undefined;
     if (nested) {
@@ -478,13 +551,13 @@ export class AdminComponent {
     const nested = this.selectedNestedPath();
     if (nested) {
       const { parentCellId, parentWidgetId, nestedCellId } = nested;
-      if (w.type === 'radio' && this.selectedOptionIndex() !== null) {
+      if (w.type === WIDGET_TYPE_RADIO && this.selectedOptionIndex() !== null) {
         this.canvas.updateNestedOptionBinding(parentCellId, parentWidgetId, nestedCellId, w.id, this.selectedOptionIndex()!, propertyValue);
       } else {
         this.canvas.updateNestedValueBinding(parentCellId, parentWidgetId, nestedCellId, w.id, propertyValue);
       }
     } else {
-      if (w.type === 'radio' && this.selectedOptionIndex() !== null) {
+      if (w.type === WIDGET_TYPE_RADIO && this.selectedOptionIndex() !== null) {
         this.canvas.updateOptionBinding(cell.id, w.id, this.selectedOptionIndex()!, propertyValue);
       } else {
         this.canvas.updateValueBinding(cell.id, w.id, propertyValue);
@@ -497,7 +570,7 @@ export class AdminComponent {
     const cell = this.selectedCell();
     if (!cell) return 'Properties';
     if (!cell.widget) return 'Cell Properties';
-    if (cell.widget.type === 'grid') {
+    if (cell.widget.type === WIDGET_TYPE_GRID) {
       const colIdx = this.selectedGridColumnIndex();
       if (colIdx !== null) return `Column ${colIdx + 1} Properties`;
       return 'Grid Properties';
@@ -518,12 +591,12 @@ export class AdminComponent {
   getClassTargetLabel(): string {
     const colIdx = this.selectedGridColumnIndex();
     const cell = this.selectedCell();
-    if (cell?.widget?.type === 'grid' && colIdx !== null) return `column ${colIdx + 1}`;
+    if (cell?.widget?.type === WIDGET_TYPE_GRID && colIdx !== null) return `column ${colIdx + 1}`;
     const t = this.selectedTarget();
     const key = this.selectedElementKey();
-    if (t === 'cell') return 'cell';
-    if (t === 'widget') return 'component wrapper';
-    if (t === 'element' && key) return `element (${key})`;
+    if (t === SelectedTarget.Cell) return 'cell';
+    if (t === SelectedTarget.Widget) return 'component wrapper';
+    if (t === SelectedTarget.Element && key) return `element (${key})`;
     return 'component';
   }
 
@@ -541,7 +614,7 @@ export class AdminComponent {
       panel: 'Panel',
     };
     const base = typeLabels[w.type] ?? w.type;
-    if (w.type === 'radio' && this.selectedOptionIndex() !== null) {
+    if (w.type === WIDGET_TYPE_RADIO && this.selectedOptionIndex() !== null) {
       const idx = this.selectedOptionIndex()!;
       const opt = (w.options ?? [])[idx];
       const optionLabel = opt ? `"${opt}"` : `Option ${idx + 1}`;
@@ -601,7 +674,7 @@ export class AdminComponent {
   getCurrentBindingProperty(cell: CanvasCell): string {
     const w = cell.widget;
     if (!w) return '';
-    if (w.type === 'grid' && this.selectedGridColumnIndex() !== null) {
+    if (w.type === WIDGET_TYPE_GRID && this.selectedGridColumnIndex() !== null) {
       const cols = w.gridColumns ?? [];
       const col = cols[this.selectedGridColumnIndex()!];
       const colPath = col?.valueBinding ?? '';
@@ -609,7 +682,7 @@ export class AdminComponent {
       if (this.gridHasActivitiesBinding()) return parseBindingProperty(w.valueBinding);
       return '';
     }
-    if (w.type === 'radio' && this.selectedOptionIndex() !== null) {
+    if (w.type === WIDGET_TYPE_RADIO && this.selectedOptionIndex() !== null) {
       const binding = w.optionBindings?.[this.selectedOptionIndex()!];
       return parseBindingProperty(binding);
     }
@@ -619,7 +692,7 @@ export class AdminComponent {
   /** For grid column: the activity field (e.g. amount, entryDate). */
   private getCurrentActivityDataProperty(cell: CanvasCell): string {
     const w = cell.widget;
-    if (!w || w.type !== 'grid') return '';
+    if (!w || w.type !== WIDGET_TYPE_GRID) return '';
     const colIdx = this.selectedGridColumnIndex();
     if (colIdx === null) return '';
     const cols = w.gridColumns ?? [];

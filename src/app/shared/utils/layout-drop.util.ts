@@ -3,8 +3,8 @@
  * Used when dragging "Row" or "Col" from the palette onto the canvas or embedded table.
  */
 
-export type LayoutDropType = 'row' | 'col';
-export type LayoutDropPosition = 'before' | 'after';
+import type { LayoutActionType, LayoutDropPositionType } from '../enums';
+import { LayoutAction, LayoutDropPosition } from '../enums';
 
 /**
  * Compute where to insert a row or column based on drag position over a cell.
@@ -16,9 +16,11 @@ export function computeLayoutDropPosition(
   rect: DOMRect,
   clientX: number,
   clientY: number,
-  type: LayoutDropType
-): LayoutDropPosition {
+  type: LayoutActionType
+): LayoutDropPositionType {
   const x = (clientX - rect.left) / rect.width;
   const y = (clientY - rect.top) / rect.height;
-  return type === 'row' ? (y < 0.5 ? 'before' : 'after') : (x < 0.5 ? 'before' : 'after');
+  return type === LayoutAction.Row
+    ? (y < 0.5 ? LayoutDropPosition.Before : LayoutDropPosition.After)
+    : (x < 0.5 ? LayoutDropPosition.Before : LayoutDropPosition.After);
 }

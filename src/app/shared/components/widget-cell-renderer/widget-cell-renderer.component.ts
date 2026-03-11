@@ -7,7 +7,7 @@ import { WidgetLabelComponent } from '../widget-label/widget-label.component';
 import { WidgetPanelComponent } from '../widget-panel/widget-panel.component';
 import type { WidgetInstance } from '../../models/canvas.model';
 
-const NESTED_MOVE_DATA_TYPE = 'application/x-nested-move';
+import { DragDropDataKey } from '../../constants/drag-drop.constants';
 
 @Component({
   selector: 'app-widget-cell-renderer',
@@ -42,7 +42,7 @@ export class WidgetCellRendererComponent {
     const id = this.cellId();
     if (!id || !e.dataTransfer) return;
     e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData(NESTED_MOVE_DATA_TYPE, JSON.stringify({
+    e.dataTransfer.setData(DragDropDataKey.NestedMove, JSON.stringify({
       fromCellId: id,
       widget: this.widget(),
     }));

@@ -14,7 +14,9 @@ import { PreviewModalComponent } from "../../../../shared/components/preview-mod
 import { LayoutNameDialogComponent } from "../../../../shared/components/layout-name-dialog/layout-name-dialog.component";
 import type { CanvasCell, WidgetType, NestedTableState, WidgetInstance } from "../../../../shared/models/canvas.model";
 import { LayoutOption } from "../../../../shared/enums";
-import { WIDGET_TYPES } from "../../../../shared/models/canvas.model";
+import type { LayoutActionType, LayoutDropPositionType } from "../../../../shared/enums";
+import { FORM_CONTROL_WIDGET_TYPES, WIDGET_TYPES, WIDGET_TYPE_GRID, WIDGET_TYPE_TABLE } from "../../../../shared/models/canvas.model";
+import { SelectedTarget } from "../../../../shared/enums";
 import {
   computeMergeRange,
   canMergeFromRange,
@@ -23,7 +25,10 @@ import {
 import { getElementKeyFromElement } from "../../../../shared/utils/element-target.util";
 import { computeLayoutDropPosition } from "../../../../shared/utils/layout-drop.util";
 import { FormLayoutNameDirective } from "../../../../shared/directives/form-layout-name.directive";
+import { DEFAULT_LAYOUT_NAME } from "../../../../shared/constants/canvas.constants";
 import { toSafeFilename } from "../../../../shared/utils/safe-filename.util";
+import { DragDropDataKey, DragDropCssClass } from "../../../../shared/constants/drag-drop.constants";
+import { LayoutAction, LayoutDropPosition } from "../../../../shared/enums";
 
 @Component({
   selector: "app-canvas",
@@ -63,10 +68,10 @@ export class CanvasComponent {
 
   /** When dragging Row/Col from palette: { type, rowIndex, colIndex, position } for drop line preview. */
   readonly layoutDropPreview = signal<{
-    type: "row" | "col";
+    type: LayoutActionType;
     rowIndex: number;
     colIndex: number;
-    position: "before" | "after";
+    position: LayoutDropPositionType;
   } | null>(null);
 
   readonly mergeRange = computed(() => computeMergeRange(this.selectionCells()));
@@ -81,14 +86,7 @@ export class CanvasComponent {
   /** Show Merge when either canvas or nested has a mergeable selection. */
   readonly showMerge = computed(() => this.canMergeCanvas() || this.canMergeNested());
 
-  /** Show Delete when there is any selection (canvas or nested). */
-  readonly showDelete = computed(
-    () =>
-      this.selectionCells().length > 0 ||
-      (this.nestedSelectionPath() != null && this.nestedSelectionCells().length > 0),
-  );
-
-  /** True when − Row / − Col are shown (ctrl+click selection). When true, we show only those, not Delete. */
+  /** True when − Row / − Col are shown (ctrl+click selection). */
   readonly showStructuralRemoveButtons = computed(() => {
     if (this.selectionCells().length > 0 && this.mergeRange()) return true;
     if (this.nestedSelectionPath() != null && this.nestedSelectionCells().length > 0 && this.getNestedMergeRange())
@@ -121,15 +119,15 @@ export class CanvasComponent {
       this.canvas.setCanvasSelection(updateSelectionForCtrlClick(this.selectionCells(), rowIndex, colIndex));
     } else {
       this.clearSelection();
-      if (cell.widget && cell.widget.type === "table") {
+      if (cell.widget && cell.widget.type === WIDGET_TYPE_TABLE) {
         this.canvas.setSelectedCell(null);
       } else {
-        const hasFormControl = cell.widget && ["input", "checkbox", "radio"].includes(cell.widget.type);
+        const hasFormControl = cell.widget && (FORM_CONTROL_WIDGET_TYPES as readonly string[]).includes(cell.widget.type);
         const doSelect = () => {
           const el = e.target as Element;
           const elementTarget = getElementKeyFromElement(el);
           if (elementTarget) {
-            this.canvas.setSelectedCell(cell.id, "element", elementTarget);
+            this.canvas.setSelectedCell(cell.id, SelectedTarget.Element, elementTarget);
           } else if (
             el?.closest?.("app-widget-input") ||
             el?.closest?.("app-widget-checkbox") ||
@@ -138,11 +136,11 @@ export class CanvasComponent {
             el?.closest?.("app-widget-table") ||
             el?.closest?.("app-widget-grid")
           ) {
-            this.canvas.setSelectedCell(cell.id, "widget-inner");
+            this.canvas.setSelectedCell(cell.id, SelectedTarget.WidgetInner);
           } else if (el?.closest?.("app-widget-renderer")) {
-            this.canvas.setSelectedCell(cell.id, "widget");
+            this.canvas.setSelectedCell(cell.id, SelectedTarget.Widget);
           } else {
-            this.canvas.setSelectedCell(cell.id, "cell");
+            this.canvas.setSelectedCell(cell.id, SelectedTarget.Cell);
           }
         };
         if (hasFormControl && !this.layoutGuard.hasLayoutNamed()) {
@@ -163,7 +161,7 @@ export class CanvasComponent {
 
   /** When cell is a grid: set selectedGridColumnIndex from header, body, or footer cell click (any column cell), or null for grid-level. */
   private setGridColumnSelection(cell: CanvasCell, e: MouseEvent): void {
-    if (cell.widget?.type !== "grid") return;
+    if (cell.widget?.type !== WIDGET_TYPE_GRID) return;
     const el = e.target as Element;
     const headerCell = el.closest("th[mat-header-cell]");
     const bodyCell = el.closest("td[mat-cell]");
@@ -200,17 +198,6 @@ export class CanvasComponent {
     }
   }
 
-  /** Delete selected cells' content (nested or canvas). */
-  deleteSelection(): void {
-    if (this.nestedSelectionPath() != null && this.nestedSelectionCells().length > 0) {
-      this.canvas.deleteNestedSelection();
-      this.cdr.detectChanges();
-    } else if (this.selectionCells().length > 0) {
-      this.canvas.deleteCanvasSelection(this.selectionCells());
-      this.clearSelection();
-    }
-  }
-
   hasSelection(): boolean {
     return this.selectionCells().length > 0;
   }
@@ -218,122 +205,139 @@ export class CanvasComponent {
   onDrop(e: DragEvent, targetCell: CanvasCell): void {
     e.preventDefault();
     e.stopPropagation();
-    const moveData = e.dataTransfer?.getData("application/x-canvas-move");
-    if (moveData) {
-      try {
-        const { fromCellId, widget } = JSON.parse(moveData) as { fromCellId: string; widget: WidgetInstance };
-        if (!targetCell.isMergedOrigin || !widget) return;
-        this.canvas.moveWidget(fromCellId, targetCell.id, widget);
-      } catch {
-        // bad payload, skip
-      }
-      (((e.currentTarget as HTMLElement).closest?.("td") ?? e.currentTarget) as HTMLElement)?.classList.remove(
-        "canvas-cell-drag-over",
-      );
-      return;
+    const td = this.getCellElement(e);
+    if (this.tryHandleMoveDrop(e, targetCell, td)) return;
+    if (this.tryHandleGridActionDrop(e, targetCell, td)) return;
+    if (this.tryHandleLayoutActionDrop(e, targetCell, td)) return;
+    this.tryHandleWidgetDrop(e, targetCell, td);
+  }
+
+  private getCellElement(e: DragEvent): HTMLElement | undefined {
+    return ((e.currentTarget as HTMLElement).closest?.("td") ?? e.currentTarget) as HTMLElement;
+  }
+
+  private removeDragOverClass(e: DragEvent): void {
+    this.getCellElement(e)?.classList.remove(DragDropCssClass.CellDragOver);
+  }
+
+  private tryHandleMoveDrop(e: DragEvent, targetCell: CanvasCell, td: HTMLElement | undefined): boolean {
+    const moveData = e.dataTransfer?.getData(DragDropDataKey.CanvasMove);
+    if (!moveData) return false;
+    try {
+      const { fromCellId, widget } = JSON.parse(moveData) as { fromCellId: string; widget: WidgetInstance };
+      if (targetCell.isMergedOrigin && widget) this.canvas.moveWidget(fromCellId, targetCell.id, widget);
+    } catch {
+      // bad payload, skip
     }
-    const gridAction = e.dataTransfer?.getData("application/grid-action") || undefined;
-    if (gridAction === "row" || gridAction === "col") {
-      if (targetCell.widget?.type === "grid") {
-        if (gridAction === "row") this.canvas.addGridRow(targetCell.id, targetCell.widget.id);
-        else this.canvas.addGridColumn(targetCell.id, targetCell.widget.id);
-      }
-      (((e.currentTarget as HTMLElement).closest?.("td") ?? e.currentTarget) as HTMLElement)?.classList.remove(
-        "canvas-cell-drag-over",
-      );
-      return;
+    this.removeDragOverClass(e);
+    return true;
+  }
+
+  private tryHandleGridActionDrop(e: DragEvent, targetCell: CanvasCell, _td: HTMLElement | undefined): boolean {
+    const gridAction = e.dataTransfer?.getData(DragDropDataKey.GridAction) || undefined;
+    if (gridAction !== LayoutAction.Row && gridAction !== LayoutAction.Col) return false;
+    if (targetCell.widget?.type === WIDGET_TYPE_GRID) {
+      if (gridAction === LayoutAction.Row) this.canvas.addGridRow(targetCell.id, targetCell.widget.id);
+      else this.canvas.addGridColumn(targetCell.id, targetCell.widget.id);
     }
-    const layoutAction = e.dataTransfer?.getData("application/layout-action") || e.dataTransfer?.getData("text/plain");
-    if (layoutAction === "row" || layoutAction === "col") {
-      if (targetCell.widget?.type === "grid") {
-        (((e.currentTarget as HTMLElement).closest?.("td") ?? e.currentTarget) as HTMLElement)?.classList.remove(
-          "canvas-cell-drag-over",
-        );
-        return;
-      }
-      const preview = this.layoutDropPreview();
-      const pos =
-        preview?.rowIndex === targetCell.rowIndex && preview?.colIndex === targetCell.colIndex
-          ? preview.position
-          : "before";
-      if (targetCell.isMergedOrigin) {
-        if (layoutAction === "row") {
-          this.canvas.addRowAt(pos === "after" ? targetCell.rowIndex + 1 : targetCell.rowIndex);
-        } else {
-          this.canvas.addColumnAt(pos === "after" ? targetCell.colIndex + 1 : targetCell.colIndex);
-        }
-      }
+    this.removeDragOverClass(e);
+    return true;
+  }
+
+  private tryHandleLayoutActionDrop(e: DragEvent, targetCell: CanvasCell, _td: HTMLElement | undefined): boolean {
+    const layoutAction = e.dataTransfer?.getData(DragDropDataKey.LayoutAction) || e.dataTransfer?.getData("text/plain");
+    if (layoutAction !== LayoutAction.Row && layoutAction !== LayoutAction.Col) {
       this.layoutDropPreview.set(null);
-      (((e.currentTarget as HTMLElement).closest?.("td") ?? e.currentTarget) as HTMLElement)?.classList.remove(
-        "canvas-cell-drag-over",
-      );
-      this.layoutDropPreview.set(null);
-      return;
+      return false;
+    }
+    if (targetCell.widget?.type === WIDGET_TYPE_GRID) {
+      this.removeDragOverClass(e);
+      return true;
+    }
+    const preview = this.layoutDropPreview();
+    const pos =
+      preview?.rowIndex === targetCell.rowIndex && preview?.colIndex === targetCell.colIndex
+        ? preview.position
+        : LayoutDropPosition.Before;
+    if (targetCell.isMergedOrigin) {
+      if (layoutAction === LayoutAction.Row) {
+        this.canvas.addRowAt(pos === LayoutDropPosition.After ? targetCell.rowIndex + 1 : targetCell.rowIndex);
+      } else {
+        this.canvas.addColumnAt(pos === LayoutDropPosition.After ? targetCell.colIndex + 1 : targetCell.colIndex);
+      }
     }
     this.layoutDropPreview.set(null);
-    const raw = (
-      e.dataTransfer?.getData("application/widget-type") ||
-      e.dataTransfer?.getData("text/plain") ||
-      ""
-    ).trim();
+    this.removeDragOverClass(e);
+    return true;
+  }
+
+  private tryHandleWidgetDrop(e: DragEvent, targetCell: CanvasCell, _td: HTMLElement | undefined): void {
+    this.layoutDropPreview.set(null);
+    const raw = (e.dataTransfer?.getData(DragDropDataKey.WidgetType) || e.dataTransfer?.getData("text/plain") || "").trim();
     const type = raw.toLowerCase() as WidgetType;
-    if (!type || !WIDGET_TYPES.includes(type)) return;
-    if (!targetCell.isMergedOrigin) return;
+    if (!type || !WIDGET_TYPES.includes(type) || !targetCell.isMergedOrigin) return;
     this.canvas.setWidgetAt(targetCell.rowIndex, targetCell.colIndex, type);
-    (((e.currentTarget as HTMLElement).closest?.("td") ?? e.currentTarget) as HTMLElement)?.classList.remove(
-      "canvas-cell-drag-over",
-    );
+    this.removeDragOverClass(e);
   }
 
   onDragOver(e: DragEvent, targetCell: CanvasCell): void {
     e.preventDefault();
-    const moveData = e.dataTransfer?.types.includes("application/x-canvas-move");
-    const gridRow = e.dataTransfer?.types.includes("application/grid-action-row");
-    const gridCol = e.dataTransfer?.types.includes("application/grid-action-col");
-    const layoutRow = e.dataTransfer?.types.includes("application/layout-action-row");
-    const layoutCol = e.dataTransfer?.types.includes("application/layout-action-col");
-    const el = ((e.currentTarget as HTMLElement).closest?.("td") ?? e.currentTarget) as HTMLElement;
-    if (gridRow || gridCol) {
-      if (targetCell.widget?.type === "grid") {
-        el?.classList.add("canvas-cell-drag-over");
-        e.dataTransfer!.dropEffect = "copy";
-      } else {
-        e.dataTransfer!.dropEffect = "none";
-      }
-      this.layoutDropPreview.set(null);
+    const el = this.getCellElement(e);
+    const types = e.dataTransfer?.types;
+    const typeList = types ? Array.from(types) : [];
+    if (this.isGridActionDrag(typeList)) {
+      this.handleGridActionDragOver(e, targetCell, el);
       return;
     }
-    e.dataTransfer!.dropEffect = moveData ? "move" : "copy";
-    el?.classList.add("canvas-cell-drag-over");
-    if (layoutRow || layoutCol) {
-      if (targetCell.widget?.type === "grid" || !targetCell.isMergedOrigin) return;
-      const rect = el.getBoundingClientRect();
-      const type = layoutRow ? "row" : "col";
-      const position = computeLayoutDropPosition(rect, e.clientX, e.clientY, type);
-      this.layoutDropPreview.set({ type, rowIndex: targetCell.rowIndex, colIndex: targetCell.colIndex, position });
+    e.dataTransfer!.dropEffect = typeList.includes(DragDropDataKey.CanvasMove) ? "move" : "copy";
+    el?.classList.add(DragDropCssClass.CellDragOver);
+    if (this.isLayoutActionDrag(typeList)) {
+      this.updateLayoutDropPreview(e, targetCell, el);
     } else {
       this.layoutDropPreview.set(null);
     }
   }
 
+  private isGridActionDrag(types: string[]): boolean {
+    return types.includes(DragDropDataKey.GridActionRow) || types.includes(DragDropDataKey.GridActionCol);
+  }
+
+  private isLayoutActionDrag(types: string[]): boolean {
+    return types.includes(DragDropDataKey.LayoutActionRow) || types.includes(DragDropDataKey.LayoutActionCol);
+  }
+
+  private handleGridActionDragOver(e: DragEvent, targetCell: CanvasCell, el: HTMLElement | undefined): void {
+    if (targetCell.widget?.type === WIDGET_TYPE_GRID) {
+      el?.classList.add(DragDropCssClass.CellDragOver);
+      e.dataTransfer!.dropEffect = "copy";
+    } else {
+      e.dataTransfer!.dropEffect = "none";
+    }
+    this.layoutDropPreview.set(null);
+  }
+
+  private updateLayoutDropPreview(e: DragEvent, targetCell: CanvasCell, el: HTMLElement | undefined): void {
+    if (targetCell.widget?.type === WIDGET_TYPE_GRID || !targetCell.isMergedOrigin) return;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const types = e.dataTransfer?.types ? Array.from(e.dataTransfer.types) : [];
+    const type = types.includes(DragDropDataKey.LayoutActionRow) ? LayoutAction.Row : LayoutAction.Col;
+    const position = computeLayoutDropPosition(rect, e.clientX, e.clientY, type);
+    this.layoutDropPreview.set({ type, rowIndex: targetCell.rowIndex, colIndex: targetCell.colIndex, position });
+  }
+
   onDragLeave(e: DragEvent): void {
-    (((e.currentTarget as HTMLElement).closest?.("td") ?? e.currentTarget) as HTMLElement)?.classList.remove(
-      "canvas-cell-drag-over",
-    );
+    this.removeDragOverClass(e);
   }
 
   onEmptyStateDrop(e: DragEvent): void {
     e.preventDefault();
     e.stopPropagation();
     if (!this.selectedLayoutId()) return;
-    const raw = (
-      e.dataTransfer?.getData("application/widget-type") ||
-      e.dataTransfer?.getData("text/plain") ||
-      ""
-    ).trim();
+    const raw = (e.dataTransfer?.getData(DragDropDataKey.WidgetType) || e.dataTransfer?.getData("text/plain") || "").trim();
     const type = raw.toLowerCase() as WidgetType;
-    if (type !== "table") return;
-    (e.currentTarget as HTMLElement)?.classList.remove("canvas-empty-state-drag-over");
+    if (type !== WIDGET_TYPE_TABLE) return;
+    (e.currentTarget as HTMLElement)?.classList.remove(DragDropCssClass.EmptyStateDragOver);
     this.canvas.setWidgetOnEmptyCanvas(type);
   }
 
@@ -343,18 +347,14 @@ export class CanvasComponent {
       e.dataTransfer!.dropEffect = "none";
       return;
     }
-    const raw = (
-      e.dataTransfer?.getData("application/widget-type") ||
-      e.dataTransfer?.getData("text/plain") ||
-      ""
-    ).trim();
+    const raw = (e.dataTransfer?.getData(DragDropDataKey.WidgetType) || e.dataTransfer?.getData("text/plain") || "").trim();
     const type = raw.toLowerCase();
-    (e.currentTarget as HTMLElement)?.classList.toggle("canvas-empty-state-drag-over", type === "table");
-    e.dataTransfer!.dropEffect = type === "table" ? "copy" : "none";
+    (e.currentTarget as HTMLElement)?.classList.toggle(DragDropCssClass.EmptyStateDragOver, type === WIDGET_TYPE_TABLE);
+    e.dataTransfer!.dropEffect = type === WIDGET_TYPE_TABLE ? "copy" : "none";
   }
 
   onEmptyStateDragLeave(e: DragEvent): void {
-    (e.currentTarget as HTMLElement)?.classList.remove("canvas-empty-state-drag-over");
+    (e.currentTarget as HTMLElement)?.classList.remove(DragDropCssClass.EmptyStateDragOver);
   }
 
   onTableDragLeave(e: DragEvent): void {
@@ -515,7 +515,7 @@ export class CanvasComponent {
       console.log("[Save layout] state saved to localStorage (tags & nesting, bindings as paths):", state);
       const clone = this.getPreviewClone();
       console.log("[Save layout] clone (same as Download HTML — no toolbar, no table tools):", clone);
-      const name = result.name.trim() || "Untitled";
+      const name = result.name.trim() || DEFAULT_LAYOUT_NAME;
       if (result.layoutId) {
         this.savedLayouts.updateLayout(result.layoutId, state, name);
       } else {
@@ -574,7 +574,7 @@ export class CanvasComponent {
         return;
       }
       this.layoutDropdownOverride.set(undefined);
-      const name = result.name.trim() || "Untitled";
+      const name = result.name.trim() || DEFAULT_LAYOUT_NAME;
       const state = this.canvas.getInitialLayoutState();
       this.savedLayouts.addLayout(name, state);
       this.canvas.loadState(state);

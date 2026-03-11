@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatDialogModule, MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { MatButtonModule } from '@angular/material/button';
+import { DEFAULT_LAYOUT_NAME } from '../../constants/canvas.constants';
 
 export interface LayoutNameDialogData {
   title?: string;
@@ -33,7 +34,7 @@ export class LayoutNameDialogComponent {
 
   save(): void {
     this.dialogRef.close({
-      name: this.name().trim() || 'Untitled',
+      name: this.name().trim() || DEFAULT_LAYOUT_NAME,
       layoutId: this.data?.layoutId ?? null,
     });
   }

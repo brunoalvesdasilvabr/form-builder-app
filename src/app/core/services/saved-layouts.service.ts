@@ -1,5 +1,6 @@
 import { Injectable, signal, computed } from '@angular/core';
 import type { CanvasState } from '../../shared/models/canvas.model';
+import { DEFAULT_LAYOUT_NAME } from '../../shared/constants/canvas.constants';
 import { generateId } from '../../shared/utils/id.util';
 
 export interface SavedLayout {
@@ -53,7 +54,7 @@ export class SavedLayoutsService {
   }
 
   addLayout(name: string, state: CanvasState): SavedLayout {
-    const trimmed = name.trim() || 'Untitled';
+    const trimmed = name.trim() || DEFAULT_LAYOUT_NAME;
     const layout: SavedLayout = {
       id: generateId('layout'),
       name: trimmed,
@@ -72,7 +73,7 @@ export class SavedLayoutsService {
         l.id === id
           ? {
               ...l,
-              name: name != null ? (name.trim() || 'Untitled') : l.name,
+              name: name != null ? (name.trim() || DEFAULT_LAYOUT_NAME) : l.name,
               state: JSON.parse(JSON.stringify(state)),
               updatedAt: Date.now(),
             }
