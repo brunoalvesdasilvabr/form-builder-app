@@ -7,6 +7,7 @@ const BUILDER_ELEMENT_SELECTORS = [
   '.canvas-toolbar',
   '.canvas-table-toolbar',
   '.canvas-sidebar',
+  '.embedded-table-toolbar',
   '.embedded-sidebar',
   '.widget-remove',
   '.widget-cell-remove',

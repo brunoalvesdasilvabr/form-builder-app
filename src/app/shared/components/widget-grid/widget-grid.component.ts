@@ -1,4 +1,4 @@
-import { Component, input, HostBinding, computed, effect } from '@angular/core';
+import { Component, input, signal, HostBinding, computed, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatTableModule, MatTableDataSource } from '@angular/material/table';
 import type { WidgetInstance } from '../../models/canvas.model';
@@ -21,6 +21,12 @@ const PLACEHOLDER_ROW = [{ placeholder: 'No data' }];
 export class WidgetGridComponent extends BaseWidgetComponent {
   override readonly widget = input.required<WidgetInstance>();
 
+  /** When set, the column at this index is selected (e.g. for right-panel editing). */
+  readonly selectedColumnIndex = input<number | null>(null);
+
+  /** Column index being hovered; used for per-column hover outline. */
+  readonly hoveredColumnIndex = signal<number | null>(null);
+
   /** Columns to display: from widget.gridColumns or one default column. */
   readonly columns = computed(() => {
     const w = this.widget();
@@ -36,9 +42,16 @@ export class WidgetGridComponent extends BaseWidgetComponent {
     return col.activityDataProperty ?? col.columnName;
   }
 
-  /** CSS class(es) for column cells. */
-  getColumnClass(col: Record<string, unknown>): string {
-    return (col['className'] as string) ?? '';
+  /** CSS class(es) for column cells; adds grid-col-selected when selected, grid-col-hovered on hover. */
+  getColumnClass(col: Record<string, unknown>, columnIndex: number): string {
+    const base = (col['className'] as string) ?? '';
+    const selected = this.selectedColumnIndex() === columnIndex ? ' grid-col-selected' : '';
+    const hovered = this.hoveredColumnIndex() === columnIndex ? ' grid-col-hovered' : '';
+    return base + selected + hovered;
+  }
+
+  setColumnHover(index: number | null): void {
+    this.hoveredColumnIndex.set(index);
   }
 
   /** Text alignment for column cells. */

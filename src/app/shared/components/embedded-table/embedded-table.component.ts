@@ -23,6 +23,7 @@ import { generateId } from '../../utils/id.util';
 import { createDefaultNestedTable } from '../../utils/nested-table.util';
 import { computeMergeRange, canMergeFromRange, updateSelectionForCtrlClick } from '../../utils/grid-selection.util';
 import { getElementKeyFromElement } from '../../utils/element-target.util';
+import { computeLayoutDropPosition } from '../../utils/layout-drop.util';
 import { CanvasService } from '../../../core/services/canvas.service';
 import { LayoutGuardService } from '../../../core/services/layout-guard.service';
 
@@ -51,9 +52,6 @@ export class EmbeddedTableComponent {
   private readonly state = signal<NestedTableState | null>(null);
 
   private readonly initialDefault = this.defaultState(); // fallback before widget has nestedTable
-
-  /** Cell being hovered (for - Row / - Col buttons). */
-  readonly hoveredCell = signal<{ rowIndex: number; colIndex: number } | null>(null);
 
   /** When dragging Row/Col: { type, rowIndex, colIndex, position } for drop line preview. */
   readonly layoutDropPreview = signal<{
@@ -85,6 +83,14 @@ export class EmbeddedTableComponent {
         this.state.set(nested);
       } else if (!this.state()) {
         this.state.set(this.defaultState());
+      }
+    });
+    effect(() => {
+      const path = this.canvas.nestedSelectionPath();
+      const pid = this.parentCellId();
+      const wid = this.parentWidgetId();
+      if (!path || pid !== path.parentCellId || wid !== path.parentWidgetId) {
+        this.selectionCells.set([]);
       }
     });
   }
@@ -267,11 +273,9 @@ export class EmbeddedTableComponent {
     el?.classList.add('embedded-cell-drag-over');
     if (layoutRow || layoutCol) {
       const rect = el.getBoundingClientRect();
-      const x = (e.clientX - rect.left) / rect.width;
-      const y = (e.clientY - rect.top) / rect.height;
       const type = layoutRow ? 'row' : 'col';
-      const position = type === 'row' ? (y < 0.5 ? 'before' : 'after') : (x < 0.5 ? 'before' : 'after');
-      this.layoutDropPreview.set({ type: type as 'row' | 'col', rowIndex: targetCell.rowIndex, colIndex: targetCell.colIndex, position: position as 'before' | 'after' });
+      const position = computeLayoutDropPosition(rect, e.clientX, e.clientY, type);
+      this.layoutDropPreview.set({ type, rowIndex: targetCell.rowIndex, colIndex: targetCell.colIndex, position });
     } else {
       this.layoutDropPreview.set(null);
     }
@@ -312,12 +316,19 @@ export class EmbeddedTableComponent {
     return this.selectionCells().includes(`${rowIndex},${colIndex}`);
   }
 
-  // same as canvas: ctrl+click to add/remove from selection (no unmerge). Stop propagation so inner table owns selection.
+  // ctrl+click = add/remove from selection (for Merge/Delete in canvas toolbar). Sync to canvas.
   onCellClick(e: MouseEvent, rowIndex: number, colIndex: number, cell: NestedTableCell): void {
     e.stopPropagation();
     if (e.ctrlKey) {
-      this.selectionCells.set(updateSelectionForCtrlClick(this.selectionCells(), rowIndex, colIndex));
-    } else {
+      const next = updateSelectionForCtrlClick(this.selectionCells(), rowIndex, colIndex);
+      this.selectionCells.set(next);
+      const parentCellId = this.parentCellId();
+      const parentWidgetId = this.parentWidgetId();
+      if (parentCellId && parentWidgetId) {
+        this.canvas.setNestedSelection(parentCellId, parentWidgetId, next);
+      }
+      return;
+    }
       this.clearMergeSelection();
       const parentCellId = this.parentCellId();
       const parentWidgetId = this.parentWidgetId();
@@ -353,11 +364,11 @@ export class EmbeddedTableComponent {
       } else {
         doSelect();
       }
-    }
   }
 
   clearMergeSelection(): void {
     this.selectionCells.set([]);
+    this.canvas.clearNestedSelection();
   }
 
   mergeSelection(): void {

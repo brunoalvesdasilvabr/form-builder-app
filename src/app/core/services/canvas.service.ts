@@ -6,8 +6,11 @@ import type {
   WidgetInstance,
   WidgetType,
   NestedTableState,
+  NestedTableRow,
+  NestedTableCell,
   BindableProperty,
 } from '../../shared/models/canvas.model';
+import { computeMergeRange, canMergeFromRange } from '../../shared/utils/grid-selection.util';
 import { ACTIVITIES_BINDING_PATHS, TextAlignment, ValidatorKey } from '../../shared/enums';
 import { getDefaultWidgetLabel, FORM_CONTROL_WIDGET_TYPES } from '../../shared/models/canvas.model';
 import * as gridMerge from '../../shared/utils/grid-merge.util';
@@ -83,6 +86,31 @@ export class CanvasService {
   /** For radio: which option is selected in the right panel (when user clicked that option) */
   readonly selectedOptionIndex = signal<number | null>(null);
 
+  /** Canvas (top-level) multi-cell selection. Cleared when user ctrl+clicks in embedded table. */
+  readonly canvasSelectionCells = signal<string[]>([]);
+  /** Nested table multi-cell selection (for Merge/Delete in toolbar). */
+  readonly nestedSelectionPath = signal<{ parentCellId: string; parentWidgetId: string } | null>(null);
+  readonly nestedSelectionCells = signal<string[]>([]);
+
+  setCanvasSelection(cells: string[]): void {
+    this.canvasSelectionCells.set(cells);
+  }
+
+  clearCanvasSelection(): void {
+    this.canvasSelectionCells.set([]);
+  }
+
+  setNestedSelection(parentCellId: string, parentWidgetId: string, cellKeys: string[]): void {
+    if (cellKeys.length > 0) this.clearCanvasSelection();
+    this.nestedSelectionPath.set(cellKeys.length ? { parentCellId, parentWidgetId } : null);
+    this.nestedSelectionCells.set(cellKeys.length ? [...cellKeys] : []);
+  }
+
+  clearNestedSelection(): void {
+    this.nestedSelectionPath.set(null);
+    this.nestedSelectionCells.set([]);
+  }
+
   /** Available properties for binding dropdown; value is used as {{ value }} in component input/value. */
   readonly bindableProperties: BindableProperty[] = [
     { value: 'arrangements[0].accountArrangement.taxOverlayAccountSetup.lifeCycleStatusType.name', label: 'taxOverlayStatus' },
@@ -134,6 +162,8 @@ export class CanvasService {
   ): void {
     this.selectedCellId.set(cellId);
     this.selectedNestedPath.set(null);
+    this.nestedSelectionPath.set(null);
+    this.nestedSelectionCells.set([]);
     this.selectedTarget.set(target);
     this.selectedElementKey.set(target === 'element' ? (elementKey ?? null) : null);
     this.selectedOptionIndex.set(null);
@@ -683,6 +713,118 @@ export class CanvasService {
     });
     this.state.set({ rows: next });
     return true;
+  }
+
+  /** Merge range for nested selection; null if not a valid rectangle. */
+  getNestedMergeRange(): { r0: number; r1: number; c0: number; c1: number } | null {
+    return computeMergeRange(this.nestedSelectionCells());
+  }
+
+  canMergeNested(): boolean {
+    return canMergeFromRange(this.getNestedMergeRange());
+  }
+
+  /** When a nested cell is selected, returns its row/col; otherwise null. */
+  getSelectedNestedRowCol(): { rowIndex: number; colIndex: number } | null {
+    const path = this.selectedNestedPath();
+    if (!path) return null;
+    const parent = this.state().rows.flatMap((r) => r.cells).find((c) => c.id === path.parentCellId);
+    const table = parent?.widget?.type === 'table' ? parent.widget : null;
+    const nestedRows = table?.nestedTable?.rows ?? [];
+    for (const row of nestedRows) {
+      const cell = row.cells.find((c) => c.id === path.nestedCellId);
+      if (cell) return { rowIndex: cell.rowIndex, colIndex: cell.colIndex };
+    }
+    return null;
+  }
+
+  /** Row and column count of a nested table. */
+  getNestedTableSize(parentCellId: string, parentWidgetId: string): { rowCount: number; colCount: number } | null {
+    const parent = this.state().rows.flatMap((r) => r.cells).find((c) => c.id === parentCellId);
+    const table = parent?.widget?.type === 'table' ? parent.widget : null;
+    const nested = table?.nestedTable?.rows;
+    if (!nested?.length) return null;
+    return { rowCount: nested.length, colCount: nested[0].cells.length };
+  }
+
+  removeNestedRowAt(parentCellId: string, parentWidgetId: string, rowIndex: number): boolean {
+    const parent = this.state().rows.flatMap((r) => r.cells).find((c) => c.id === parentCellId);
+    const table = parent?.widget?.type === 'table' ? parent.widget : null;
+    const nested = table?.nestedTable?.rows;
+    if (!nested || nested.length <= 1) return false;
+    if (rowIndex < 0 || rowIndex >= nested.length) return false;
+    this.pushHistory();
+    const newRows = nested
+      .filter((_, i) => i !== rowIndex)
+      .map((r, ri) => ({ ...r, cells: r.cells.map((c, ci) => ({ ...c, rowIndex: ri, colIndex: ci })) })) as NestedTableRow[];
+    this.updateNestedTable(parentCellId, parentWidgetId, { rows: newRows });
+    return true;
+  }
+
+  removeNestedColumnAt(parentCellId: string, parentWidgetId: string, colIndex: number): boolean {
+    const parent = this.state().rows.flatMap((r) => r.cells).find((c) => c.id === parentCellId);
+    const table = parent?.widget?.type === 'table' ? parent.widget : null;
+    const nested = table?.nestedTable?.rows;
+    const colCount = nested?.[0]?.cells.length ?? 0;
+    if (!nested?.length || colCount <= 1) return false;
+    if (colIndex < 0 || colIndex >= colCount) return false;
+    this.pushHistory();
+    const newRows = nested.map((row, ri) => {
+      const cells = row.cells.filter((_, ci) => ci !== colIndex).map((c, ci) => ({ ...c, rowIndex: ri, colIndex: ci })) as NestedTableCell[];
+      return { ...row, cells };
+    }) as NestedTableRow[];
+    this.updateNestedTable(parentCellId, parentWidgetId, { rows: newRows });
+    return true;
+  }
+
+  mergeNestedSelection(): void {
+    const path = this.nestedSelectionPath();
+    const range = this.getNestedMergeRange();
+    if (!path || !range || !canMergeFromRange(range)) return;
+    const parent = this.state().rows.flatMap((r) => r.cells).find((c) => c.id === path.parentCellId);
+    const table = parent?.widget?.type === 'table' ? parent.widget : null;
+    const nested = table?.nestedTable?.rows;
+    if (!nested) return;
+    this.pushHistory();
+    const mergedRows = gridMerge.mergeCells(nested as gridMerge.MergeableRow[], range.r0, range.c0, range.r1, range.c1);
+    this.updateNestedTable(path.parentCellId, path.parentWidgetId, { rows: mergedRows as NestedTableRow[] });
+    this.clearNestedSelection();
+  }
+
+  deleteNestedSelection(): void {
+    const path = this.nestedSelectionPath();
+    const cells = this.nestedSelectionCells();
+    if (!path || !cells.length) return;
+    const parent = this.state().rows.flatMap((r) => r.cells).find((c) => c.id === path.parentCellId);
+    const table = parent?.widget?.type === 'table' ? parent.widget : null;
+    const nested = table?.nestedTable?.rows;
+    if (!nested) return;
+    this.pushHistory();
+    const keysSet = new Set(cells);
+    const newRows = nested.map((row) => ({
+      ...row,
+      cells: row.cells.map((c) => {
+        const key = `${c.rowIndex},${c.colIndex}`;
+        return keysSet.has(key) ? { ...c, widget: null } : c;
+      }),
+    })) as NestedTableRow[];
+    this.updateNestedTable(path.parentCellId, path.parentWidgetId, { rows: newRows });
+    this.clearNestedSelection();
+  }
+
+  deleteCanvasSelection(selectionCells: string[]): void {
+    if (!selectionCells.length) return;
+    const keysSet = new Set(selectionCells);
+    this.pushHistory();
+    const rows = this.state().rows.map((row) => ({
+      ...row,
+      cells: row.cells.map((c) => {
+        const key = `${c.rowIndex},${c.colIndex}`;
+        return keysSet.has(key) ? { ...c, widget: null } : c;
+      }),
+    }));
+    this.state.set({ rows });
+    this.clearCanvasSelection();
   }
 
   createDefaultNestedTable(): NestedTableState {

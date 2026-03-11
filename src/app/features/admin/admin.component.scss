@@ -60,6 +60,26 @@
   color: var(--text);
 }
 
+.admin-right-panel-close {
+  flex-shrink: 0;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius);
+  background: transparent;
+  font-size: 1.25rem;
+  line-height: 1;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+
+  &:hover {
+    color: var(--text);
+    background: var(--bg-cell-hover);
+  }
+}
+
 .admin-right-panel-body {
   padding: 1rem;
 }

@@ -31,7 +31,11 @@ export class WidgetRendererComponent {
   widget = input.required<WidgetInstance>();
   cellId = input<string | undefined>(undefined);
   showRemove = input<boolean>(true);
+  /** When widget is grid: selected column index for outline; null = none. */
+  selectedGridColumnIndex = input<number | null>(null);
   removeWidget = output<void>();
+  cellDrop = output<DragEvent>();
+  cellDragOver = output<DragEvent>();
   nestedTableChange = output<NestedTableState>();
   labelChange = output<string>();
   optionsChange = output<string[]>();
@@ -64,6 +68,28 @@ export class WidgetRendererComponent {
 
   @HostListener('dragend') onDragEnd(): void {
     this.isDragging = false;
+  }
+
+  @HostListener('dragover', ['$event']) onHostDragOver(e: DragEvent): void {
+    if (this.widget()?.type !== 'grid') return;
+    const isGridAction =
+      e.dataTransfer?.types.includes('application/grid-action-row') ||
+      e.dataTransfer?.types.includes('application/grid-action-col');
+    if (!isGridAction) return;
+    e.preventDefault();
+    e.stopPropagation();
+    this.cellDragOver.emit(e);
+  }
+
+  @HostListener('drop', ['$event']) onHostDrop(e: DragEvent): void {
+    if (this.widget()?.type !== 'grid') return;
+    const isGridAction =
+      e.dataTransfer?.types.includes('application/grid-action-row') ||
+      e.dataTransfer?.types.includes('application/grid-action-col');
+    if (!isGridAction) return;
+    e.preventDefault();
+    e.stopPropagation();
+    this.cellDrop.emit(e);
   }
 
   onRemove(e: Event): void {

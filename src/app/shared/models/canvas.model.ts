@@ -1,6 +1,7 @@
 /** Re-export enums from shared location. */
 export {
   ACTIVITIES_BINDING_PATHS,
+  GridAction,
   LayoutAction,
   LayoutDropPosition,
   LayoutOption,
@@ -9,6 +10,7 @@ export {
   ValidatorKey,
 } from '../enums';
 export type {
+  GridActionType,
   LayoutActionType,
   LayoutDropPositionType,
   LayoutOptionType,

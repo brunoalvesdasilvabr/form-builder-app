@@ -19,6 +19,16 @@
   box-sizing: border-box;
 }
 
+.embedded-table-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.5rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-panel);
+}
+
 .embedded-table-scroll {
   width: 100%;
   min-width: 0;
@@ -217,6 +227,12 @@
 .embedded-btn-merge {
   font-size: 0.65rem;
   padding: 0.2rem 0.35rem;
-  width: 100%;
+  width: auto;
   color: var(--accent);
+}
+
+.embedded-table-toolbar .embedded-btn-minus {
+  width: auto;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.75rem;
 }

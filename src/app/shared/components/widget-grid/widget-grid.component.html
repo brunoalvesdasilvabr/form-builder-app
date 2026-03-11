@@ -1,19 +1,25 @@
 @if (widget(); as w) {
-  <div class="widget-grid-wrap" [ngClass]="getElementClassObj('table')">
+  <div
+      class="widget-grid-wrap"
+      [ngClass]="getElementClassObj('table')"
+      (mouseleave)="setColumnHover(null)"
+    >
     <table mat-table [dataSource]="dataSource" class="widget-grid-table">
-      @for (col of columns(); track col.id) {
+      @for (col of columns(); track col.id; let colIdx = $index) {
         <ng-container [matColumnDef]="col.columnName">
           <td
             mat-cell
             *matCellDef="let row"
-            [ngClass]="getColumnClass(col)"
+            [ngClass]="getColumnClass(col, colIdx)"
             [style.text-align]="getColumnAlignment(col)"
+            (mouseenter)="setColumnHover(colIdx)"
           >{{ row[getDisplayKey(col)] ?? row["placeholder"] ?? "—" }}</td>
           <td
             mat-footer-cell
             *matFooterCellDef
-            [ngClass]="getColumnClass(col)"
+            [ngClass]="getColumnClass(col, colIdx)"
             [style.text-align]="getColumnAlignment(col)"
+            (mouseenter)="setColumnHover(colIdx)"
           >{{ totalRow() ? totalRow()![getDisplayKey(col)] : "" }}</td>
         </ng-container>
       }

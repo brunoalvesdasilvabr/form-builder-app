@@ -21,6 +21,7 @@ import {
   updateSelectionForCtrlClick,
 } from "../../../../shared/utils/grid-selection.util";
 import { getElementKeyFromElement } from "../../../../shared/utils/element-target.util";
+import { computeLayoutDropPosition } from "../../../../shared/utils/layout-drop.util";
 import { FormLayoutNameDirective } from "../../../../shared/directives/form-layout-name.directive";
 import { toSafeFilename } from "../../../../shared/utils/safe-filename.util";
 
@@ -51,11 +52,14 @@ export class CanvasComponent {
 
   readonly rows = this.canvas.rows;
   readonly canUndo = this.canvas.canUndo;
+  readonly selectedCell = this.canvas.selectedCell;
+  readonly selectedGridColumnIndex = this.canvas.selectedGridColumnIndex;
+  readonly selectedNestedPath = this.canvas.selectedNestedPath;
+  readonly nestedSelectionPath = this.canvas.nestedSelectionPath;
+  readonly nestedSelectionCells = this.canvas.nestedSelectionCells;
 
-  readonly selectionCells = signal<string[]>([]); // "row,col" keys, merge only if they form a rectangle
-
-  /** Cell being hovered (for - Row / - Col buttons). */
-  readonly hoveredCell = signal<{ rowIndex: number; colIndex: number } | null>(null);
+  /** Canvas (top-level) multi-cell selection. Cleared when user ctrl+clicks in embedded table. */
+  readonly selectionCells = this.canvas.canvasSelectionCells;
 
   /** When dragging Row/Col from palette: { type, rowIndex, colIndex, position } for drop line preview. */
   readonly layoutDropPreview = signal<{
@@ -68,7 +72,38 @@ export class CanvasComponent {
   readonly mergeRange = computed(() => computeMergeRange(this.selectionCells()));
   readonly canMerge = computed(() => canMergeFromRange(this.mergeRange()));
 
+  /** Merge possible on top-level canvas selection. */
+  readonly canMergeCanvas = computed(() => this.canMerge());
+
+  /** Merge possible on nested table selection (embedded table ctrl+click). */
+  readonly canMergeNested = computed(() => this.canvas.canMergeNested());
+
+  /** Show Merge when either canvas or nested has a mergeable selection. */
+  readonly showMerge = computed(() => this.canMergeCanvas() || this.canMergeNested());
+
+  /** Show Delete when there is any selection (canvas or nested). */
+  readonly showDelete = computed(
+    () => this.selectionCells().length > 0 || (this.nestedSelectionPath() != null && this.nestedSelectionCells().length > 0)
+  );
+
+  /** True when − Row / − Col are shown (ctrl+click selection). When true, we show only those, not Delete. */
+  readonly showStructuralRemoveButtons = computed(() => {
+    if (this.selectionCells().length > 0 && this.mergeRange()) return true;
+    if (this.nestedSelectionPath() != null && this.nestedSelectionCells().length > 0 && this.getNestedMergeRange()) return true;
+    return false;
+  });
+
   readonly layoutOptionNew = LayoutOption.NewLayout;
+
+  /** When set to null, forces the dropdown to show "Select Template" (e.g. after cancel). Undefined = use selectedLayoutId. */
+  private readonly layoutDropdownOverride = signal<string | null | undefined>(undefined);
+
+  /** Value for the template dropdown; overrides selectedLayoutId when layoutDropdownOverride is set. */
+  readonly layoutDropdownValue = computed(() => {
+    const over = this.layoutDropdownOverride();
+    if (over !== undefined) return over;
+    return this.selectedLayoutId() ?? null;
+  });
 
   @ViewChild('canvasFormRef') private canvasFormRef?: ElementRef<HTMLFormElement>;
 
@@ -76,11 +111,13 @@ export class CanvasComponent {
     return this.selectionCells().includes(`${rowIndex},${colIndex}`);
   }
 
-  // ctrl+click = add/remove from selection (no unmerge). no ctrl = clear or open right panel
+  // ctrl+click = add/remove from selection (for merge). no ctrl = clear or open right panel
   onCellClick(e: MouseEvent, rowIndex: number, colIndex: number, cell: CanvasCell): void {
+    this.canvas.clearNestedSelection();
     if (e.ctrlKey) {
-      this.selectionCells.set(updateSelectionForCtrlClick(this.selectionCells(), rowIndex, colIndex));
+      this.canvas.setCanvasSelection(updateSelectionForCtrlClick(this.selectionCells(), rowIndex, colIndex));
     } else {
+      this.clearSelection();
       if (cell.widget && cell.widget.type === "table") {
         this.canvas.setSelectedCell(null);
       } else {
@@ -118,7 +155,6 @@ export class CanvasComponent {
           this.setGridColumnSelection(cell, e);
         }
       }
-      this.clearSelection();
     }
   }
 
@@ -142,15 +178,36 @@ export class CanvasComponent {
   }
 
   clearSelection(): void {
-    this.selectionCells.set([]);
+    this.canvas.clearCanvasSelection();
   }
 
   mergeSelection(): void {
     const range = this.mergeRange();
     if (!range || !this.canMerge()) return;
-    const { r0, r1, c0, c1 } = range;
+    const { r0, c0, r1, c1 } = range;
     this.canvas.mergeCells(r0, c0, r1, c1);
     this.clearSelection();
+  }
+
+  /** Run merge: nested table or canvas depending on current selection. */
+  runMerge(): void {
+    if (this.canvas.canMergeNested()) {
+      this.canvas.mergeNestedSelection();
+      this.cdr.detectChanges();
+    } else if (this.canMerge()) {
+      this.mergeSelection();
+    }
+  }
+
+  /** Delete selected cells' content (nested or canvas). */
+  deleteSelection(): void {
+    if (this.nestedSelectionPath() != null && this.nestedSelectionCells().length > 0) {
+      this.canvas.deleteNestedSelection();
+      this.cdr.detectChanges();
+    } else if (this.selectionCells().length > 0) {
+      this.canvas.deleteCanvasSelection(this.selectionCells());
+      this.clearSelection();
+    }
   }
 
   hasSelection(): boolean {
@@ -169,19 +226,29 @@ export class CanvasComponent {
       } catch {
         // bad payload, skip
       }
-      (e.currentTarget as HTMLElement)?.classList.remove("canvas-cell-drag-over");
+      (((e.currentTarget as HTMLElement).closest?.('td') ?? e.currentTarget) as HTMLElement)?.classList.remove("canvas-cell-drag-over");
+      return;
+    }
+    const gridAction = e.dataTransfer?.getData("application/grid-action") || undefined;
+    if (gridAction === "row" || gridAction === "col") {
+      if (targetCell.widget?.type === "grid") {
+        if (gridAction === "row") this.canvas.addGridRow(targetCell.id, targetCell.widget.id);
+        else this.canvas.addGridColumn(targetCell.id, targetCell.widget.id);
+      }
+      (((e.currentTarget as HTMLElement).closest?.('td') ?? e.currentTarget) as HTMLElement)?.classList.remove("canvas-cell-drag-over");
       return;
     }
     const layoutAction = e.dataTransfer?.getData("application/layout-action") || e.dataTransfer?.getData("text/plain");
     if (layoutAction === "row" || layoutAction === "col") {
+      if (targetCell.widget?.type === "grid") {
+        (((e.currentTarget as HTMLElement).closest?.('td') ?? e.currentTarget) as HTMLElement)?.classList.remove("canvas-cell-drag-over");
+        return;
+      }
       const preview = this.layoutDropPreview();
       const pos = preview?.rowIndex === targetCell.rowIndex && preview?.colIndex === targetCell.colIndex
         ? preview.position
         : 'before';
-      if (targetCell.widget?.type === "grid") {
-        if (layoutAction === "row") this.canvas.addGridRow(targetCell.id, targetCell.widget.id);
-        else this.canvas.addGridColumn(targetCell.id, targetCell.widget.id);
-      } else if (targetCell.isMergedOrigin) {
+      if (targetCell.isMergedOrigin) {
         if (layoutAction === "row") {
           this.canvas.addRowAt(pos === 'after' ? targetCell.rowIndex + 1 : targetCell.rowIndex);
         } else {
@@ -189,7 +256,7 @@ export class CanvasComponent {
         }
       }
       this.layoutDropPreview.set(null);
-      (e.currentTarget as HTMLElement)?.classList.remove("canvas-cell-drag-over");
+      (((e.currentTarget as HTMLElement).closest?.('td') ?? e.currentTarget) as HTMLElement)?.classList.remove("canvas-cell-drag-over");
       this.layoutDropPreview.set(null);
       return;
     }
@@ -203,32 +270,42 @@ export class CanvasComponent {
     if (!type || !WIDGET_TYPES.includes(type)) return;
     if (!targetCell.isMergedOrigin) return;
     this.canvas.setWidgetAt(targetCell.rowIndex, targetCell.colIndex, type);
-    (e.currentTarget as HTMLElement)?.classList.remove("canvas-cell-drag-over");
+    (((e.currentTarget as HTMLElement).closest?.('td') ?? e.currentTarget) as HTMLElement)?.classList.remove("canvas-cell-drag-over");
   }
 
   onDragOver(e: DragEvent, targetCell: CanvasCell): void {
     e.preventDefault();
     const moveData = e.dataTransfer?.types.includes("application/x-canvas-move");
+    const gridRow = e.dataTransfer?.types.includes("application/grid-action-row");
+    const gridCol = e.dataTransfer?.types.includes("application/grid-action-col");
     const layoutRow = e.dataTransfer?.types.includes("application/layout-action-row");
     const layoutCol = e.dataTransfer?.types.includes("application/layout-action-col");
+    const el = ((e.currentTarget as HTMLElement).closest?.('td') ?? e.currentTarget) as HTMLElement;
+    if (gridRow || gridCol) {
+      if (targetCell.widget?.type === "grid") {
+        el?.classList.add("canvas-cell-drag-over");
+        e.dataTransfer!.dropEffect = "copy";
+      } else {
+        e.dataTransfer!.dropEffect = "none";
+      }
+      this.layoutDropPreview.set(null);
+      return;
+    }
     e.dataTransfer!.dropEffect = moveData ? "move" : "copy";
-    const el = e.currentTarget as HTMLElement;
     el?.classList.add("canvas-cell-drag-over");
     if (layoutRow || layoutCol) {
       if (targetCell.widget?.type === "grid" || !targetCell.isMergedOrigin) return;
       const rect = el.getBoundingClientRect();
-      const x = (e.clientX - rect.left) / rect.width;
-      const y = (e.clientY - rect.top) / rect.height;
       const type = layoutRow ? "row" : "col";
-      const position = type === "row" ? (y < 0.5 ? "before" : "after") : (x < 0.5 ? "before" : "after");
-      this.layoutDropPreview.set({ type: type as 'row' | 'col', rowIndex: targetCell.rowIndex, colIndex: targetCell.colIndex, position: position as 'before' | 'after' });
+      const position = computeLayoutDropPosition(rect, e.clientX, e.clientY, type);
+      this.layoutDropPreview.set({ type, rowIndex: targetCell.rowIndex, colIndex: targetCell.colIndex, position });
     } else {
       this.layoutDropPreview.set(null);
     }
   }
 
   onDragLeave(e: DragEvent): void {
-    (e.currentTarget as HTMLElement)?.classList.remove("canvas-cell-drag-over");
+    (((e.currentTarget as HTMLElement).closest?.('td') ?? e.currentTarget) as HTMLElement)?.classList.remove("canvas-cell-drag-over");
   }
 
   onEmptyStateDrop(e: DragEvent): void {
@@ -276,6 +353,100 @@ export class CanvasComponent {
 
   removeWidget(cellId: string): void {
     this.canvas.removeWidget(cellId);
+  }
+
+  /** When a nested cell is selected, returns its { rowIndex, colIndex } in that table; otherwise null. */
+  getSelectedNestedRowCol(): { rowIndex: number; colIndex: number } | null {
+    return this.canvas.getSelectedNestedRowCol();
+  }
+
+  /** Merge range for the current nested selection (for − Row / − Col index). */
+  getNestedMergeRange(): { r0: number; r1: number; c0: number; c1: number } | null {
+    return this.canvas.getNestedMergeRange();
+  }
+
+  /** Whether the selected nested table has more than one row (so − Row is allowed). */
+  canRemoveNestedRow(path: { parentCellId: string; parentWidgetId: string }): boolean {
+    const size = this.canvas.getNestedTableSize(path.parentCellId, path.parentWidgetId);
+    return (size?.rowCount ?? 0) > 1;
+  }
+
+  /** Whether the selected nested table has more than one column (so − Col is allowed). */
+  canRemoveNestedCol(path: { parentCellId: string; parentWidgetId: string }): boolean {
+    const size = this.canvas.getNestedTableSize(path.parentCellId, path.parentWidgetId);
+    return (size?.colCount ?? 0) > 1;
+  }
+
+  /** Single Row button: remove row from nested table if that's selected, else from canvas. */
+  removeActiveRow(): void {
+    const path = this.nestedSelectionPath();
+    if (path != null && this.nestedSelectionCells().length > 0) {
+      const range = this.getNestedMergeRange();
+      if (range && this.canRemoveNestedRow(path)) {
+        this.canvas.removeNestedRowAt(path.parentCellId, path.parentWidgetId, range.r0);
+      }
+    } else {
+      const range = this.mergeRange();
+      if (range && this.rows().length > 1) {
+        this.canvas.removeRowAt(range.r0);
+        this.clearSelection();
+      }
+    }
+  }
+
+  /** Single Col button: remove the entire column at the selected range. */
+  removeActiveCol(): void {
+    const path = this.nestedSelectionPath();
+    if (path != null && this.nestedSelectionCells().length > 0) {
+      const range = this.getNestedMergeRange();
+      if (range && this.canRemoveNestedCol(path)) {
+        this.canvas.removeNestedColumnAt(path.parentCellId, path.parentWidgetId, range.c0);
+      }
+    } else {
+      const range = this.mergeRange();
+      if (range && this.rows().length > 0 && this.rows()[0].cells.length > 1) {
+        this.canvas.removeColumnAt(range.c0);
+        this.clearSelection();
+      }
+    }
+  }
+
+  /** Show − Row only when a single row is selected (one cell or one full row), not when multiple rows are selected. */
+  readonly showRemoveRow = computed(() => {
+    const nestedPath = this.nestedSelectionPath();
+    if (nestedPath != null && this.nestedSelectionCells().length > 0) {
+      const range = this.getNestedMergeRange();
+      if (!range || range.r0 !== range.r1) return false;
+      return this.canRemoveNestedRow(nestedPath);
+    }
+    const range = this.mergeRange();
+    if (!range || range.r0 !== range.r1) return false;
+    return this.selectionCells().length > 0 && this.rows().length > 1;
+  });
+
+  /** Show − Col only when a single column is selected (one cell or one full column), not when multiple columns are selected. */
+  readonly showRemoveCol = computed(() => {
+    const nestedPath = this.nestedSelectionPath();
+    if (nestedPath != null && this.nestedSelectionCells().length > 0) {
+      const range = this.getNestedMergeRange();
+      if (!range || range.c0 !== range.c1) return false;
+      return this.canRemoveNestedCol(nestedPath);
+    }
+    const range = this.mergeRange();
+    if (!range || range.c0 !== range.c1) return false;
+    return (
+      this.selectionCells().length > 0 &&
+      this.rows().length > 0 &&
+      this.rows()[0].cells.length > 1
+    );
+  });
+
+  removeNestedRowAt(parentCellId: string, parentWidgetId: string, rowIndex: number): void {
+    this.canvas.removeNestedRowAt(parentCellId, parentWidgetId, rowIndex);
+  }
+
+  removeNestedColumnAt(parentCellId: string, parentWidgetId: string, colIndex: number): void {
+    this.canvas.removeNestedColumnAt(parentCellId, parentWidgetId, colIndex);
   }
 
   removeRowAt(rowIndex: number): void {
@@ -336,7 +507,9 @@ export class CanvasComponent {
     });
   }
 
+  /** Handles template dropdown change: New Template, Select Template, or a saved layout. */
   onLayoutSelect(value: string | null): void {
+    this.layoutDropdownOverride.set(undefined);
     if (value === LayoutOption.NewLayout) {
       this.openNewLayoutDialog();
       return;
@@ -353,11 +526,20 @@ export class CanvasComponent {
     }
   }
 
-  /** Opens name dialog for new layout; on save creates layout with empty state. User must save to start. */
+  /**
+   * Opens the "Please enter layout name" dialog for creating a new template.
+   * - While open: dropdown shows "New Template"
+   * - On Cancel: dropdown reverts to "Select Template"
+   * - On Save: creates the layout and selects it
+   */
   private openNewLayoutDialog(): void {
+    this.layoutDropdownOverride.set(LayoutOption.NewLayout);
     this.savedLayouts.selectLayout(null);
     this.canvas.loadState(this.canvas.getDefaultState());
     this.canvas.clearUndoHistory();
+    this.canvas.setSelectedCell(null);
+    this.clearSelection();
+    this.canvas.clearNestedSelection();
     const dialogRef = this.dialog.open(LayoutNameDialogComponent, {
       data: {
         title: "Please enter layout name.",
@@ -368,14 +550,20 @@ export class CanvasComponent {
     });
     dialogRef.afterClosed().subscribe((result: { name: string; layoutId: string | null } | undefined) => {
       if (!result) {
+        this.layoutDropdownOverride.set(null);
+        this.savedLayouts.selectLayout(null);
         this.cdr.detectChanges();
         return;
       }
+      this.layoutDropdownOverride.set(undefined);
       const name = result.name.trim() || "Untitled";
       const state = this.canvas.getInitialLayoutState();
       this.savedLayouts.addLayout(name, state);
       this.canvas.loadState(state);
       this.canvas.clearUndoHistory();
+      this.canvas.setSelectedCell(null);
+      this.clearSelection();
+      this.canvas.clearNestedSelection();
       this.cdr.detectChanges();
     });
   }
@@ -444,7 +632,7 @@ export class CanvasComponent {
   publish(): void {
     const html = this.getPublishHtml();
     console.log("[Publish] HTML (layout kept, component tags removed):", html);
-    this.snackBar.open("Form published. HTML (layout only, no component tags) has been logged to the console.", undefined, {
+    this.snackBar.open("Form published. HTML has been logged to the console.", undefined, {
       duration: 4000,
     });
   }

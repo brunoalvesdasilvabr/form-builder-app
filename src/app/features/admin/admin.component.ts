@@ -102,6 +102,10 @@ export class AdminComponent {
 
   readonly visibilityConditionSnippets = VISIBILITY_CONDITION_SNIPPETS;
 
+  closeRightPanel(): void {
+    this.canvas.setSelectedCell(null);
+  }
+
   /** Form group name from layout (slugified) for snippet placeholders */
   readonly formGroupName = computed(() => {
     const layout = this.savedLayouts.selectedLayout();

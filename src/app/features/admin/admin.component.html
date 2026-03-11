@@ -12,6 +12,13 @@
       <aside class="admin-right-panel">
         <div class="admin-right-panel-header">
           <h3 class="admin-right-panel-title">{{ getPropertiesPanelTitle() }}</h3>
+          <button
+            type="button"
+            class="admin-right-panel-close"
+            (click)="closeRightPanel()"
+            title="Close panel"
+            aria-label="Close panel"
+          >×</button>
         </div>
         <div class="admin-right-panel-body">
           @if (cell.widget && ['label', 'input', 'checkbox', 'radio'].includes(cell.widget.type)) {

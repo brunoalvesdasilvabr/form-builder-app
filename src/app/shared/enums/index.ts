@@ -2,9 +2,13 @@
  * Application enums - shared constants for type safety and readability.
  */
 
-/** Layout actions for drag-and-drop (add row/column from palette). */
+/** Layout actions for drag-and-drop (add row/column to table). */
 export const LayoutAction = { Row: 'row', Col: 'col' } as const;
 export type LayoutActionType = (typeof LayoutAction)[keyof typeof LayoutAction];
+
+/** Grid actions for drag-and-drop (add row/column to grid widget only). */
+export const GridAction = { Row: 'grid-row', Col: 'grid-col' } as const;
+export type GridActionType = (typeof GridAction)[keyof typeof GridAction];
 
 /** Drop position: before or after the target row/column. */
 export const LayoutDropPosition = { Before: 'before', After: 'after' } as const;

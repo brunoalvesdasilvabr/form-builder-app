@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { MatExpansionModule } from '@angular/material/expansion';
 import type { WidgetType } from '../../../../shared/models/canvas.model';
 import { WIDGET_LABELS, WIDGET_PALETTE_ICONS } from '../../../../shared/models/canvas.model';
-import { LayoutAction } from '../../../../shared/enums';
+import { GridAction, LayoutAction } from '../../../../shared/enums';
 
 @Component({
   selector: 'app-palette',
@@ -23,8 +23,13 @@ export class PaletteComponent {
   readonly layoutActionLabels: Record<string, string> = { [LayoutAction.Row]: 'Row', [LayoutAction.Col]: 'Col' };
   readonly layoutActionIcons: Record<string, string> = { [LayoutAction.Row]: '↕', [LayoutAction.Col]: '↔' };
 
-  /** Data section: label, input, grid, panel */
-  readonly dataWidgets: WidgetType[] = ['label', 'input', 'grid', 'panel'];
+  /** Data section: label, input, panel (grid is under its own submenu) */
+  readonly dataWidgets: WidgetType[] = ['label', 'input', 'panel'];
+
+  /** Grid submenu: add col only (rows cannot be added to grids) */
+  readonly gridActions = [GridAction.Col] as const;
+  readonly gridActionLabels: Record<string, string> = { [GridAction.Row]: 'Add Row', [GridAction.Col]: 'Add Col' };
+  readonly gridActionIcons: Record<string, string> = { [GridAction.Row]: '↕', [GridAction.Col]: '↔' };
 
   iconFor(type: WidgetType): string {
     return WIDGET_PALETTE_ICONS[type] ?? '?';
@@ -46,6 +51,18 @@ export class PaletteComponent {
     e.dataTransfer.setData('application/layout-action', action);
     e.dataTransfer.setData(`application/layout-action-${action}`, '');
     e.dataTransfer.setData('text/plain', action);
+    if (e.target instanceof HTMLElement) {
+      e.target.classList.add('palette-item-dragging');
+    }
+  }
+
+  onGridActionDragStart(e: DragEvent, action: string): void {
+    if (!e.dataTransfer) return;
+    const raw = action === GridAction.Row ? 'row' : 'col';
+    e.dataTransfer.effectAllowed = 'copy';
+    e.dataTransfer.setData('application/grid-action', raw);
+    e.dataTransfer.setData(`application/grid-action-${raw}`, '');
+    e.dataTransfer.setData('text/plain', raw);
     if (e.target instanceof HTMLElement) {
       e.target.classList.add('palette-item-dragging');
     }
