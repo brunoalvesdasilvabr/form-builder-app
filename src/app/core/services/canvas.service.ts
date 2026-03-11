@@ -16,6 +16,7 @@ import { getDefaultWidgetLabel, FORM_CONTROL_WIDGET_TYPES } from '../../shared/m
 import * as gridMerge from '../../shared/utils/grid-merge.util';
 import { generateId } from '../../shared/utils/id.util';
 import { createDefaultNestedTable } from '../../shared/utils/nested-table.util';
+import { parseBindingProperty } from '../../shared/utils/binding.util';
 
 const UNDO_LIMIT = 50;
 
@@ -1190,6 +1191,55 @@ export class CanvasService {
   /** Returns a deep copy of the current canvas state for saving. */
   getState(): CanvasState {
     return JSON.parse(JSON.stringify(this.state()));
+  }
+
+  /**
+   * Returns state for save/download/publish with bindings as JSON paths (not "{{ path }}").
+   * Use this when persisting layout so output has the path in the binding, not the template form.
+   */
+  getStateForSave(): CanvasState {
+    const raw = this.getState();
+    const normalizeWidget = (w: WidgetInstance): WidgetInstance => {
+      const next: WidgetInstance = { ...w };
+      if (next.valueBinding != null) {
+        const path = parseBindingProperty(next.valueBinding);
+        next.valueBinding = path || undefined;
+      }
+      if (next.optionBindings?.length) {
+        next.optionBindings = next.optionBindings.map((b) => parseBindingProperty(b) || b);
+      }
+      if (next.type === 'grid' && next.gridColumns?.length) {
+        next.gridColumns = next.gridColumns.map((col) => ({
+          ...col,
+          valueBinding: col.valueBinding != null ? (parseBindingProperty(col.valueBinding) || col.valueBinding) : undefined,
+        }));
+      }
+      return next;
+    };
+    const normalizeCell = (c: CanvasCell): CanvasCell => {
+      const cell: CanvasCell = { ...c };
+      if (cell.widget) cell.widget = normalizeWidget(cell.widget);
+      if (cell.widget?.type === 'table' && cell.widget.nestedTable?.rows) {
+        const nested = cell.widget.nestedTable;
+        cell.widget = {
+          ...cell.widget,
+          nestedTable: {
+            ...nested,
+            rows: nested.rows.map((r) => ({
+              ...r,
+              cells: r.cells.map((nc) => normalizeCell(nc as CanvasCell) as NestedTableCell),
+            })),
+          },
+        };
+      }
+      return cell;
+    };
+    return {
+      rows: raw.rows.map((r) => ({
+        ...r,
+        cells: r.cells.map(normalizeCell),
+      })),
+    };
   }
 
   /** Loads a canvas state (replaces current). Clears selection. */

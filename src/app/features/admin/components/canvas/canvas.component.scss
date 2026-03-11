@@ -176,11 +176,6 @@
   }
 }
 
-.canvas-table-wrap {
-  position: relative;
-  flex: 0 1 auto;
-}
-
 .canvas-sidebar {
   position: absolute;
   top: 0.35rem;
@@ -199,13 +194,13 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
-.canvas-table-wrap:hover .canvas-sidebar {
+.canvas-content:hover .canvas-sidebar {
   opacity: 1;
   pointer-events: auto;
 }
 
 /* Hide canvas sidebar when hovering a nested table (it shows its own) */
-.canvas-table-wrap:has(.embedded-table-wrap:hover) .canvas-sidebar {
+.canvas-content:has(.embedded-table-wrap:hover) .canvas-sidebar {
   opacity: 0;
   pointer-events: none;
 }
@@ -235,6 +230,7 @@
 }
 
 .canvas-table {
+  position: relative;
   flex: 0 1 auto;
   width: 100%;
   max-width: 100%;

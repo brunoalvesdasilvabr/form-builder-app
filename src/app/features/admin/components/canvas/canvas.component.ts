@@ -63,10 +63,10 @@ export class CanvasComponent {
 
   /** When dragging Row/Col from palette: { type, rowIndex, colIndex, position } for drop line preview. */
   readonly layoutDropPreview = signal<{
-    type: 'row' | 'col';
+    type: "row" | "col";
     rowIndex: number;
     colIndex: number;
-    position: 'before' | 'after';
+    position: "before" | "after";
   } | null>(null);
 
   readonly mergeRange = computed(() => computeMergeRange(this.selectionCells()));
@@ -83,13 +83,16 @@ export class CanvasComponent {
 
   /** Show Delete when there is any selection (canvas or nested). */
   readonly showDelete = computed(
-    () => this.selectionCells().length > 0 || (this.nestedSelectionPath() != null && this.nestedSelectionCells().length > 0)
+    () =>
+      this.selectionCells().length > 0 ||
+      (this.nestedSelectionPath() != null && this.nestedSelectionCells().length > 0),
   );
 
   /** True when − Row / − Col are shown (ctrl+click selection). When true, we show only those, not Delete. */
   readonly showStructuralRemoveButtons = computed(() => {
     if (this.selectionCells().length > 0 && this.mergeRange()) return true;
-    if (this.nestedSelectionPath() != null && this.nestedSelectionCells().length > 0 && this.getNestedMergeRange()) return true;
+    if (this.nestedSelectionPath() != null && this.nestedSelectionCells().length > 0 && this.getNestedMergeRange())
+      return true;
     return false;
   });
 
@@ -105,7 +108,7 @@ export class CanvasComponent {
     return this.selectedLayoutId() ?? null;
   });
 
-  @ViewChild('canvasFormRef') private canvasFormRef?: ElementRef<HTMLFormElement>;
+  @ViewChild("canvasFormRef") private canvasFormRef?: ElementRef<HTMLFormElement>;
 
   isSelected(rowIndex: number, colIndex: number): boolean {
     return this.selectionCells().includes(`${rowIndex},${colIndex}`);
@@ -158,19 +161,17 @@ export class CanvasComponent {
     }
   }
 
-  /** When cell is a grid: set selectedGridColumnIndex from header or body cell click (any column cell), or null for grid-level. */
+  /** When cell is a grid: set selectedGridColumnIndex from header, body, or footer cell click (any column cell), or null for grid-level. */
   private setGridColumnSelection(cell: CanvasCell, e: MouseEvent): void {
-    if (cell.widget?.type !== 'grid') return;
+    if (cell.widget?.type !== "grid") return;
     const el = e.target as Element;
-    const headerCell = el.closest('th[mat-header-cell]');
-    const bodyCell = el.closest('td[mat-cell]');
-    if (headerCell) {
-      const tr = headerCell.closest('tr');
-      const idx = tr ? Array.from(tr.children).indexOf(headerCell) : -1;
-      this.canvas.setSelectedGridColumnIndex(idx >= 0 ? idx : null);
-    } else if (bodyCell) {
-      const tr = bodyCell.closest('tr');
-      const idx = tr ? Array.from(tr.children).indexOf(bodyCell) : -1;
+    const headerCell = el.closest("th[mat-header-cell]");
+    const bodyCell = el.closest("td[mat-cell]");
+    const footerCell = el.closest("td[mat-footer-cell]");
+    const columnCell = headerCell ?? bodyCell ?? footerCell;
+    if (columnCell) {
+      const tr = columnCell.closest("tr");
+      const idx = tr ? Array.from(tr.children).indexOf(columnCell) : -1;
       this.canvas.setSelectedGridColumnIndex(idx >= 0 ? idx : null);
     } else {
       this.canvas.setSelectedGridColumnIndex(null);
@@ -226,7 +227,9 @@ export class CanvasComponent {
       } catch {
         // bad payload, skip
       }
-      (((e.currentTarget as HTMLElement).closest?.('td') ?? e.currentTarget) as HTMLElement)?.classList.remove("canvas-cell-drag-over");
+      (((e.currentTarget as HTMLElement).closest?.("td") ?? e.currentTarget) as HTMLElement)?.classList.remove(
+        "canvas-cell-drag-over",
+      );
       return;
     }
     const gridAction = e.dataTransfer?.getData("application/grid-action") || undefined;
@@ -235,28 +238,35 @@ export class CanvasComponent {
         if (gridAction === "row") this.canvas.addGridRow(targetCell.id, targetCell.widget.id);
         else this.canvas.addGridColumn(targetCell.id, targetCell.widget.id);
       }
-      (((e.currentTarget as HTMLElement).closest?.('td') ?? e.currentTarget) as HTMLElement)?.classList.remove("canvas-cell-drag-over");
+      (((e.currentTarget as HTMLElement).closest?.("td") ?? e.currentTarget) as HTMLElement)?.classList.remove(
+        "canvas-cell-drag-over",
+      );
       return;
     }
     const layoutAction = e.dataTransfer?.getData("application/layout-action") || e.dataTransfer?.getData("text/plain");
     if (layoutAction === "row" || layoutAction === "col") {
       if (targetCell.widget?.type === "grid") {
-        (((e.currentTarget as HTMLElement).closest?.('td') ?? e.currentTarget) as HTMLElement)?.classList.remove("canvas-cell-drag-over");
+        (((e.currentTarget as HTMLElement).closest?.("td") ?? e.currentTarget) as HTMLElement)?.classList.remove(
+          "canvas-cell-drag-over",
+        );
         return;
       }
       const preview = this.layoutDropPreview();
-      const pos = preview?.rowIndex === targetCell.rowIndex && preview?.colIndex === targetCell.colIndex
-        ? preview.position
-        : 'before';
+      const pos =
+        preview?.rowIndex === targetCell.rowIndex && preview?.colIndex === targetCell.colIndex
+          ? preview.position
+          : "before";
       if (targetCell.isMergedOrigin) {
         if (layoutAction === "row") {
-          this.canvas.addRowAt(pos === 'after' ? targetCell.rowIndex + 1 : targetCell.rowIndex);
+          this.canvas.addRowAt(pos === "after" ? targetCell.rowIndex + 1 : targetCell.rowIndex);
         } else {
-          this.canvas.addColumnAt(pos === 'after' ? targetCell.colIndex + 1 : targetCell.colIndex);
+          this.canvas.addColumnAt(pos === "after" ? targetCell.colIndex + 1 : targetCell.colIndex);
         }
       }
       this.layoutDropPreview.set(null);
-      (((e.currentTarget as HTMLElement).closest?.('td') ?? e.currentTarget) as HTMLElement)?.classList.remove("canvas-cell-drag-over");
+      (((e.currentTarget as HTMLElement).closest?.("td") ?? e.currentTarget) as HTMLElement)?.classList.remove(
+        "canvas-cell-drag-over",
+      );
       this.layoutDropPreview.set(null);
       return;
     }
@@ -270,7 +280,9 @@ export class CanvasComponent {
     if (!type || !WIDGET_TYPES.includes(type)) return;
     if (!targetCell.isMergedOrigin) return;
     this.canvas.setWidgetAt(targetCell.rowIndex, targetCell.colIndex, type);
-    (((e.currentTarget as HTMLElement).closest?.('td') ?? e.currentTarget) as HTMLElement)?.classList.remove("canvas-cell-drag-over");
+    (((e.currentTarget as HTMLElement).closest?.("td") ?? e.currentTarget) as HTMLElement)?.classList.remove(
+      "canvas-cell-drag-over",
+    );
   }
 
   onDragOver(e: DragEvent, targetCell: CanvasCell): void {
@@ -280,7 +292,7 @@ export class CanvasComponent {
     const gridCol = e.dataTransfer?.types.includes("application/grid-action-col");
     const layoutRow = e.dataTransfer?.types.includes("application/layout-action-row");
     const layoutCol = e.dataTransfer?.types.includes("application/layout-action-col");
-    const el = ((e.currentTarget as HTMLElement).closest?.('td') ?? e.currentTarget) as HTMLElement;
+    const el = ((e.currentTarget as HTMLElement).closest?.("td") ?? e.currentTarget) as HTMLElement;
     if (gridRow || gridCol) {
       if (targetCell.widget?.type === "grid") {
         el?.classList.add("canvas-cell-drag-over");
@@ -305,14 +317,20 @@ export class CanvasComponent {
   }
 
   onDragLeave(e: DragEvent): void {
-    (((e.currentTarget as HTMLElement).closest?.('td') ?? e.currentTarget) as HTMLElement)?.classList.remove("canvas-cell-drag-over");
+    (((e.currentTarget as HTMLElement).closest?.("td") ?? e.currentTarget) as HTMLElement)?.classList.remove(
+      "canvas-cell-drag-over",
+    );
   }
 
   onEmptyStateDrop(e: DragEvent): void {
     e.preventDefault();
     e.stopPropagation();
     if (!this.selectedLayoutId()) return;
-    const raw = (e.dataTransfer?.getData("application/widget-type") || e.dataTransfer?.getData("text/plain") || "").trim();
+    const raw = (
+      e.dataTransfer?.getData("application/widget-type") ||
+      e.dataTransfer?.getData("text/plain") ||
+      ""
+    ).trim();
     const type = raw.toLowerCase() as WidgetType;
     if (type !== "table") return;
     (e.currentTarget as HTMLElement)?.classList.remove("canvas-empty-state-drag-over");
@@ -325,7 +343,11 @@ export class CanvasComponent {
       e.dataTransfer!.dropEffect = "none";
       return;
     }
-    const raw = (e.dataTransfer?.getData("application/widget-type") || e.dataTransfer?.getData("text/plain") || "").trim();
+    const raw = (
+      e.dataTransfer?.getData("application/widget-type") ||
+      e.dataTransfer?.getData("text/plain") ||
+      ""
+    ).trim();
     const type = raw.toLowerCase();
     (e.currentTarget as HTMLElement)?.classList.toggle("canvas-empty-state-drag-over", type === "table");
     e.dataTransfer!.dropEffect = type === "table" ? "copy" : "none";
@@ -434,11 +456,7 @@ export class CanvasComponent {
     }
     const range = this.mergeRange();
     if (!range || range.c0 !== range.c1) return false;
-    return (
-      this.selectionCells().length > 0 &&
-      this.rows().length > 0 &&
-      this.rows()[0].cells.length > 1
-    );
+    return this.selectionCells().length > 0 && this.rows().length > 0 && this.rows()[0].cells.length > 1;
   });
 
   removeNestedRowAt(parentCellId: string, parentWidgetId: string, rowIndex: number): void {
@@ -493,8 +511,8 @@ export class CanvasComponent {
     });
     dialogRef.afterClosed().subscribe((result: { name: string; layoutId: string | null } | undefined) => {
       if (!result) return;
-      const state = this.canvas.getState();
-      console.log("[Save layout] state saved to localStorage (tags & nesting):", state);
+      const state = this.canvas.getStateForSave();
+      console.log("[Save layout] state saved to localStorage (tags & nesting, bindings as paths):", state);
       const clone = this.getPreviewClone();
       console.log("[Save layout] clone (same as Download HTML — no toolbar, no table tools):", clone);
       const name = result.name.trim() || "Untitled";
@@ -576,7 +594,8 @@ export class CanvasComponent {
   /** Returns the cloned form element (builder chrome stripped). Use for preview/export or inspection. */
   getPreviewClone(): HTMLElement | null {
     this.cdr.detectChanges();
-    const container = (this.canvasFormRef?.nativeElement ?? document.body.querySelector("form.canvas-form")) as HTMLElement | null;
+    const container = (this.canvasFormRef?.nativeElement ??
+      document.body.querySelector("form.canvas-form")) as HTMLElement | null;
     if (!container) return null;
     const clone = container.cloneNode(true) as HTMLElement;
     copyFormValues(container, clone);
@@ -616,22 +635,23 @@ export class CanvasComponent {
     URL.revokeObjectURL(url);
   }
 
-  /** Returns HTML with same layout but all component tags stripped (only inputs, checkboxes, labels, etc.). */
-  getPublishHtml(): string {
+  /** Returns the cloned form element (layout + native elements only, component tags stripped). */
+  getPublishHtml(): HTMLElement | null {
     this.cdr.detectChanges();
-    const container = (this.canvasFormRef?.nativeElement ?? document.body.querySelector("form.canvas-form")) as HTMLElement | null;
-    if (!container) return "";
+    const container = (this.canvasFormRef?.nativeElement ??
+      document.body.querySelector("form.canvas-form")) as HTMLElement | null;
+    if (!container) return null;
     const clone = container.cloneNode(true) as HTMLElement;
     copyFormValues(container, clone);
     stripBuilderChrome(clone, { stripAngular: true });
     stripComponentWrappers(clone);
-    return clone.outerHTML;
+    return clone;
   }
 
   /** Logs the published HTML (layout + native elements only) to the console. */
   publish(): void {
-    const html = this.getPublishHtml();
-    console.log("[Publish] HTML (layout kept, component tags removed):", html);
+    const clone = this.getPublishHtml();
+    console.log("[Publish] HTML (layout kept, component tags removed):", clone ?? "");
     this.snackBar.open("Form published. HTML has been logged to the console.", undefined, {
       duration: 4000,
     });

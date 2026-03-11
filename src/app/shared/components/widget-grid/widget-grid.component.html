@@ -2,6 +2,7 @@
   <div
       class="widget-grid-wrap"
       [ngClass]="getElementClassObj('table')"
+      [attr.data-grid]="getGridBindingPath()"
       (mouseleave)="setColumnHover(null)"
     >
     <table mat-table [dataSource]="dataSource" class="widget-grid-table">
@@ -12,6 +13,7 @@
             *matCellDef="let row"
             [ngClass]="getColumnClass(col, colIdx)"
             [style.text-align]="getColumnAlignment(col)"
+            [attr.data-grid-column]="getColumnBindingPath(col)"
             (mouseenter)="setColumnHover(colIdx)"
           >{{ row[getDisplayKey(col)] ?? row["placeholder"] ?? "—" }}</td>
           <td
@@ -19,6 +21,7 @@
             *matFooterCellDef
             [ngClass]="getColumnClass(col, colIdx)"
             [style.text-align]="getColumnAlignment(col)"
+            [attr.data-grid-column]="getColumnBindingPath(col)"
             (mouseenter)="setColumnHover(colIdx)"
           >{{ totalRow() ? totalRow()![getDisplayKey(col)] : "" }}</td>
         </ng-container>

@@ -135,28 +135,32 @@
           }
           @if (cell.widget && cell.widget.type !== 'table') {
             <div class="admin-right-panel-field">
-              <label class="admin-right-panel-label" for="value-binding-select">Data Binding</label>
-              <select
-                id="value-binding-select"
-                class="admin-right-panel-input admin-right-panel-select"
-                [ngModel]="pendingProperty()"
-                (ngModelChange)="onDataBindingChange($event)"
-              >
-                <option value="">— None —</option>
-                @for (prop of effectiveBindableProperties(); track prop.value) {
-                  <option [value]="prop.value">{{ prop.label }}</option>
-                }
-              </select>
+              @if (showMainDataBindingDropdown()) {
+                <label class="admin-right-panel-label" for="value-binding-select">Data Binding</label>
+                <select
+                  id="value-binding-select"
+                  class="admin-right-panel-input admin-right-panel-select"
+                  [ngModel]="pendingProperty()"
+                  (ngModelChange)="onDataBindingChange($event)"
+                  [disabled]="isActivitiesDropdownDisabled()"
+                >
+                  <option value="">— None —</option>
+                  @for (prop of effectiveBindableProperties(); track prop.value) {
+                    <option [value]="prop.value">{{ prop.label }}</option>
+                  }
+                </select>
+              }
               @if (showActivityDataDropdown()) {
-                <label class="admin-right-panel-label admin-right-panel-inner-label" for="activity-data-property-select">Property from activity</label>
+                <label class="admin-right-panel-label admin-right-panel-inner-label" for="activity-data-property-select">Property from activity (bind to this column)</label>
                 <select
                   id="activity-data-property-select"
                   class="admin-right-panel-input admin-right-panel-select admin-right-panel-select-small"
                   [ngModel]="pendingActivityDataProperty()"
                   (ngModelChange)="pendingActivityDataProperty.set($event)"
+                  [disabled]="false"
                 >
                   <option value="">— Select property —</option>
-                  @for (prop of activityDataProperties; track prop.value) {
+                  @for (prop of effectiveActivityDataProperties(); track prop.value) {
                     <option [value]="prop.value">{{ prop.label }}</option>
                   }
                 </select>

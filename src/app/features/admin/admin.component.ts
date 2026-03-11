@@ -8,6 +8,7 @@ import { CanvasService } from '../../core/services/canvas.service';
 import { SavedLayoutsService } from '../../core/services/saved-layouts.service';
 import type { CanvasCell } from '../../shared/models/canvas.model';
 import { ACTIVITIES_BINDING_PATHS } from '../../shared/models/canvas.model';
+import { getActivityPropertiesForPath } from '../../shared/constants/activity-structures.constants';
 import { parseBindingProperty } from '../../shared/utils/binding.util';
 import {
   VISIBILITY_CONDITION_SNIPPETS,
@@ -37,36 +38,52 @@ export class AdminComponent {
   readonly selectedGridColumnIndex = this.canvas.selectedGridColumnIndex;
   readonly selectedOptionIndex = this.canvas.selectedOptionIndex;
 
-  /** For grid: parent-level when grid selected, column-level when a column selected; for non-grid use full list. */
+  /** True when the selected grid cell has a valueBinding that points to an activities array (grid-level choice). */
+  readonly gridHasActivitiesBinding = computed(() => {
+    const cell = this.selectedCell();
+    if (!cell?.widget || cell.widget.type !== 'grid') return false;
+    const path = parseBindingProperty(cell.widget.valueBinding);
+    return (ACTIVITIES_BINDING_PATHS as readonly string[]).includes(path);
+  });
+
+  /** For grid: grid-level = only activities (user chooses data once); column-level uses child dropdown only. For non-grid use full list. */
   readonly effectiveBindableProperties = computed(() => {
     const cell = this.selectedCell();
     if (!cell?.widget || cell.widget.type !== 'grid') return this.bindableProperties;
-    const colIdx = this.selectedGridColumnIndex();
-    return colIdx === null ? this.bindablePropertiesGrid : this.bindablePropertiesColumn;
+    return this.bindablePropertiesColumn;
   });
 
-  /** Property names from activity objects (for inner dropdown when Activities / Non-AMS Activities is selected). */
-  readonly activityDataProperties: { value: string; label: string }[] = [
-    { value: 'entryDate', label: 'Entry Date' },
-    { value: 'effectiveDate', label: 'Effective Date' },
-    { value: 'amount', label: 'Amount' },
-    { value: 'additionalDescription', label: 'Additional Description' },
-    { value: 'description', label: 'Description' },
-    { value: 'activityTypeCode', label: 'Activity Type' },
-    { value: 'categoryCode', label: 'Category' },
-    { value: 'currencyCode', label: 'Currency' },
-    { value: 'transactionId', label: 'Transaction ID' },
-    { value: 'transactionDate', label: 'Transaction Date' },
-  ];
-
-  /** True when the selected data binding is one of the activities arrays (show inner dropdown with activity fields). Column-level only for grid. */
-  readonly showActivityDataDropdown = computed(() => {
-    const v = this.pendingProperty();
-    const isActivities = (ACTIVITIES_BINDING_PATHS as readonly string[]).includes(v ?? '');
-    if (!isActivities) return false;
+  /** Show the main Data Binding (activities) dropdown whenever we're on a grid (grid-level or any column), so the chosen activity is always visible. */
+  readonly showMainDataBindingDropdown = computed(() => {
     const cell = this.selectedCell();
-    if (cell?.widget?.type === 'grid') return this.selectedGridColumnIndex() !== null;
+    if (!cell?.widget || cell.widget.type === 'table') return false;
+    if (cell.widget.type !== 'grid') return true;
     return true;
+  });
+
+  /** When a column is selected and the grid already has an activity chosen, disable the activities dropdown so the user sees the choice but only edits the child dropdown for this column. */
+  readonly isActivitiesDropdownDisabled = computed(() => {
+    const cell = this.selectedCell();
+    if (!cell?.widget || cell.widget.type !== 'grid') return false;
+    return this.selectedGridColumnIndex() !== null && this.gridHasActivitiesBinding();
+  });
+
+  /** Child dropdown options: loaded from the structure for the chosen activities type (saved on grid or currently selected in dropdown). */
+  readonly effectiveActivityDataProperties = computed(() => {
+    const cell = this.selectedCell();
+    if (!cell?.widget || cell.widget.type !== 'grid') return getActivityPropertiesForPath('');
+    const path = parseBindingProperty(cell.widget.valueBinding) || this.pendingProperty() || '';
+    return getActivityPropertiesForPath(path);
+  });
+
+  /** True when to show the child "Property from activity" dropdown: when a column is selected AND an activity is chosen (saved on grid or currently selected in the activities dropdown). */
+  readonly showActivityDataDropdown = computed(() => {
+    const cell = this.selectedCell();
+    if (!cell?.widget || cell.widget.type !== 'grid') return false;
+    if (this.selectedGridColumnIndex() === null) return false;
+    if (this.gridHasActivitiesBinding()) return true;
+    const pending = this.pendingProperty();
+    return (ACTIVITIES_BINDING_PATHS as readonly string[]).includes(pending ?? '');
   });
 
   /** Pending values in the form (not applied until Apply is clicked). */
@@ -130,11 +147,6 @@ export class AdminComponent {
         this.syncInitialVisibilityFromCell(cell);
         this.syncInitialValidatorValuesFromCell(cell);
         this.copyInitialsToPending();
-        // At grid-level, column-only bindings are not in the list; show None.
-        if (cell.widget?.type === 'grid' && this.selectedGridColumnIndex() === null &&
-            this.bindablePropertiesColumn.some((p) => p.value === this.pendingProperty())) {
-          this.pendingProperty.set('');
-        }
       }
     });
   }
@@ -303,9 +315,16 @@ export class AdminComponent {
     const colIdx = this.selectedGridColumnIndex();
     if (cell.widget?.type === 'grid' && colIdx !== null) {
       const activityProp = this.pendingActivityDataProperty();
-      const headerLabel = this.activityDataProperties.find((p) => p.value === activityProp)?.label;
-      this.canvas.updateGridColumnBinding(cell.id, cell.widget.id, colIdx, this.pendingProperty(), activityProp, headerLabel);
-      this.initialProperty = this.pendingProperty();
+      const valueBinding = this.gridHasActivitiesBinding()
+        ? parseBindingProperty(cell.widget.valueBinding)
+        : this.pendingProperty();
+      const path = valueBinding || parseBindingProperty(cell.widget.valueBinding);
+      const headerLabel = getActivityPropertiesForPath(path).find((p) => p.value === activityProp)?.label;
+      this.canvas.updateGridColumnBinding(cell.id, cell.widget.id, colIdx, valueBinding, activityProp, headerLabel);
+      if (valueBinding && (ACTIVITIES_BINDING_PATHS as readonly string[]).includes(valueBinding)) {
+        this.canvas.updateValueBinding(cell.id, cell.widget.id, valueBinding);
+      }
+      this.initialProperty = valueBinding;
       this.initialActivityDataProperty = activityProp;
     } else {
       this.applyPropertyBinding(cell, this.pendingProperty());
@@ -585,7 +604,10 @@ export class AdminComponent {
     if (w.type === 'grid' && this.selectedGridColumnIndex() !== null) {
       const cols = w.gridColumns ?? [];
       const col = cols[this.selectedGridColumnIndex()!];
-      return col?.valueBinding ?? '';
+      const colPath = col?.valueBinding ?? '';
+      if (colPath) return colPath;
+      if (this.gridHasActivitiesBinding()) return parseBindingProperty(w.valueBinding);
+      return '';
     }
     if (w.type === 'radio' && this.selectedOptionIndex() !== null) {
       const binding = w.optionBindings?.[this.selectedOptionIndex()!];

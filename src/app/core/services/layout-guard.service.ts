@@ -34,7 +34,7 @@ export class LayoutGuardService {
     const result = await firstValueFrom(dialogRef.afterClosed());
     if (!result) return false;
 
-    const state = this.canvas.getState();
+    const state = this.canvas.getStateForSave();
     const trimmedName = result.name.trim() || 'Untitled';
     if (result.layoutId) {
       this.savedLayouts.updateLayout(result.layoutId, state, trimmedName);

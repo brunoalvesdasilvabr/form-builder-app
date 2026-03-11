@@ -54,6 +54,21 @@ export class WidgetGridComponent extends BaseWidgetComponent {
     this.hoveredColumnIndex.set(index);
   }
 
+  /** JSON path for data-grid attribute (grid-level binding, e.g. amsInformation.arrangements[0].amsActivity.activities). */
+  getGridBindingPath(): string | null {
+    const w = this.widget();
+    return w?.type === 'grid' ? this.getPropertyBinding(w.valueBinding) : null;
+  }
+
+  /** JSON path for data-grid-column attribute (column binding; when activities, path is valueBinding.activityDataProperty). */
+  getColumnBindingPath(col: Record<string, unknown>): string | null {
+    const valueBinding = col?.['valueBinding'] as string | undefined;
+    if (!valueBinding) return null;
+    const activityDataProperty = col?.['activityDataProperty'] as string | undefined;
+    if (activityDataProperty) return `${valueBinding}.${activityDataProperty}`;
+    return valueBinding;
+  }
+
   /** Text alignment for column cells. */
   getColumnAlignment(col: Record<string, unknown>): string {
     const a = col['alignment'];

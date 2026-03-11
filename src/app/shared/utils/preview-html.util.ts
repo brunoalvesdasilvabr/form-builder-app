@@ -25,15 +25,44 @@ const OUTLINE_CLASSES_TO_STRIP = [
 
 const ANGULAR_ATTR_PATTERN = /^(_ngcontent|_nghost|ng-reflect|ng-version|ng-)[-_a-z0-9.]*$/i;
 
+/** Data/builder attributes to remove on publish so output is clean for consumers. */
+const PUBLISH_STRIP_ATTRIBUTES = ['data-placeholder', 'data-class-target'] as const;
+
+/** Angular form state classes to remove on publish (ng-valid, ng-pristine, etc.). */
+const ANGULAR_FORM_CLASSES = [
+  'ng-untouched',
+  'ng-touched',
+  'ng-pristine',
+  'ng-dirty',
+  'ng-valid',
+  'ng-invalid',
+  'ng-pending',
+  'ng-submitted',
+] as const;
+
 /**
  * Removes Angular-specific attributes (e.g. _ngcontent-*, _nghost-*, ng-reflect-*).
- * Keeps ng-* classes to preserve layout. Mutates the root in place.
+ * Mutates the root in place.
  */
 function stripAngularAttributes(root: HTMLElement): void {
   const walk = (el: Element) => {
     el.getAttributeNames().forEach((name) => {
       if (ANGULAR_ATTR_PATTERN.test(name) || name.startsWith('_ng')) el.removeAttribute(name);
     });
+    Array.from(el.children).forEach((child) => walk(child));
+  };
+  walk(root);
+}
+
+/**
+ * Removes data-placeholder, data-class-target and Angular form state classes (ng-untouched, ng-pristine, ng-valid, etc.) from all elements. Used on publish.
+ */
+function stripPublishAttributesAndClasses(root: HTMLElement): void {
+  const walk = (el: Element) => {
+    if (el instanceof HTMLElement) {
+      PUBLISH_STRIP_ATTRIBUTES.forEach((name) => el.removeAttribute(name));
+      ANGULAR_FORM_CLASSES.forEach((cls) => el.classList.remove(cls));
+    }
     Array.from(el.children).forEach((child) => walk(child));
   };
   walk(root);
@@ -89,6 +118,7 @@ export function stripBuilderChrome(clone: HTMLElement, options?: { stripAngular?
   // component styles (which use [_ngcontent-*] selectors) still match in-preview.
   if (options?.stripAngular !== false) {
     stripAngularAttributes(clone);
+    stripPublishAttributesAndClasses(clone);
   }
 }
 
