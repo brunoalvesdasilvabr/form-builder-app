@@ -32,31 +32,16 @@ export interface SearchableSelectOption {
   styleUrl: './searchable-select.component.scss',
 })
 export class SearchableSelectComponent {
-  /** Options to display. Filtered by search query. */
   readonly options = input.required<SearchableSelectOption[]>();
-
-  /** Currently selected value (string id or null). */
   readonly value = input<string | null>(null);
-
-  /** Emitted when selection changes. */
   readonly valueChange = output<string | null>();
-
-  /** Placeholder when empty. */
   readonly placeholder = input('Search or select...');
-
-  /** Optional CSS class for the form field. */
   readonly formFieldClass = input('');
-
-  /** Optional id for the input (for label[for]). */
   readonly inputId = input('');
-
-  /** Use compact styling (for toolbars). */
   readonly compact = input(false);
 
-  /** Search query (what user types). */
   readonly searchQuery = signal('');
 
-  /** Options filtered by search query. Parent provides full list; we filter here by label. */
   readonly filteredOptions = computed(() => {
     const all = this.options();
     const query = (this.searchQuery() ?? '').trim().toLowerCase();
@@ -66,7 +51,6 @@ export class SearchableSelectComponent {
     );
   });
 
-  /** Display text for the current value. */
   readonly displayText = computed(() => {
     const val = this.value();
     if (val === null || val === undefined) return '';

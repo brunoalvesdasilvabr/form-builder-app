@@ -120,7 +120,6 @@ export class CanvasComponent {
   readonly templateSelectOptions = computed((): SearchableSelectOption[] => {
     const layouts = this.layouts();
     const options: SearchableSelectOption[] = [
-      { value: null, label: "Select Template" },
       { value: LayoutOption.NewLayout, label: "New Template" },
     ];
     layouts.forEach((l) => options.push({ value: l.id, label: l.name }));
