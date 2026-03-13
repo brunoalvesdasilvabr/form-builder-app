@@ -101,20 +101,25 @@
   margin-bottom: 0.35rem;
 }
 
+.admin-right-panel-label-required::after {
+  content: ' *';
+  color: var(--error);
+}
+
 .admin-right-panel-input {
   width: 100%;
   padding: 0.5rem 0.75rem;
   font-size: 0.9rem;
   border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--bg, #fff);
+  border-radius: var(--radius-md);
+  background: var(--bg);
   color: var(--text);
   box-sizing: border-box;
 }
 
 .admin-right-panel-input:focus {
   outline: none;
-  border-color: var(--primary, #2563eb);
+  border-color: var(--primary);
 }
 
 .admin-right-panel-error-rule-row {
@@ -137,10 +142,10 @@
   padding: 0.5rem 0.65rem;
   background: var(--bg-main);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-size: 0.8rem;
-  font-family: var(--font-mono, ui-monospace, monospace);
-  color: var(--accent, #6366f1);
+  font-family: var(--font-mono);
+  color: var(--accent);
   box-sizing: border-box;
 
   &::placeholder {
@@ -149,7 +154,7 @@
 
   &:focus {
     outline: none;
-    border-color: var(--primary, #2563eb);
+    border-color: var(--primary);
   }
 }
 
@@ -157,10 +162,10 @@
   margin-top: 0.5rem;
   padding: 0.4rem 0.75rem;
   font-size: 0.85rem;
-  color: var(--accent, #6366f1);
+  color: var(--accent);
   background: var(--bg-main);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   cursor: pointer;
 
   &:hover {
@@ -173,7 +178,7 @@
 .admin-add-rule-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.4);
+  background: var(--overlay);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -186,7 +191,7 @@
   border-radius: 8px;
   padding: 1.25rem;
   min-width: 260px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--shadow-md);
 }
 
 .admin-add-rule-modal-title {
@@ -213,7 +218,7 @@
 }
 
 .admin-add-rule-insert {
-  background: var(--primary, #2563eb);
+  background: var(--primary);
   color: white;
   border-color: var(--primary);
 
@@ -234,7 +239,7 @@
   color: var(--text-muted);
   background: var(--bg-main);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   cursor: pointer;
   white-space: nowrap;
 
@@ -263,7 +268,7 @@
 .admin-right-panel-btn {
   padding: 0.4rem 0.6rem;
   font-size: 0.85rem;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   cursor: pointer;
   border: 1px solid var(--border);
   background: var(--bg-main);
@@ -276,7 +281,7 @@
 }
 
 .admin-right-panel-btn-add {
-  color: var(--primary, #2563eb);
+  color: var(--primary);
 
   &:hover:not(:disabled) {
     background: var(--bg-cell-hover);
@@ -346,8 +351,8 @@
   padding: 0.4rem 0.6rem;
   font-size: 0.85rem;
   border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--bg, #fff);
+  border-radius: var(--radius-md);
+  background: var(--bg);
   color: var(--text);
   cursor: pointer;
 }
@@ -357,7 +362,7 @@
   padding: 0.5rem 0.65rem;
   background: var(--bg-main);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-size: 0.8rem;
 }
 
@@ -433,19 +438,33 @@
   color: var(--accent);
 }
 
-.admin-right-panel-apply {
+/* Apply button: bluish primary when enabled, muted when disabled. Override Material defaults. */
+button.admin-right-panel-apply {
   margin-top: 1.25rem;
   width: 100%;
   padding: 0.5rem 1rem;
   font-size: 0.9rem;
   font-weight: 500;
-  color: #fff;
-  background: var(--primary, #2563eb);
+  color: var(--primary-contrast) !important;
+  background-color: var(--primary) !important;
+  background: var(--primary) !important;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   cursor: pointer;
+  opacity: 1;
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    color: var(--primary-contrast) !important;
+    background-color: var(--primary) !important;
+    background: var(--primary) !important;
+  }
 }
 
-.admin-right-panel-apply:hover {
-  opacity: 0.9;
+button.admin-right-panel-apply:hover:not(:disabled) {
+  opacity: 0.95;
+  background-color: var(--primary) !important;
+  background: var(--primary) !important;
+  color: var(--primary-contrast) !important;
 }

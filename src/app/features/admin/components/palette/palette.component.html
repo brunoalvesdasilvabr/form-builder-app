@@ -5,7 +5,7 @@
   <mat-accordion class="palette-accordion" displayMode="flat" [multi]="true">
     <mat-expansion-panel class="palette-panel" [expanded]="true">
       <mat-expansion-panel-header>
-        <mat-panel-title>Components</mat-panel-title>
+        <mat-panel-title>Template</mat-panel-title>
       </mat-expansion-panel-header>
       <div class="palette-list">
         @for (type of layoutWidgets; track type) {
@@ -50,7 +50,7 @@
         }
         <details class="palette-group">
           <summary class="palette-group-summary">
-            <span class="palette-group-icon">{{ iconFor('grid') }}</span>
+            <span class="palette-group-icon">{{ iconFor("grid") }}</span>
             <span>Grid</span>
           </summary>
           <div class="palette-group-body">
@@ -60,8 +60,8 @@
               (dragstart)="onWidgetDragStart($event, 'grid')"
               (dragend)="onDragEnd($event)"
             >
-              <span class="palette-item-icon">{{ iconFor('grid') }}</span>
-              <span class="palette-item-label">{{ labels()['grid'] }}</span>
+              <span class="palette-item-icon">{{ iconFor("grid") }}</span>
+              <span class="palette-item-label">{{ labels()["grid"] }}</span>
             </div>
             @for (action of gridActions; track action) {
               <div

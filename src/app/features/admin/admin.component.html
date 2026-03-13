@@ -21,18 +21,19 @@
           >×</button>
         </div>
         <div class="admin-right-panel-body">
-          @if (cell.widget && ['label', 'input', 'checkbox', 'radio'].includes(cell.widget.type)) {
+          @if (showControlNameSection(cell)) {
             <div class="admin-right-panel-field">
-              <label class="admin-right-panel-label" for="form-control-name-input">Control name</label>
+              <label class="admin-right-panel-label admin-right-panel-label-required" for="form-control-name-input">Control name</label>
               <input
                 id="form-control-name-input"
                 type="text"
                 class="admin-right-panel-input"
+                required
                 [ngModel]="pendingFormControlName()"
                 (ngModelChange)="pendingFormControlName.set($event)"
                 placeholder="Example: inputName"
               />
-              @if (cell.widget.type === 'input' && showValidatorValuesSection(cell)) {
+              @if (cell.widget?.type === 'input' && showValidatorValuesSection(cell)) {
                 <div class="admin-right-panel-validator-values">
                   <p class="admin-right-panel-hint">Set the value for the chosen rule (data-minlength, data-maxlength, data-min, data-max, data-pattern):</p>
                   @if (showMinLengthInput(cell)) {
@@ -197,7 +198,7 @@
               </div>
             </div>
           }
-          <button type="button" class="admin-right-panel-apply" (click)="applyChanges()">Apply</button>
+          <button mat-flat-button type="button" class="admin-right-panel-apply" [disabled]="applyDisabled()" (click)="applyChanges()">Apply</button>
         </div>
       </aside>
       @if (addRuleModalOpen()) {

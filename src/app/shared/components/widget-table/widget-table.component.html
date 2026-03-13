@@ -2,6 +2,7 @@
   <div
     class="widget-table-wrap"
     [ngClass]="getElementClassObj('table')"
+    [attr.data-visibility-condition]="w.visibilityCondition ?? null"
   >
     <app-embedded-table
       [widget]="w"

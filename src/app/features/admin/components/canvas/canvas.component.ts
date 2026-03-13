@@ -86,6 +86,14 @@ export class CanvasComponent {
   /** Show Merge when either canvas or nested has a mergeable selection. */
   readonly showMerge = computed(() => this.canMergeCanvas() || this.canMergeNested());
 
+  /** Show Unmerge when a single merged cell (origin) is selected on the canvas (not in a nested table). */
+  readonly showUnmerge = computed(() => {
+    const cell = this.selectedCell();
+    const nested = this.selectedNestedPath();
+    if (!cell || nested) return false;
+    return cell.isMergedOrigin && (cell.colSpan > 1 || cell.rowSpan > 1);
+  });
+
   /** True when − Row / − Col are shown (ctrl+click selection). */
   readonly showStructuralRemoveButtons = computed(() => {
     if (this.selectionCells().length > 0 && this.mergeRange()) return true;
@@ -106,6 +114,9 @@ export class CanvasComponent {
     return this.selectedLayoutId() ?? null;
   });
 
+  /** True when a saved template is selected (Clone creates a copy under a new name). */
+  readonly canClone = computed(() => this.savedLayouts.selectedLayout() != null);
+
   @ViewChild("canvasFormRef") private canvasFormRef?: ElementRef<HTMLFormElement>;
 
   isSelected(rowIndex: number, colIndex: number): boolean {
@@ -119,42 +130,38 @@ export class CanvasComponent {
       this.canvas.setCanvasSelection(updateSelectionForCtrlClick(this.selectionCells(), rowIndex, colIndex));
     } else {
       this.clearSelection();
-      if (cell.widget && cell.widget.type === WIDGET_TYPE_TABLE) {
-        this.canvas.setSelectedCell(null);
-      } else {
-        const hasFormControl = cell.widget && (FORM_CONTROL_WIDGET_TYPES as readonly string[]).includes(cell.widget.type);
-        const doSelect = () => {
-          const el = e.target as Element;
-          const elementTarget = getElementKeyFromElement(el);
-          if (elementTarget) {
-            this.canvas.setSelectedCell(cell.id, SelectedTarget.Element, elementTarget);
-          } else if (
-            el?.closest?.("app-widget-input") ||
-            el?.closest?.("app-widget-checkbox") ||
-            el?.closest?.("app-widget-radio") ||
-            el?.closest?.("app-widget-label") ||
-            el?.closest?.("app-widget-table") ||
-            el?.closest?.("app-widget-grid")
-          ) {
-            this.canvas.setSelectedCell(cell.id, SelectedTarget.WidgetInner);
-          } else if (el?.closest?.("app-widget-renderer")) {
-            this.canvas.setSelectedCell(cell.id, SelectedTarget.Widget);
-          } else {
-            this.canvas.setSelectedCell(cell.id, SelectedTarget.Cell);
-          }
-        };
-        if (hasFormControl && !this.layoutGuard.hasLayoutNamed()) {
-          this.layoutGuard.ensureLayoutNamed().then((ok) => {
-            if (ok) {
-              doSelect();
-              this.setGridColumnSelection(cell, e);
-              this.cdr.detectChanges();
-            }
-          });
+      const hasFormControl = cell.widget && (FORM_CONTROL_WIDGET_TYPES as readonly string[]).includes(cell.widget.type);
+      const doSelect = () => {
+        const el = e.target as Element;
+        const elementTarget = getElementKeyFromElement(el);
+        if (elementTarget) {
+          this.canvas.setSelectedCell(cell.id, SelectedTarget.Element, elementTarget);
+        } else if (
+          el?.closest?.("app-widget-input") ||
+          el?.closest?.("app-widget-checkbox") ||
+          el?.closest?.("app-widget-radio") ||
+          el?.closest?.("app-widget-label") ||
+          el?.closest?.("app-widget-table") ||
+          el?.closest?.("app-widget-grid")
+        ) {
+          this.canvas.setSelectedCell(cell.id, SelectedTarget.WidgetInner);
+        } else if (el?.closest?.("app-widget-renderer")) {
+          this.canvas.setSelectedCell(cell.id, SelectedTarget.Widget);
         } else {
-          doSelect();
-          this.setGridColumnSelection(cell, e);
+          this.canvas.setSelectedCell(cell.id, SelectedTarget.Cell);
         }
+      };
+      if (hasFormControl && !this.layoutGuard.hasLayoutNamed()) {
+        this.layoutGuard.ensureLayoutNamed().then((ok) => {
+          if (ok) {
+            doSelect();
+            this.setGridColumnSelection(cell, e);
+            this.cdr.detectChanges();
+          }
+        });
+      } else {
+        doSelect();
+        this.setGridColumnSelection(cell, e);
       }
     }
   }
@@ -196,6 +203,16 @@ export class CanvasComponent {
     } else if (this.canMerge()) {
       this.mergeSelection();
     }
+  }
+
+  /** Unmerge the selected merged cell (top-level canvas). Content stays in the top-left cell; other cells become empty. */
+  runUnmerge(): void {
+    const cell = this.selectedCell();
+    if (!cell || this.selectedNestedPath()) return;
+    if (!cell.isMergedOrigin || (cell.colSpan <= 1 && cell.rowSpan <= 1)) return;
+    this.canvas.unmergeCell(cell.rowIndex, cell.colIndex);
+    this.canvas.setSelectedCell(null);
+    this.clearSelection();
   }
 
   hasSelection(): boolean {
@@ -512,9 +529,6 @@ export class CanvasComponent {
     dialogRef.afterClosed().subscribe((result: { name: string; layoutId: string | null } | undefined) => {
       if (!result) return;
       const state = this.canvas.getStateForSave();
-      console.log("[Save layout] state saved to localStorage (tags & nesting, bindings as paths):", state);
-      const clone = this.getPreviewClone();
-      console.log("[Save layout] clone (same as Download HTML — no toolbar, no table tools):", clone);
       const name = result.name.trim() || DEFAULT_LAYOUT_NAME;
       if (result.layoutId) {
         this.savedLayouts.updateLayout(result.layoutId, state, name);
@@ -542,6 +556,30 @@ export class CanvasComponent {
     } else {
       this.canvas.loadState(this.canvas.getDefaultState());
     }
+  }
+
+  /**
+   * Clone the current template: prompt for a new name, then save a copy. The existing template is unchanged.
+   */
+  cloneLayout(): void {
+    const current = this.savedLayouts.selectedLayout();
+    if (!current) return;
+    const dialogRef = this.dialog.open(LayoutNameDialogComponent, {
+      data: {
+        title: "Clone template",
+        defaultValue: `${current.name} (copy)`,
+        layoutId: null,
+      },
+      width: "400px",
+    });
+    dialogRef.afterClosed().subscribe((result: { name: string; layoutId: string | null } | undefined) => {
+      if (!result) return;
+      const name = result.name.trim() || DEFAULT_LAYOUT_NAME;
+      const newLayout = this.savedLayouts.addLayout(name, current.state);
+      this.canvas.loadState(newLayout.state);
+      this.canvas.clearUndoHistory();
+      this.cdr.detectChanges();
+    });
   }
 
   /**
@@ -648,11 +686,10 @@ export class CanvasComponent {
     return clone;
   }
 
-  /** Logs the published HTML (layout + native elements only) to the console. */
+  /** Publishes the form HTML (layout + native elements only). */
   publish(): void {
     const clone = this.getPublishHtml();
-    console.log("[Publish] HTML (layout kept, component tags removed):", clone ?? "");
-    this.snackBar.open("Form published. HTML has been logged to the console.", undefined, {
+    this.snackBar.open("Form published.", undefined, {
       duration: 4000,
     });
   }

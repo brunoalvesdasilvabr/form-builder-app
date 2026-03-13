@@ -19,7 +19,7 @@
 
 .widget-error-message {
   font-size: 0.8rem;
-  color: var(--danger, #dc2626);
+  color: var(--danger);
 }
 
 .widget-input-control {
@@ -29,7 +29,7 @@
   padding: 0.45rem 0.6rem;
   background: var(--bg-main);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   color: var(--text);
 
   &::placeholder {

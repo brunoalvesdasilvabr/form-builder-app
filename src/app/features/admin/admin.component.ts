@@ -2,6 +2,7 @@ import { Component, inject, signal, effect, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { MatButtonModule } from '@angular/material/button';
 import { PaletteComponent } from './components/palette/palette.component';
 import { CanvasComponent } from './components/canvas/canvas.component';
 import { CanvasService } from '../../core/services/canvas.service';
@@ -28,7 +29,7 @@ import { slugify } from '../../shared/utils/slugify.util';
 @Component({
   selector: 'app-admin',
   standalone: true,
-  imports: [CommonModule, FormsModule, PaletteComponent, CanvasComponent],
+  imports: [CommonModule, FormsModule, MatButtonModule, PaletteComponent, CanvasComponent],
   templateUrl: './admin.component.html',
   styleUrl: './admin.component.scss',
 })
@@ -39,6 +40,11 @@ export class AdminComponent {
 
   private static isDataComponentWidget(w: { type: string } | null | undefined): boolean {
     return !!w && (DATA_COMPONENT_WIDGET_TYPES as readonly string[]).includes(w.type);
+  }
+
+  /** Control name (form control name) only for data components (label, input, checkbox, radio). Not for table, grid, or panel. */
+  showControlNameSection(cell: CanvasCell | null): boolean {
+    return AdminComponent.isDataComponentWidget(cell?.widget);
   }
 
   readonly selectedCell = this.canvas.selectedCell;
@@ -72,6 +78,13 @@ export class AdminComponent {
     if (!cell?.widget || cell.widget.type === WIDGET_TYPE_TABLE) return false;
     if (cell.widget.type !== WIDGET_TYPE_GRID) return true;
     return true;
+  });
+
+  /** Disable Apply when a data component is selected and control name is empty. */
+  readonly applyDisabled = computed(() => {
+    const cell = this.selectedCell();
+    if (!cell?.widget || !AdminComponent.isDataComponentWidget(cell.widget)) return false;
+    return !(this.pendingFormControlName() ?? '').trim();
   });
 
   /** When a column is selected and the grid already has an activity chosen, disable the activities dropdown so the user sees the choice but only edits the child dropdown for this column. */
@@ -142,11 +155,10 @@ export class AdminComponent {
     return slugify(layout?.name?.trim() ?? 'form');
   });
 
-  /** True when the right panel should show the visibility condition block. Shown for every data component (label, input, checkbox, radio) — i.e. any widget that is not a table. */
+  /** True when the right panel should show the visibility condition block. Shown for data components and for the table widget (so the whole embedded table can have a visibility rule). */
   readonly showVisibilityConditionSection = computed(() => {
     const cell = this.selectedCell();
-    if (!cell?.widget) return false;
-    return (cell.widget.type as string) !== WIDGET_TYPE_TABLE;
+    return !!cell?.widget;
   });
 
   constructor() {
@@ -258,6 +270,14 @@ export class AdminComponent {
   applyChanges(): void {
     const cell = this.selectedCell();
     if (!cell) return;
+
+    if (AdminComponent.isDataComponentWidget(cell.widget)) {
+      const name = (this.pendingFormControlName() ?? '').trim();
+      if (!name) {
+        this.snackBar.open('Control name is required for this component.', undefined, { duration: 4000 });
+        return;
+      }
+    }
 
     const messages: string[] = [];
     this.applyClassChangeIfNeeded(cell, messages);

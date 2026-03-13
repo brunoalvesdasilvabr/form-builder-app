@@ -1,0 +1,47 @@
+/**
+ * Application-wide CSS custom properties (constants).
+ * Import this file in the main styles.scss so all components can use var(--name).
+ */
+
+:root {
+  /* Backgrounds */
+  --bg-main: #f5f5f7;
+  --bg-panel: #ffffff;
+  --bg-cell: #fafafa;
+  --bg-cell-hover: #f0f0f2;
+  --bg: #fff;
+
+  /* Borders */
+  --border: #e0e0e4;
+
+  /* Text */
+  --text: #1a1a1e;
+  --text-muted: #6b7280;
+
+  /* Brand & state */
+  --primary: #2563eb;
+  --primary-contrast: #fff;
+  --accent: #6366f1;
+  --accent-hover: #4f46e5;
+  --accent-alpha-08: rgba(99, 102, 241, 0.08);
+  --accent-alpha-2: rgba(99, 102, 241, 0.2);
+  --accent-alpha-25: rgba(99, 102, 241, 0.25);
+  --success: #16a34a;
+  --danger: #dc2626;
+  --error: #b91c1c;
+
+  /* Overlay & shadow */
+  --overlay: rgba(0, 0, 0, 0.4);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.15);
+  --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.15);
+  --shadow-modal: 0 2px 8px rgba(0, 0, 0, 0.3);
+
+  /* Radius */
+  --radius: 8px;
+  --radius-md: 6px;
+  --radius-sm: 4px;
+
+  /* Font */
+  --font-sans: 'DM Sans', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}

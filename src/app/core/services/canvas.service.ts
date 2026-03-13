@@ -690,33 +690,87 @@ export class CanvasService {
     this.state.set({ rows });
   }
 
-  /** Remove the row at the given index. Requires at least 2 rows. */
+  /**
+   * Remove the row at the given index. Requires at least 2 rows.
+   * Handles merged cells: content is preserved only if the deleted row does not include
+   * the top-most cell (origin) of a merge; otherwise the merge is unmerged then the row is removed.
+   */
   removeRowAt(rowIndex: number): boolean {
-    const rows = this.state().rows;
+    let rows = this.state().rows;
     if (rows.length <= 1) return false;
     if (rowIndex < 0 || rowIndex >= rows.length) return false;
     this.pushHistory();
-    const next = rows.filter((_, i) => i !== rowIndex).map((r, ri) => ({
-      ...r,
-      cells: r.cells.map((c, ci) => ({ ...c, rowIndex: ri, colIndex: ci })),
+
+    const rowToDelete = rows[rowIndex];
+    if (rowToDelete) {
+      for (let ci = 0; ci < rowToDelete.cells.length; ci++) {
+        const cell = rowToDelete.cells[ci];
+        if (cell?.isMergedOrigin && (cell.rowSpan > 1 || cell.colSpan > 1)) {
+          rows = gridMerge.unmergeCell(
+            rows as gridMerge.MergeableRow[],
+            rowIndex,
+            ci
+          ) as unknown as CanvasRow[];
+        }
+      }
+    }
+
+    const rowsWithReducedSpan = rows.map((row, ri) => ({
+      ...row,
+      cells: row.cells.map((c) => {
+        if (ri >= rowIndex) return c;
+        if (!c.isMergedOrigin || c.rowSpan <= 1) return c;
+        if (rowIndex >= ri + c.rowSpan) return c;
+        return { ...c, rowSpan: c.rowSpan - 1 };
+      }),
     }));
+
+    const next = rowsWithReducedSpan
+      .filter((_, i) => i !== rowIndex)
+      .map((r, ri) => ({
+        ...r,
+        cells: r.cells.map((c, ci) => ({ ...c, rowIndex: ri, colIndex: ci })),
+      }));
     this.state.set({ rows: next });
     return true;
   }
 
-  /** Remove the column at the given index. Requires at least 2 columns. */
+  /**
+   * Remove the column at the given index. Requires at least 2 columns.
+   * Handles merged cells: content is preserved only if the deleted column does not include
+   * the left-most cell (origin) of a merge; otherwise the merge is unmerged then the column is removed.
+   */
   removeColumnAt(colIndex: number): boolean {
-    const rows = this.state().rows;
+    let rows = this.state().rows;
     const colCount = rows[0]?.cells.length ?? 0;
     if (colCount <= 1) return false;
     if (colIndex < 0 || colIndex >= colCount) return false;
     this.pushHistory();
-    const next = rows.map((row, ri) => {
-      const cells = row.cells.filter((_, ci) => ci !== colIndex).map((c, ci) => ({
-        ...c,
-        rowIndex: ri,
-        colIndex: ci,
-      }));
+
+    for (let ri = 0; ri < rows.length; ri++) {
+      const cell = rows[ri]?.cells[colIndex];
+      if (cell?.isMergedOrigin && (cell.colSpan > 1 || cell.rowSpan > 1)) {
+        rows = gridMerge.unmergeCell(
+          rows as gridMerge.MergeableRow[],
+          ri,
+          colIndex
+        ) as unknown as CanvasRow[];
+      }
+    }
+
+    const rowsWithReducedSpan = rows.map((row) => ({
+      ...row,
+      cells: row.cells.map((c) => {
+        if (!c.isMergedOrigin || c.colSpan <= 1) return c;
+        if (colIndex < c.colIndex || colIndex >= c.colIndex + c.colSpan) return c;
+        return { ...c, colSpan: c.colSpan - 1 };
+      }),
+    }));
+
+    const next = rowsWithReducedSpan.map((row, ri) => {
+      const cells = row.cells
+        .filter((_, ci) => ci !== colIndex)
+        .map((c, ci) => ({ ...c, rowIndex: ri, colIndex: ci }));
       return { ...row, cells };
     });
     this.state.set({ rows: next });
@@ -1133,6 +1187,7 @@ export class CanvasService {
   }
 
   unmergeCell(rowIndex: number, colIndex: number): void {
+    this.pushHistory();
     this.state.set({
       rows: gridMerge.unmergeCell(
         this.state().rows as gridMerge.MergeableRow[],

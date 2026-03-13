@@ -338,41 +338,41 @@ export class EmbeddedTableComponent {
       }
       return;
     }
-      this.clearMergeSelection();
-      const parentCellId = this.parentCellId();
-      const parentWidgetId = this.parentWidgetId();
-      const hasFormControl = cell.widget && (FORM_CONTROL_WIDGET_TYPES as readonly string[]).includes(cell.widget.type);
-      const doSelect = () => {
-        if (parentCellId && parentWidgetId && cell.widget && cell.widget.type !== WIDGET_TYPE_TABLE) {
-          const el = e.target as Element;
-          const elementTarget = getElementKeyFromElement(el);
-          if (elementTarget) {
-            this.canvas.setSelectedNestedCell(parentCellId, parentWidgetId, cell.id, SelectedTarget.Element, elementTarget);
-          } else if (
-            el?.closest?.('app-widget-input') ||
-            el?.closest?.('app-widget-checkbox') ||
-            el?.closest?.('app-widget-radio') ||
-            el?.closest?.('app-widget-label')
-          ) {
-            this.canvas.setSelectedNestedCell(parentCellId, parentWidgetId, cell.id, SelectedTarget.WidgetInner);
-          } else if (el?.closest?.('app-widget-cell-renderer')) {
-            this.canvas.setSelectedNestedCell(parentCellId, parentWidgetId, cell.id, SelectedTarget.Widget);
-          } else {
-            this.canvas.setSelectedNestedCell(parentCellId, parentWidgetId, cell.id, SelectedTarget.Cell);
-          }
-        } else if (parentCellId && parentWidgetId && cell.widget) {
-          // table widget: don't open panel (same as canvas)
-        } else if (parentCellId && parentWidgetId) {
+    this.clearMergeSelection();
+    const parentCellId = this.parentCellId();
+    const parentWidgetId = this.parentWidgetId();
+    const hasFormControl = cell.widget && (FORM_CONTROL_WIDGET_TYPES as readonly string[]).includes(cell.widget.type);
+    const doSelect = () => {
+      if (parentCellId && parentWidgetId && cell.widget && cell.widget.type !== WIDGET_TYPE_TABLE) {
+        const el = e.target as Element;
+        const elementTarget = getElementKeyFromElement(el);
+        if (elementTarget) {
+          this.canvas.setSelectedNestedCell(parentCellId, parentWidgetId, cell.id, SelectedTarget.Element, elementTarget);
+        } else if (
+          el?.closest?.('app-widget-input') ||
+          el?.closest?.('app-widget-checkbox') ||
+          el?.closest?.('app-widget-radio') ||
+          el?.closest?.('app-widget-label')
+        ) {
+          this.canvas.setSelectedNestedCell(parentCellId, parentWidgetId, cell.id, SelectedTarget.WidgetInner);
+        } else if (el?.closest?.('app-widget-cell-renderer')) {
+          this.canvas.setSelectedNestedCell(parentCellId, parentWidgetId, cell.id, SelectedTarget.Widget);
+        } else {
           this.canvas.setSelectedNestedCell(parentCellId, parentWidgetId, cell.id, SelectedTarget.Cell);
         }
-      };
-      if (hasFormControl && !this.layoutGuard.hasLayoutNamed()) {
-        this.layoutGuard.ensureLayoutNamed().then((ok) => {
-          if (ok) doSelect();
-        });
-      } else {
-        doSelect();
+      } else if (parentCellId && parentWidgetId && cell.widget) {
+        // table widget: don't open panel (same as canvas)
+      } else if (parentCellId && parentWidgetId) {
+        this.canvas.setSelectedNestedCell(parentCellId, parentWidgetId, cell.id, SelectedTarget.Cell);
       }
+    };
+    if (hasFormControl && !this.layoutGuard.hasLayoutNamed()) {
+      this.layoutGuard.ensureLayoutNamed().then((ok) => {
+        if (ok) doSelect();
+      });
+    } else {
+      doSelect();
+    }
   }
 
   clearMergeSelection(): void {

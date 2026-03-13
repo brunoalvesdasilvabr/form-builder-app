@@ -24,7 +24,13 @@
         <button mat-raised-button color="primary" (click)="saveLayout()" [disabled]="!canUndo()" title="Save">
           Save
         </button>
-        <button type="button" class="btn btn-secondary" (click)="saveLayout()" title="Preview canvas HTML">
+        <button
+          type="button"
+          class="btn btn-secondary"
+          (click)="cloneLayout()"
+          [disabled]="!canClone()"
+          title="Clone template with a new name"
+        >
           Clone
         </button>
 
@@ -51,18 +57,21 @@
       @if (showMerge()) {
         <button type="button" class="btn btn-secondary" (click)="runMerge()">Merge selected</button>
       }
+      @if (showUnmerge()) {
+        <button type="button" class="btn btn-secondary" (click)="runUnmerge()" title="Unmerge cells; content stays in top-left cell">Unmerge</button>
+      }
       @if (showRemoveRow() || showRemoveCol()) {
         <span class="canvas-structural-buttons">
           @if (showRemoveRow()) {
-            <button mat-stroked-button class="canvas-structural-btn" (click)="removeActiveRow()" title="Remove one row">
+            <button mat-stroked-button class="canvas-structural-btn" (click)="removeActiveRow()" title="Delete row (merged content preserved if this row is not the top of the merge)">
               <mat-icon>remove_circle_outline</mat-icon>
-              <span>Row</span>
+              <span>Delete row</span>
             </button>
           }
           @if (showRemoveCol()) {
-            <button mat-stroked-button class="canvas-structural-btn" (click)="removeActiveCol()" title="Remove one column">
+            <button mat-stroked-button class="canvas-structural-btn" (click)="removeActiveCol()" title="Delete column (merged content preserved if this column is not the left of the merge)">
               <mat-icon>remove_circle_outline</mat-icon>
-              <span>Col</span>
+              <span>Delete column</span>
             </button>
           }
         </span>
@@ -105,6 +114,7 @@
                       [class]="
                         'canvas-cell' +
                         (cell.className ? ' ' + cell.className : '') +
+                        (cell.widget?.type === 'table' ? ' canvas-cell-has-embedded-table' : '') +
                         (isSelected(cell.rowIndex, cell.colIndex) ? ' canvas-cell-selected' : '') +
                         (layoutDropPreview()?.type === 'col' &&
                         layoutDropPreview()?.colIndex === cell.colIndex &&

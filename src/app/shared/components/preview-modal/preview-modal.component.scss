@@ -1,6 +1,6 @@
 .btn {
   padding: 0.5rem 0.9rem;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-weight: 500;
   font-size: 0.85rem;
   cursor: pointer;
@@ -29,7 +29,7 @@
 
 .preview-modal-hint {
   margin: 0 0 0.75rem;
-  color: var(--text-muted, #6b7280);
+  color: var(--text-muted);
   font-size: 0.875rem;
 }
 
@@ -47,9 +47,9 @@
   display: block;
   width: 100%;
   min-height: 200px;
-  border: 1px solid var(--border, #e0e0e4);
-  border-radius: var(--radius, 8px);
-  background: var(--bg-cell, #fafafa);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-cell);
 }
 
 /* Pierce encapsulation so styles apply to [innerHTML] content (no Angular host attributes). */
@@ -241,7 +241,7 @@
   summary {
     cursor: pointer;
     font-size: 0.875rem;
-    color: var(--text-muted, #6b7280);
+    color: var(--text-muted);
   }
 
   .preview-modal-code {
@@ -252,10 +252,10 @@
 .preview-modal-code {
   margin: 0;
   padding: 1rem;
-  background: var(--bg-cell, #fafafa);
-  border: 1px solid var(--border, #e0e0e4);
-  border-radius: var(--radius, 8px);
-  font-family: var(--font-mono, monospace);
+  background: var(--bg-cell);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-family: var(--font-mono);
   font-size: 0.8rem;
   overflow: auto;
   max-height: 60vh;
