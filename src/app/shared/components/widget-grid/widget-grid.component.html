@@ -5,9 +5,27 @@
       [attr.data-grid]="getGridBindingPath()"
       (mouseleave)="setColumnHover(null)"
     >
-    <table mat-table [dataSource]="dataSource" class="widget-grid-table">
+    <table
+      mat-table
+      [dataSource]="dataSource"
+      matSort
+      class="widget-grid-table"
+      [class.widget-grid-no-header-row]="!showHeaderRow()"
+      [class.widget-grid-no-total-row]="!showTotalRow()"
+    >
+      @if (w.type === 'grid' && w.gridHeaderText?.trim()) {
+        <caption class="widget-grid-caption" [style.text-align]="gridHeaderAlignment()">{{ w.gridHeaderText }}</caption>
+      }
       @for (col of columns(); track col.id; let colIdx = $index) {
-        <ng-container [matColumnDef]="col.columnName">
+        <ng-container [matColumnDef]="getColumnDef(col)">
+          <th
+            mat-header-cell
+            *matHeaderCellDef
+            [mat-sort-header]="getDisplayKey(col)"
+            [disabled]="!isColumnSortable(col)"
+            [ngClass]="getColumnClass(col, colIdx) + (hasColumnName(col) ? '' : ' widget-grid-header-cell-empty') + ' widget-grid-header-align-' + getHeaderAlignment(col)"
+            (mouseenter)="setColumnHover(colIdx)"
+          >{{ (col.columnName || '').trim() }}</th>
           <td
             mat-cell
             *matCellDef="let row"
@@ -23,11 +41,15 @@
             [style.text-align]="getColumnAlignment(col)"
             [attr.data-grid-column]="getColumnBindingPath(col)"
             (mouseenter)="setColumnHover(colIdx)"
-          >{{ totalRow() ? totalRow()![getDisplayKey(col)] : "" }}</td>
+          >{{ getTotalCellContent(col) }}</td>
         </ng-container>
       }
+      <tr mat-header-row *matHeaderRowDef="displayedColumns()"></tr>
       <tr mat-row *matRowDef="let row; columns: displayedColumns()"></tr>
       <tr mat-footer-row *matFooterRowDef="displayedColumns()"></tr>
     </table>
+    @if (gridFooterText()) {
+      <div class="widget-grid-footer" [style.text-align]="gridFooterAlignment()">{{ gridFooterText() }}</div>
+    }
   </div>
 }

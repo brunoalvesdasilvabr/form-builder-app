@@ -1,26 +1,27 @@
-import { Component, input, signal, HostBinding, computed, effect } from '@angular/core';
+import { Component, input, signal, HostBinding, computed, effect, viewChild, AfterViewInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatTableModule, MatTableDataSource } from '@angular/material/table';
+import { MatSort, MatSortModule } from '@angular/material/sort';
 import type { WidgetInstance } from '../../models/canvas.model';
 import { WIDGET_TYPE_GRID } from '../../models/canvas.model';
 import { TextAlignment } from '../../enums';
 import { BaseWidgetComponent } from '../base-widget.component';
 
 const DEFAULT_COLUMNS = [
-  { id: 'col0', columnName: 'column1', headerName: 'Column 1' },
-  { id: 'col1', columnName: 'column2', headerName: 'Column 2' },
-  { id: 'col2', columnName: 'column3', headerName: 'Column 3' },
+  { id: 'col0', columnName: '' },
+  { id: 'col1', columnName: '' },
+  { id: 'col2', columnName: '' },
 ];
 const PLACEHOLDER_ROW = [{ placeholder: 'No data' }];
 
 @Component({
   selector: 'app-widget-grid',
   standalone: true,
-  imports: [CommonModule, MatTableModule],
+  imports: [CommonModule, MatTableModule, MatSortModule],
   templateUrl: './widget-grid.component.html',
   styleUrl: './widget-grid.component.scss',
 })
-export class WidgetGridComponent extends BaseWidgetComponent {
+export class WidgetGridComponent extends BaseWidgetComponent implements AfterViewInit {
   override readonly widget = input.required<WidgetInstance>();
 
   /** When set, the column at this index is selected (e.g. for right-panel editing). */
@@ -36,12 +37,28 @@ export class WidgetGridComponent extends BaseWidgetComponent {
     return list;
   });
 
-  /** Column ids for matColumnDef and displayedColumns. */
-  readonly displayedColumns = computed(() => this.columns().map((c) => c.columnName));
+  /** Column ids for matColumnDef and displayedColumns. Uses columnName when set, else col id. */
+  readonly displayedColumns = computed(() => this.columns().map((c) => this.getColumnDef(c)));
 
-  /** Key used to read cell value from row; uses activityDataProperty when column is bound to activities. */
-  getDisplayKey(col: { columnName: string; activityDataProperty?: string }): string {
-    return col.activityDataProperty ?? col.columnName;
+  /** True when at least one column has a column name (so header row should be shown). */
+  readonly showHeaderRow = computed(() =>
+    this.columns().some((c) => (c.columnName ?? '').trim().length > 0)
+  );
+
+  /** True when the column has a column name (so its header cell should be shown). */
+  hasColumnName(col: { columnName?: string }): boolean {
+    return (col.columnName ?? '').trim().length > 0;
+  }
+
+  /** Unique column def for mat-table. Uses columnName when non-empty, else col.id. */
+  getColumnDef(col: { id: string; columnName?: string }): string {
+    const name = (col.columnName ?? '').trim();
+    return name || col.id;
+  }
+
+  /** Key used to read cell value from row; uses activityDataProperty when bound to activities, else columnName or col id. */
+  getDisplayKey(col: { id: string; columnName?: string; activityDataProperty?: string }): string {
+    return col.activityDataProperty ?? this.getColumnDef(col);
   }
 
   /** CSS class(es) for column cells; adds grid-col-selected when selected, grid-col-hovered on hover. */
@@ -78,6 +95,57 @@ export class WidgetGridComponent extends BaseWidgetComponent {
       ? a
       : TextAlignment.Left;
   }
+
+  /** True when this column is sortable. */
+  isColumnSortable(col: Record<string, unknown>): boolean {
+    return !!col['sortable'];
+  }
+
+  /** Header cell alignment. */
+  getHeaderAlignment(col: Record<string, unknown>): string {
+    const a = col['headerAlignment'];
+    return (a === TextAlignment.Left || a === TextAlignment.Center || a === TextAlignment.Right)
+      ? a
+      : TextAlignment.Left;
+  }
+
+  /** Total row cell content: from totalRow (sum or "Total" for first column). */
+  getTotalCellContent(col: Record<string, unknown>): string {
+    const row = this.totalRow();
+    if (!row) return '';
+    const key = this.getDisplayKey(col as { id: string; columnName?: string; activityDataProperty?: string });
+    const val = row[key];
+    return val != null ? String(val) : '';
+  }
+
+  /** True when Total row should be shown (we have real data and at least one column has amounts to sum). */
+  readonly showTotalRow = computed(() => {
+    const row = this.totalRow();
+    if (!row) return false;
+    const cols = this.columns();
+    return cols.some((col, i) => {
+      if (i === 0) return false;
+      const val = row[this.getDisplayKey(col)];
+      return typeof val === 'number' || (val !== '—' && val != null && val !== '');
+    });
+  });
+
+  /** Table-level footer text (below Total row). */
+  readonly gridFooterText = computed(() => (this.widget()?.type === WIDGET_TYPE_GRID ? (this.widget()?.gridFooterText ?? '').trim() : ''));
+
+  /** Table-level footer alignment. */
+  readonly gridFooterAlignment = computed(() => {
+    const a = this.widget()?.gridFooterAlignment;
+    return (a === TextAlignment.Left || a === TextAlignment.Center || a === TextAlignment.Right) ? a : TextAlignment.Left;
+  });
+
+  /** Caption (table header) alignment. */
+  readonly gridHeaderAlignment = computed(() => {
+    const a = this.widget()?.gridHeaderAlignment;
+    return (a === TextAlignment.Left || a === TextAlignment.Center || a === TextAlignment.Right) ? a : TextAlignment.Left;
+  });
+
+  private readonly matSort = viewChild(MatSort);
 
   /** Data source: uses widget.gridDataSourcePreview when defined, otherwise placeholder. */
   readonly dataSource = new MatTableDataSource<Record<string, unknown>>(PLACEHOLDER_ROW);
@@ -116,6 +184,19 @@ export class WidgetGridComponent extends BaseWidgetComponent {
         ? w.gridDataSourcePreview
         : PLACEHOLDER_ROW;
       this.dataSource.data = data;
+    });
+    this.dataSource.sortingDataAccessor = (row: Record<string, unknown>, sortId: string) => {
+      const val = row[sortId];
+      if (val == null) return '';
+      if (typeof val === 'number') return val;
+      return String(val);
+    };
+  }
+
+  ngAfterViewInit(): void {
+    effect(() => {
+      const sort = this.matSort();
+      if (sort) this.dataSource.sort = sort;
     });
   }
 

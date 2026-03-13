@@ -31,9 +31,48 @@
   background: var(--bg-panel);
 }
 
+.widget-grid-footer {
+  padding: 0.5rem 0;
+  font-size: 0.9em;
+  color: var(--text);
+}
+
+.widget-grid-caption {
+  caption-side: top;
+  padding: 0.5rem 0;
+  font-weight: 600;
+  color: var(--text);
+  text-align: left;
+}
+
 ::ng-deep .widget-grid-table {
   .mat-mdc-header-row {
     background: var(--bg-cell);
+  }
+
+  &.widget-grid-no-header-row .mat-mdc-header-row {
+    display: none;
+  }
+
+  &.widget-grid-no-total-row .mat-mdc-footer-row {
+    display: none;
+  }
+
+  .widget-grid-header-cell-empty {
+    visibility: collapse;
+    padding: 0;
+    border: none;
+    width: 0;
+    min-width: 0;
+  }
+  .widget-grid-header-align-left {
+    text-align: left !important;
+  }
+  .widget-grid-header-align-center {
+    text-align: center !important;
+  }
+  .widget-grid-header-align-right {
+    text-align: right !important;
   }
   .mat-mdc-cell,
   .mat-mdc-header-cell,

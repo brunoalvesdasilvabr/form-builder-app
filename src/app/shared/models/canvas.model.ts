@@ -110,8 +110,26 @@ export interface WidgetInstance {
   colspan?: number;
   rowspan?: number;
   nestedTable?: NestedTableState; // only for type 'table'
+  /** Optional header text for the whole grid (table-level). When empty, no table header is shown. */
+  gridHeaderText?: string;
+  /** Header alignment for the table caption. */
+  gridHeaderAlignment?: TextAlignmentType;
+  /** Optional footer text for the whole grid (table-level). Shown below Total row. When empty, no footer shown. */
+  gridFooterText?: string;
+  /** Footer alignment for the table-level footer text. */
+  gridFooterAlignment?: TextAlignmentType;
   /** Column definitions for type 'grid' (mat-table). When empty, one default column is shown. */
-  gridColumns?: { id: string; columnName: string; headerName: string; valueBinding?: string; activityDataProperty?: string; className?: string; alignment?: TextAlignmentType }[];
+  gridColumns?: {
+    id: string;
+    columnName: string;
+    headerName?: string;
+    headerAlignment?: TextAlignmentType; // per-column header alignment
+    valueBinding?: string;
+    activityDataProperty?: string;
+    className?: string;
+    alignment?: TextAlignmentType; // cell alignment
+    sortable?: boolean;
+  }[];
   /** Preview data for the grid in the builder: array of row objects. Keys should match column columnName. When set, grid shows these rows. */
   gridDataSourcePreview?: Record<string, unknown>[];
   /** Value binding template e.g. "{{ listValue1 }}" for input, checkbox, label */

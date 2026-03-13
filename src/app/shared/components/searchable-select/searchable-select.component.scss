@@ -1,0 +1,46 @@
+:host {
+  display: block;
+}
+
+/* Compact variant for toolbars */
+:host.searchable-select-compact {
+  min-width: 180px;
+  width: 100%;
+  max-width: 280px;
+
+  ::ng-deep {
+    .mat-mdc-form-field-subscript-wrapper {
+      display: none;
+    }
+
+    .mat-mdc-text-field-wrapper {
+      padding: 0;
+    }
+
+    .mdc-text-field {
+      padding: 0.4rem 0.6rem;
+      font-size: 0.85rem;
+      min-height: auto;
+      background: var(--bg-panel);
+      border-radius: var(--radius-md);
+
+      .mdc-notched-outline {
+        .mdc-notched-outline__leading,
+        .mdc-notched-outline__notch,
+        .mdc-notched-outline__trailing {
+          border-color: var(--border);
+        }
+      }
+    }
+
+    .mat-mdc-form-field-infix {
+      padding: 0;
+      min-height: auto;
+      border: none;
+    }
+
+    input {
+      font-size: 0.85rem;
+    }
+  }
+}

@@ -5,6 +5,7 @@ import { MatDialog } from "@angular/material/dialog";
 import { MatSnackBar } from "@angular/material/snack-bar";
 import { MatButtonModule } from "@angular/material/button";
 import { MatIconModule } from "@angular/material/icon";
+import { SearchableSelectComponent, type SearchableSelectOption } from "../../../../shared/components/searchable-select/searchable-select.component";
 import { stripBuilderChrome, copyFormValues, stripComponentWrappers } from "../../../../shared/utils/preview-html.util";
 import { CanvasService } from "../../../../core/services/canvas.service";
 import { SavedLayoutsService } from "../../../../core/services/saved-layouts.service";
@@ -38,6 +39,7 @@ import { LayoutAction, LayoutDropPosition } from "../../../../shared/enums";
     FormsModule,
     MatButtonModule,
     MatIconModule,
+    SearchableSelectComponent,
     WidgetRendererComponent,
     FormLayoutNameDirective,
   ],
@@ -112,6 +114,17 @@ export class CanvasComponent {
     const over = this.layoutDropdownOverride();
     if (over !== undefined) return over;
     return this.selectedLayoutId() ?? null;
+  });
+
+  /** Options for the searchable template dropdown: Select Template, New Template, and layouts. */
+  readonly templateSelectOptions = computed((): SearchableSelectOption[] => {
+    const layouts = this.layouts();
+    const options: SearchableSelectOption[] = [
+      { value: null, label: "Select Template" },
+      { value: LayoutOption.NewLayout, label: "New Template" },
+    ];
+    layouts.forEach((l) => options.push({ value: l.id, label: l.name }));
+    return options;
   });
 
   /** True when a saved template is selected (Clone creates a copy under a new name). */

@@ -115,8 +115,14 @@ export class AdminComponent {
   /** Pending values in the form (not applied until Apply is clicked). */
   readonly pendingClass = signal('');
   readonly pendingProperty = signal('');
-  /** For grid column: alignment only. Class reuses pendingClass. */
+  /** For grid column: alignment, column name, header text, header alignment, footer text, footer alignment, sortable. Class reuses pendingClass. */
   readonly pendingGridColumnAlignment = signal<TextAlignmentType | ''>('');
+  readonly pendingGridColumnName = signal('');
+  readonly pendingGridHeaderText = signal('');
+  readonly pendingGridHeaderAlignment = signal<TextAlignmentType | ''>('');
+  readonly pendingGridFooterText = signal('');
+  readonly pendingGridFooterAlignment = signal<TextAlignmentType | ''>('');
+  readonly pendingGridSortable = signal(false);
   /** When binding is Activities/Non-AMS Activities, selected property from the activity object (e.g. entryDate, amount). */
   readonly pendingActivityDataProperty = signal('');
   readonly pendingFormControlName = signal('');
@@ -135,6 +141,12 @@ export class AdminComponent {
   private initialProperty = '';
   private initialActivityDataProperty = '';
   private initialGridColumnAlignment: TextAlignmentType | '' = '';
+  private initialGridColumnName = '';
+  private initialGridHeaderText = '';
+  private initialGridHeaderAlignment: TextAlignmentType | '' = '';
+  private initialGridFooterText = '';
+  private initialGridFooterAlignment: TextAlignmentType | '' = '';
+  private initialGridSortable = false;
   private initialFormControlName = '';
   private initialVisibilityCondition = '';
   private initialMinLength = '';
@@ -155,10 +167,12 @@ export class AdminComponent {
     return slugify(layout?.name?.trim() ?? 'form');
   });
 
-  /** True when the right panel should show the visibility condition block. Shown for data components and for the table widget (so the whole embedded table can have a visibility rule). */
+  /** True when the right panel should show the visibility condition block. Shown for data components and table; hidden for grid (no visibility rule for grid or header text). */
   readonly showVisibilityConditionSection = computed(() => {
     const cell = this.selectedCell();
-    return !!cell?.widget;
+    if (!cell?.widget) return false;
+    if (cell.widget.type === WIDGET_TYPE_GRID) return false;
+    return true;
   });
 
   constructor() {
@@ -206,12 +220,32 @@ export class AdminComponent {
       : '';
   }
 
-  /** Fills initial grid column alignment when a column is selected. Class comes from syncInitialClassFromCell. */
+  /** Fills initial grid header/footer (table-level) and, when a column is selected, column props. */
   private syncInitialGridColumnStyle(cell: CanvasCell): void {
     if (cell.widget?.type !== WIDGET_TYPE_GRID) return;
+    const w = cell.widget;
+    this.initialGridHeaderText = w.gridHeaderText ?? '';
+    this.initialGridHeaderAlignment =
+      (w.gridHeaderAlignment === TextAlignment.Left ||
+        w.gridHeaderAlignment === TextAlignment.Center ||
+        w.gridHeaderAlignment === TextAlignment.Right)
+        ? w.gridHeaderAlignment
+        : '';
+    this.initialGridFooterText = w.gridFooterText ?? '';
+    this.initialGridFooterAlignment =
+      (w.gridFooterAlignment === TextAlignment.Left ||
+        w.gridFooterAlignment === TextAlignment.Center ||
+        w.gridFooterAlignment === TextAlignment.Right)
+        ? w.gridFooterAlignment
+        : '';
     const colIdx = this.selectedGridColumnIndex();
-    if (colIdx === null) return;
-    const cols = cell.widget.gridColumns ?? [];
+    if (colIdx === null) {
+      this.initialGridColumnAlignment = '';
+      this.initialGridColumnName = '';
+      this.initialGridSortable = false;
+      return;
+    }
+    const cols = w.gridColumns ?? [];
     const col = cols[colIdx];
     this.initialGridColumnAlignment =
       (col?.alignment === TextAlignment.Left ||
@@ -219,6 +253,14 @@ export class AdminComponent {
         col?.alignment === TextAlignment.Right)
         ? col.alignment
         : '';
+    this.initialGridColumnName = col?.columnName ?? '';
+    this.initialGridHeaderAlignment =
+      (col?.headerAlignment === TextAlignment.Left ||
+        col?.headerAlignment === TextAlignment.Center ||
+        col?.headerAlignment === TextAlignment.Right)
+        ? col.headerAlignment
+        : '';
+    this.initialGridSortable = col?.sortable ?? false;
   }
 
   /** Fills initial visibility condition (for label, input, checkbox, radio). */
@@ -244,6 +286,12 @@ export class AdminComponent {
     this.pendingProperty.set(this.initialProperty);
     this.pendingActivityDataProperty.set(this.initialActivityDataProperty);
     this.pendingGridColumnAlignment.set(this.initialGridColumnAlignment);
+    this.pendingGridColumnName.set(this.initialGridColumnName);
+    this.pendingGridHeaderText.set(this.initialGridHeaderText);
+    this.pendingGridHeaderAlignment.set(this.initialGridHeaderAlignment);
+    this.pendingGridFooterText.set(this.initialGridFooterText);
+    this.pendingGridFooterAlignment.set(this.initialGridFooterAlignment);
+    this.pendingGridSortable.set(this.initialGridSortable);
     this.pendingFormControlName.set(this.initialFormControlName);
     this.pendingVisibilityCondition.set(this.initialVisibilityCondition);
     this.pendingMinLength.set(this.initialMinLength);
@@ -286,6 +334,10 @@ export class AdminComponent {
     this.applyVisibilityConditionChangeIfNeeded(cell, messages);
     this.applyValidatorValuesChangeIfNeeded(cell, messages);
     this.applyGridColumnAlignmentChangeIfNeeded(cell, messages);
+    this.applyGridHeaderTextChangeIfNeeded(cell, messages);
+    this.applyGridFooterTextChangeIfNeeded(cell, messages);
+    this.applyGridColumnNameChangeIfNeeded(cell, messages);
+    this.applyGridColumnDetailsChangeIfNeeded(cell, messages);
 
     if (messages.length) {
       this.snackBar.open(messages.join(' '), undefined, { duration: 4000 });
@@ -341,6 +393,66 @@ export class AdminComponent {
     if (isGridColumnSelected && alignmentChanged) {
       this.applyGridColumnAlignmentChange(cell, messages);
     }
+  }
+
+  private applyGridHeaderTextChangeIfNeeded(cell: CanvasCell, messages: string[]): void {
+    if (cell.widget?.type !== WIDGET_TYPE_GRID) return;
+    const colIdx = this.selectedGridColumnIndex();
+    const headerTextChanged = this.pendingGridHeaderText() !== this.initialGridHeaderText;
+    const captionAlignChanged = colIdx === null && this.pendingGridHeaderAlignment() !== this.initialGridHeaderAlignment;
+    if (!headerTextChanged && !captionAlignChanged) return;
+    const headerAlign = colIdx === null ? this.pendingGridHeaderAlignment() : undefined;
+    this.canvas.updateGridHeaderText(cell.id, cell.widget.id, this.pendingGridHeaderText(), headerAlign);
+    this.initialGridHeaderText = this.pendingGridHeaderText();
+    if (colIdx === null) this.initialGridHeaderAlignment = this.pendingGridHeaderAlignment();
+    messages.push('Grid header was applied.');
+  }
+
+  private applyGridFooterTextChangeIfNeeded(cell: CanvasCell, messages: string[]): void {
+    if (cell.widget?.type !== WIDGET_TYPE_GRID) return;
+    const colIdx = this.selectedGridColumnIndex();
+    if (colIdx !== null) return;
+    const footerChanged =
+      this.pendingGridFooterText() !== this.initialGridFooterText ||
+      this.pendingGridFooterAlignment() !== this.initialGridFooterAlignment;
+    if (!footerChanged) return;
+    this.canvas.updateGridFooterText(
+      cell.id,
+      cell.widget.id,
+      this.pendingGridFooterText(),
+      this.pendingGridFooterAlignment()
+    );
+    this.initialGridFooterText = this.pendingGridFooterText();
+    this.initialGridFooterAlignment = this.pendingGridFooterAlignment();
+    messages.push('Grid footer was applied.');
+  }
+
+  private applyGridColumnNameChangeIfNeeded(cell: CanvasCell, messages: string[]): void {
+    const colIdx = this.selectedGridColumnIndex();
+    if (cell.widget?.type !== WIDGET_TYPE_GRID || colIdx === null) return;
+    if (this.pendingGridColumnName() === this.initialGridColumnName) return;
+    this.canvas.updateGridColumnName(cell.id, cell.widget.id, colIdx, this.pendingGridColumnName());
+    this.initialGridColumnName = this.pendingGridColumnName();
+    messages.push('Column name was applied.');
+  }
+
+  private applyGridColumnDetailsChangeIfNeeded(cell: CanvasCell, messages: string[]): void {
+    const colIdx = this.selectedGridColumnIndex();
+    if (cell.widget?.type !== WIDGET_TYPE_GRID || colIdx === null) return;
+    const changed =
+      this.pendingGridHeaderAlignment() !== this.initialGridHeaderAlignment ||
+      this.pendingGridSortable() !== this.initialGridSortable;
+    if (!changed) return;
+    this.canvas.updateGridColumnDetails(
+      cell.id,
+      cell.widget.id,
+      colIdx,
+      this.pendingGridHeaderAlignment(),
+      this.pendingGridSortable()
+    );
+    this.initialGridHeaderAlignment = this.pendingGridHeaderAlignment();
+    this.initialGridSortable = this.pendingGridSortable();
+    messages.push('Column details were applied.');
   }
 
   /** Applies the pending class to the cell/widget/element/grid-column and records the message. */

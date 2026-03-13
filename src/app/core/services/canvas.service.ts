@@ -877,12 +877,12 @@ export class CanvasService {
     return Array.from(set).sort();
   }
 
-  /** Default 3 columns for new grid widgets. */
-  private createDefaultGridColumns(): { id: string; columnName: string; headerName: string }[] {
+  /** Default 3 columns for new grid widgets. Column names empty so no headers show until user inputs them. */
+  private createDefaultGridColumns(): { id: string; columnName: string; headerName?: string }[] {
     return [
-      { id: generateId('id'), columnName: 'column1', headerName: 'Column 1' },
-      { id: generateId('id'), columnName: 'column2', headerName: 'Column 2' },
-      { id: generateId('id'), columnName: 'column3', headerName: 'Column 3' },
+      { id: generateId('id'), columnName: '' },
+      { id: generateId('id'), columnName: '' },
+      { id: generateId('id'), columnName: '' },
     ];
   }
 
@@ -904,7 +904,7 @@ export class CanvasService {
       (widget as WidgetInstance & { nestedTable: NestedTableState }).nestedTable = this.createDefaultNestedTable();
     }
     if (type === WIDGET_TYPE_GRID) {
-      (widget as WidgetInstance & { gridColumns: { id: string; columnName: string; headerName: string }[] }).gridColumns = this.createDefaultGridColumns();
+      (widget as WidgetInstance & { gridColumns: { id: string; columnName: string; headerName?: string }[] }).gridColumns = this.createDefaultGridColumns();
     }
     const updatedRow = { ...newRow, cells: [{ ...cell, widget }] };
     this.state.set({ rows: [updatedRow] });
@@ -927,7 +927,7 @@ export class CanvasService {
           (widget as WidgetInstance & { nestedTable: NestedTableState }).nestedTable = this.createDefaultNestedTable();
         }
         if (type === WIDGET_TYPE_GRID) {
-          (widget as WidgetInstance & { gridColumns: { id: string; columnName: string; headerName: string }[] }).gridColumns = this.createDefaultGridColumns();
+          (widget as WidgetInstance & { gridColumns: { id: string; columnName: string; headerName?: string }[] }).gridColumns = this.createDefaultGridColumns();
         }
         return { ...cell, widget };
       }),
@@ -986,7 +986,7 @@ export class CanvasService {
         if (c.id !== cellId || !c.widget || c.widget.id !== widgetId || c.widget.type !== WIDGET_TYPE_GRID) return c;
         const cols = c.widget.gridColumns ?? [];
         const n = cols.length + 1;
-        const newCol = { id: generateId('id'), columnName: `column${n}`, headerName: `Column ${n}` };
+        const newCol = { id: generateId('id'), columnName: '' };
         return { ...c, widget: { ...c.widget, gridColumns: [...cols, newCol] } };
       }),
     }));
@@ -1032,9 +1032,65 @@ export class CanvasService {
     this.state.set({ rows });
   }
 
-  /** Update column class and alignment for a grid column. */
+  /** Update grid-level header text and alignment. */
+  updateGridHeaderText(cellId: string, widgetId: string, headerText: string, headerAlignment?: TextAlignmentType | ''): void {
+    this.pushHistory();
+    const text = (headerText ?? '').trim();
+    const toAlign = (a: string | undefined) =>
+      (a === TextAlignment.Left || a === TextAlignment.Center || a === TextAlignment.Right) ? a : undefined;
+    const rows = this.state().rows.map((row) => ({
+      ...row,
+      cells: row.cells.map((c) => {
+        if (c.id !== cellId || !c.widget || c.widget.id !== widgetId || c.widget.type !== WIDGET_TYPE_GRID) return c;
+        const updates: Record<string, unknown> = { gridHeaderText: text || undefined };
+        if (headerAlignment !== undefined) updates['gridHeaderAlignment'] = toAlign(headerAlignment);
+        return { ...c, widget: { ...c.widget, ...updates } };
+      }),
+    }));
+    this.state.set({ rows });
+  }
+
+  /** Update grid-level footer text and alignment. */
+  updateGridFooterText(cellId: string, widgetId: string, footerText: string, footerAlignment?: TextAlignmentType | ''): void {
+    this.pushHistory();
+    const text = (footerText ?? '').trim();
+    const toAlign = (a: string | undefined) =>
+      (a === TextAlignment.Left || a === TextAlignment.Center || a === TextAlignment.Right) ? a : undefined;
+    const rows = this.state().rows.map((row) => ({
+      ...row,
+      cells: row.cells.map((c) => {
+        if (c.id !== cellId || !c.widget || c.widget.id !== widgetId || c.widget.type !== WIDGET_TYPE_GRID) return c;
+        const updates: Record<string, unknown> = { gridFooterText: text || undefined };
+        if (footerAlignment !== undefined) updates['gridFooterAlignment'] = toAlign(footerAlignment);
+        return { ...c, widget: { ...c.widget, ...updates } };
+      }),
+    }));
+    this.state.set({ rows });
+  }
+
+  /** Update column name (optional). When empty, column uses id as fallback. */
+  updateGridColumnName(cellId: string, widgetId: string, columnIndex: number, columnName: string): void {
+    this.pushHistory();
+    const colName = (columnName ?? '').trim();
+    const rows = this.state().rows.map((row) => ({
+      ...row,
+      cells: row.cells.map((c) => {
+        if (c.id !== cellId || !c.widget || c.widget.id !== widgetId || c.widget.type !== WIDGET_TYPE_GRID) return c;
+        const cols = [...(c.widget.gridColumns ?? [])];
+        if (columnIndex < 0 || columnIndex >= cols.length) return c;
+        const col = cols[columnIndex];
+        cols[columnIndex] = { ...col, columnName: colName };
+        return { ...c, widget: { ...c.widget, gridColumns: cols } };
+      }),
+    }));
+    this.state.set({ rows });
+  }
+
+  /** Update column class and alignment (cell) for a grid column. */
   updateGridColumnClassAndAlignment(cellId: string, widgetId: string, columnIndex: number, className: string, alignment: TextAlignmentType | ''): void {
     this.pushHistory();
+    const toAlign = (a: string | undefined) =>
+      (a === TextAlignment.Left || a === TextAlignment.Center || a === TextAlignment.Right) ? a : undefined;
     const rows = this.state().rows.map((row) => ({
       ...row,
       cells: row.cells.map((c) => {
@@ -1045,7 +1101,30 @@ export class CanvasService {
         cols[columnIndex] = {
           ...col,
           className: trimOrUndefined(className),
-          alignment: (alignment === TextAlignment.Left || alignment === TextAlignment.Center || alignment === TextAlignment.Right) ? alignment : undefined,
+          alignment: toAlign(alignment),
+        };
+        return { ...c, widget: { ...c.widget, gridColumns: cols } };
+      }),
+    }));
+    this.state.set({ rows });
+  }
+
+  /** Update column header alignment and sortable. */
+  updateGridColumnDetails(cellId: string, widgetId: string, columnIndex: number, headerAlignment: TextAlignmentType | '', sortable: boolean): void {
+    this.pushHistory();
+    const toAlign = (a: string | undefined) =>
+      (a === TextAlignment.Left || a === TextAlignment.Center || a === TextAlignment.Right) ? a : undefined;
+    const rows = this.state().rows.map((row) => ({
+      ...row,
+      cells: row.cells.map((c) => {
+        if (c.id !== cellId || !c.widget || c.widget.id !== widgetId || c.widget.type !== WIDGET_TYPE_GRID) return c;
+        const cols = [...(c.widget.gridColumns ?? [])];
+        if (columnIndex < 0 || columnIndex >= cols.length) return c;
+        const col = cols[columnIndex];
+        cols[columnIndex] = {
+          ...col,
+          headerAlignment: toAlign(headerAlignment),
+          sortable,
         };
         return { ...c, widget: { ...c.widget, gridColumns: cols } };
       }),
@@ -1062,7 +1141,10 @@ export class CanvasService {
         if (c.id !== cellId || !c.widget || c.widget.id !== widgetId || c.widget.type !== WIDGET_TYPE_GRID) return c;
         const cols = c.widget.gridColumns ?? [];
         const newRow: Record<string, unknown> = {};
-        cols.forEach((col) => { newRow[col.columnName] = ''; });
+        cols.forEach((col) => {
+          const key = col.activityDataProperty ?? (col.columnName?.trim() || col.id);
+          newRow[key] = '';
+        });
         const data = c.widget.gridDataSourcePreview ?? [];
         return { ...c, widget: { ...c.widget, gridDataSourcePreview: [...data, newRow] } };
       }),

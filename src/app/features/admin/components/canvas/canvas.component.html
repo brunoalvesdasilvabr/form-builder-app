@@ -2,22 +2,15 @@
   <div class="canvas-toolbar">
     <div class="canvas-toolbar-row">
       <div class="canvas-toolbar-left">
-        <label for="layoutSelect" class="canvas-toolbar-label">Template:</label>
-        <select
-          id="layoutSelect"
-          name="layoutSelect"
-          class="canvas-toolbar-select"
-          [ngModel]="layoutDropdownValue()"
-          (ngModelChange)="onLayoutSelect($event)"
-          [ngModelOptions]="{ standalone: true }"
-          title="Switch layout"
-        >
-          <option [ngValue]="null">Select Template</option>
-          <option [ngValue]="layoutOptionNew">New Template</option>
-          @for (layout of layouts(); track layout.id) {
-            <option [ngValue]="layout.id">{{ layout.name }}</option>
-          }
-        </select>
+        <label for="templateSearchInput" class="canvas-toolbar-label">Template:</label>
+        <app-searchable-select
+          inputId="templateSearchInput"
+          [options]="templateSelectOptions()"
+          [value]="layoutDropdownValue()"
+          (valueChange)="onLayoutSelect($event)"
+          placeholder="Select or search template..."
+          [compact]="true"
+        />
       </div>
       <div class="canvas-toolbar-right">
         <button mat-stroked-button (click)="undo()" [disabled]="!canUndo()" title="Undo last change">Undo</button>
