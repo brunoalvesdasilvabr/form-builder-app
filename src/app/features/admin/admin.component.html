@@ -145,32 +145,32 @@
                   <option value="right">Right</option>
                 </select>
               </div>
-              <div class="admin-right-panel-field">
-                <label class="admin-right-panel-label" for="grid-footer-text-input">Footer text (optional)</label>
-                <input
-                  id="grid-footer-text-input"
-                  type="text"
-                  class="admin-right-panel-input"
-                  [ngModel]="pendingGridFooterText()"
-                  (ngModelChange)="pendingGridFooterText.set($event)"
-                  placeholder="e.g. Notes for the whole table"
-                />
-              </div>
-              <div class="admin-right-panel-field">
-                <label class="admin-right-panel-label" for="grid-footer-alignment-select">Footer alignment</label>
-                <select
-                  id="grid-footer-alignment-select"
-                  class="admin-right-panel-input admin-right-panel-select"
-                  [ngModel]="pendingGridFooterAlignment()"
-                  (ngModelChange)="pendingGridFooterAlignment.set($event)"
-                >
-                  <option value="">— Left —</option>
-                  <option value="left">Left</option>
-                  <option value="center">Center</option>
-                  <option value="right">Right</option>
-                </select>
-              </div>
             }
+            <div class="admin-right-panel-field">
+              <label class="admin-right-panel-label" for="grid-footer-text-input">Footer text (optional)</label>
+              <input
+                id="grid-footer-text-input"
+                type="text"
+                class="admin-right-panel-input"
+                [ngModel]="pendingGridFooterText()"
+                (ngModelChange)="pendingGridFooterText.set($event)"
+                placeholder="e.g. Notes for the whole table"
+              />
+            </div>
+            <div class="admin-right-panel-field">
+              <label class="admin-right-panel-label" for="grid-footer-alignment-select">Footer alignment</label>
+              <select
+                id="grid-footer-alignment-select"
+                class="admin-right-panel-input admin-right-panel-select"
+                [ngModel]="pendingGridFooterAlignment()"
+                (ngModelChange)="pendingGridFooterAlignment.set($event)"
+              >
+                <option value="">— Left —</option>
+                <option value="left">Left</option>
+                <option value="center">Center</option>
+                <option value="right">Right</option>
+              </select>
+            </div>
           }
           @if (cell.widget?.type === 'grid' && selectedGridColumnIndex() !== null) {
             <div class="admin-right-panel-field">

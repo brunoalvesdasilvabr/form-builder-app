@@ -410,8 +410,6 @@ export class AdminComponent {
 
   private applyGridFooterTextChangeIfNeeded(cell: CanvasCell, messages: string[]): void {
     if (cell.widget?.type !== WIDGET_TYPE_GRID) return;
-    const colIdx = this.selectedGridColumnIndex();
-    if (colIdx !== null) return;
     const footerChanged =
       this.pendingGridFooterText() !== this.initialGridFooterText ||
       this.pendingGridFooterAlignment() !== this.initialGridFooterAlignment;
