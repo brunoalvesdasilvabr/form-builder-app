@@ -11,7 +11,7 @@ export function createDefaultNestedTable(idPrefix = 'id'): NestedTableState {
         id: generateId(idPrefix),
         rowIndex: r,
         colIndex: c,
-        widget: null,
+        widgets: [],
         colSpan: 1,
         rowSpan: 1,
         isMergedOrigin: true,

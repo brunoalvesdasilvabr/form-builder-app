@@ -1,0 +1,24 @@
+<h2 mat-dialog-title>Upload template</h2>
+<mat-dialog-content>
+  <input
+    #fileInput
+    type="file"
+    accept=".html"
+    class="upload-template-input-hidden"
+    (change)="onFileSelected($event)"
+    aria-label="Select HTML file"
+  />
+  <div class="upload-template-browse-row">
+    <div class="upload-template-filename-input" (click)="browse()" (keydown.enter)="browse()" (keydown.space)="onFilenameKeydown($event)" tabindex="0" role="button" aria-label="Selected file">
+      {{ selectedFileName || 'No file chosen' }}
+    </div>
+    <button type="button" mat-button (click)="browse()">Browse…</button>
+  </div>
+  @if (errorMessage()) {
+    <p class="upload-template-error" role="alert">{{ errorMessage() }}</p>
+  }
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-button (click)="cancel()">Cancel</button>
+  <button mat-raised-button color="primary" (click)="ok()" [disabled]="!selectedFile()">OK</button>
+</mat-dialog-actions>

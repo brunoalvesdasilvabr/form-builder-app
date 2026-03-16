@@ -2,9 +2,17 @@
   <div
       class="widget-grid-wrap"
       [ngClass]="getElementClassObj('table')"
+      [class.widget-grid-level-selected]="selectedColumnIndex() === null"
       [attr.data-grid]="getGridBindingPath()"
       (mouseleave)="setColumnHover(null)"
     >
+    @if (w.type === 'grid') {
+      <div
+        class="widget-grid-table-level-bar"
+        [class.widget-grid-click-table-level]="selectedColumnIndex() !== null"
+        title="Click to edit table (header/footer)"
+      >Table</div>
+    }
     <table
       mat-table
       [dataSource]="dataSource"
@@ -14,7 +22,11 @@
       [class.widget-grid-no-total-row]="!showTotalRow()"
     >
       @if (w.type === 'grid' && w.gridHeaderText?.trim()) {
-        <caption class="widget-grid-caption" [style.text-align]="gridHeaderAlignment()">{{ w.gridHeaderText }}</caption>
+        <caption
+          class="widget-grid-caption"
+          [class.widget-grid-click-table-level]="selectedColumnIndex() !== null"
+          [style.text-align]="gridHeaderAlignment()"
+        >{{ w.gridHeaderText }}</caption>
       }
       @for (col of columns(); track col.id; let colIdx = $index) {
         <ng-container [matColumnDef]="getColumnDef(col)">
@@ -48,8 +60,12 @@
       <tr mat-row *matRowDef="let row; columns: displayedColumns()"></tr>
       <tr mat-footer-row *matFooterRowDef="displayedColumns()"></tr>
     </table>
-    @if (gridFooterText()) {
-      <div class="widget-grid-footer" [style.text-align]="gridFooterAlignment()">{{ gridFooterText() }}</div>
+    @if (w.type === 'grid' && gridFooterText()) {
+      <div
+        class="widget-grid-footer"
+        [class.widget-grid-click-table-level]="selectedColumnIndex() !== null"
+        [style.text-align]="gridFooterAlignment()"
+      >{{ gridFooterText() }}</div>
     }
   </div>
 }

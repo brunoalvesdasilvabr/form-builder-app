@@ -54,6 +54,9 @@ export class WidgetRendererComponent {
   @HostBinding('attr.draggable') get draggable(): string | null {
     return this.cellId() ? 'true' : null;
   }
+  @HostBinding('attr.data-widget-id') get widgetIdAttr(): string | null {
+    return this.widget()?.id ?? null;
+  }
 
   @HostListener('dragstart', ['$event']) onDragStart(e: DragEvent): void {
     const id = this.cellId();

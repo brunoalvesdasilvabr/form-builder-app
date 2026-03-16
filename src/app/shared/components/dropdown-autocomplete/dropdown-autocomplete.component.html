@@ -1,0 +1,47 @@
+<div class="dropdown-autocomplete">
+  <input
+    #inputRef
+    [id]="inputId()"
+    type="text"
+    class="dropdown-autocomplete-input"
+    [value]="inputDisplay()"
+    (input)="onInput($event)"
+    (focus)="onFocus()"
+    (blur)="onBlur()"
+    [placeholder]="placeholder()"
+    autocomplete="off"
+    role="combobox"
+    [attr.aria-expanded]="isOpen()"
+    [attr.aria-haspopup]="'listbox'"
+    aria-autocomplete="list"
+  />
+  <button
+    type="button"
+    class="dropdown-autocomplete-trigger"
+    aria-label="Open list"
+    (mousedown)="$event.preventDefault(); isOpen() ? close() : onFocus()"
+  >
+    <span class="dropdown-autocomplete-chevron" aria-hidden="true">▼</span>
+  </button>
+  @if (isOpen()) {
+    <ul
+      class="dropdown-autocomplete-list"
+      role="listbox"
+      (mousedown)="$event.preventDefault()"
+    >
+      @for (opt of filteredOptions(); track opt.value ?? opt.label) {
+        <li
+          role="option"
+          class="dropdown-autocomplete-option"
+          [attr.aria-selected]="value() === opt.value"
+          (click)="select(opt)"
+        >
+          {{ opt.label }}
+        </li>
+      }
+      @if (filteredOptions().length === 0) {
+        <li class="dropdown-autocomplete-option dropdown-autocomplete-option--empty">No matches</li>
+      }
+    </ul>
+  }
+</div>

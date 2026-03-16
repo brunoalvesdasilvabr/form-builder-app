@@ -3,10 +3,13 @@
     <div class="canvas-toolbar-row">
       <div class="canvas-toolbar-left">
         <label for="templateSearchInput" class="canvas-toolbar-label">Template:</label>
-        <app-searchable-select
+        <app-dropdown-autocomplete
+          #templateDropdownRef
           inputId="templateSearchInput"
           [options]="templateSelectOptions()"
+          [alwaysShowValues]="[layoutOptionNew]"
           [value]="layoutDropdownValue()"
+          [displayValue]="selectedLayoutName()"
           (valueChange)="onLayoutSelect($event)"
           placeholder="Select or search template..."
           [compact]="true"
@@ -14,7 +17,7 @@
       </div>
       <div class="canvas-toolbar-right">
         <button mat-stroked-button (click)="undo()" [disabled]="!canUndo()" title="Undo last change">Undo</button>
-        <button mat-raised-button color="primary" (click)="saveLayout()" [disabled]="!canUndo()" title="Save">
+        <button mat-raised-button color="primary" (click)="saveLayout()" [disabled]="!canSaveLayout()" title="Save current template">
           Save
         </button>
         <button
@@ -29,6 +32,9 @@
 
         <button type="button" class="btn btn-secondary" (click)="downloadCanvasHtml()" title="Download canvas HTML">
           Download
+        </button>
+        <button type="button" class="btn btn-secondary" (click)="openUploadTemplate()" title="Upload template from HTML file">
+          Upload
         </button>
         <button type="button" class="btn btn-secondary" (click)="openPreview()" title="Preview canvas HTML">
           Preview
@@ -50,19 +56,19 @@
       @if (showMerge()) {
         <button type="button" class="btn btn-secondary" (click)="runMerge()">Merge selected</button>
       }
-      @if (showUnmerge()) {
+      @if (showUnmerge() || selectionContainsMergedCell()) {
         <button type="button" class="btn btn-secondary" (click)="runUnmerge()" title="Unmerge cells; content stays in top-left cell">Unmerge</button>
       }
-      @if (showRemoveRow() || showRemoveCol()) {
+      @if ((showRemoveRow() || showRemoveCol()) && !showUnmerge() && !selectionContainsMergedCell()) {
         <span class="canvas-structural-buttons">
           @if (showRemoveRow()) {
-            <button mat-stroked-button class="canvas-structural-btn" (click)="removeActiveRow()" title="Delete row (merged content preserved if this row is not the top of the merge)">
+            <button mat-stroked-button class="canvas-structural-btn" (click)="removeActiveRow()" title="Delete row">
               <mat-icon>remove_circle_outline</mat-icon>
               <span>Delete row</span>
             </button>
           }
           @if (showRemoveCol()) {
-            <button mat-stroked-button class="canvas-structural-btn" (click)="removeActiveCol()" title="Delete column (merged content preserved if this column is not the left of the merge)">
+            <button mat-stroked-button class="canvas-structural-btn" (click)="removeActiveCol()" title="Delete column">
               <mat-icon>remove_circle_outline</mat-icon>
               <span>Delete column</span>
             </button>
@@ -107,7 +113,7 @@
                       [class]="
                         'canvas-cell' +
                         (cell.className ? ' ' + cell.className : '') +
-                        (cell.widget?.type === 'table' ? ' canvas-cell-has-embedded-table' : '') +
+                        (cellHasEmbeddedTable(cell) ? ' canvas-cell-has-embedded-table' : '') +
                         (isSelected(cell.rowIndex, cell.colIndex) ? ' canvas-cell-selected' : '') +
                         (layoutDropPreview()?.type === 'col' &&
                         layoutDropPreview()?.colIndex === cell.colIndex &&
@@ -135,19 +141,23 @@
                       (dragover)="onDragOver($event, cell)"
                       (dragleave)="onDragLeave($event)"
                     >
-                      @if (cell.widget) {
-                        <app-widget-renderer
-                          [widget]="cell.widget"
-                          [cellId]="cell.id"
-                          [selectedGridColumnIndex]="cell.id === selectedCell()?.id && cell.widget.type === 'grid' ? selectedGridColumnIndex() : null"
-                          (removeWidget)="removeWidget(cell.id)"
-                          (cellDrop)="onDrop($event, cell)"
-                          (cellDragOver)="onDragOver($event, cell)"
-                          (nestedTableChange)="updateNestedTable(cell.id, cell.widget.id, $event)"
-                          (labelChange)="updateWidgetLabel(cell.id, cell.widget.id, $event)"
-                          (optionsChange)="updateWidgetOptions(cell.id, cell.widget.id, $event)"
-                          (optionSelect)="onRadioOptionSelect(cell.id, $event)"
-                        />
+                      @if (cellWidgets(cell).length > 0) {
+                        <div class="canvas-cell-widgets-stack">
+                          @for (widget of cellWidgets(cell); track widget.id) {
+                            <app-widget-renderer
+                              [widget]="widget"
+                              [cellId]="cell.id"
+                              [selectedGridColumnIndex]="cell.id === selectedCell()?.id && widget.type === 'grid' ? selectedGridColumnIndex() : null"
+                              (removeWidget)="removeWidget(cell.id, widget.id)"
+                              (cellDrop)="onDrop($event, cell)"
+                              (cellDragOver)="onDragOver($event, cell)"
+                              (nestedTableChange)="updateNestedTable(cell.id, widget.id, $event)"
+                              (labelChange)="updateWidgetLabel(cell.id, widget.id, $event)"
+                              (optionsChange)="updateWidgetOptions(cell.id, widget.id, $event)"
+                              (optionSelect)="onRadioOptionSelect(cell.id, $event)"
+                            />
+                          }
+                        </div>
                       } @else {
                         <div class="canvas-cell-placeholder">Drop component</div>
                       }

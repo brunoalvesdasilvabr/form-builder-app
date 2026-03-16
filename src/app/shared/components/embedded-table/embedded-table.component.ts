@@ -18,6 +18,7 @@ import type {
   NestedTableCell,
 } from '../../models/canvas.model';
 import {
+  getNestedCellWidgets,
   FORM_CONTROL_WIDGET_TYPES,
   WIDGET_TYPES,
   getDefaultWidgetLabel,
@@ -35,15 +36,14 @@ import { computeLayoutDropPosition } from '../../utils/layout-drop.util';
 import { CanvasService } from '../../../core/services/canvas.service';
 import { LayoutGuardService } from '../../../core/services/layout-guard.service';
 import { DragDropDataKey } from '../../constants/drag-drop.constants';
+import { getWidgetTypeFromDragEvent } from '../../utils/drag-drop.util';
 import type { LayoutActionType, LayoutDropPositionType } from '../../enums';
 import { LayoutAction, LayoutDropPosition, SelectedTarget } from '../../enums';
-
-const EMBEDDED_TABLE_IMPORTS = [CommonModule, WidgetCellRendererComponent];
 
 @Component({
   selector: 'app-embedded-table',
   standalone: true,
-  imports: EMBEDDED_TABLE_IMPORTS,
+  imports: [CommonModule, WidgetCellRendererComponent, EmbeddedTableComponent],
   templateUrl: './embedded-table.component.html',
   styleUrl: './embedded-table.component.scss',
 })
@@ -124,7 +124,7 @@ export class EmbeddedTableComponent {
         id: generateId('nested'),
         rowIndex,
         colIndex: c,
-        widget: null,
+        widgets: [],
         colSpan: 1,
         rowSpan: 1,
         isMergedOrigin: true,
@@ -180,11 +180,11 @@ export class EmbeddedTableComponent {
         id: generateId('nested'),
         rowIndex: ri,
         colIndex,
-        widget: null,
+        widgets: [],
         colSpan: 1,
         rowSpan: 1,
         isMergedOrigin: true,
-      } as NestedTableCell;
+      };
       const cells = [...row.cells];
       cells.splice(colIndex, 0, newCell);
       return {
@@ -226,12 +226,10 @@ export class EmbeddedTableComponent {
       (e.currentTarget as HTMLElement)?.classList.remove('embedded-cell-drag-over');
       return;
     }
-    const type = (e.dataTransfer?.getData(DragDropDataKey.WidgetType) ||
-      e.dataTransfer?.getData('text/plain')) as WidgetType;
-    if (!type || !WIDGET_TYPES.includes(type))
-      return;
-    const s = this.state();
-    if (!s) return;
+    const type = getWidgetTypeFromDragEvent(e);
+    if (!type) return;
+    const tableState = this.state();
+    if (!tableState) return;
     const newWidget: WidgetInstance = {
       id: generateId('nested'),
       type,
@@ -243,11 +241,12 @@ export class EmbeddedTableComponent {
       (newWidget as WidgetInstance & { nestedTable: NestedTableState }).nestedTable =
         this.defaultState();
     }
-    const rows = s.rows.map((r, ri) => ({
-      ...r,
-      cells: r.cells.map((cell) => {
+    const rows = tableState.rows.map((row) => ({
+      ...row,
+      cells: row.cells.map((cell) => {
         if (cell.id !== targetCell.id) return cell;
-        return { ...cell, widget: newWidget };
+        const currentWidgets = getNestedCellWidgets(cell);
+        return { ...cell, widgets: [...currentWidgets, newWidget] };
       }),
     }));
     this.state.set({ rows });
@@ -262,8 +261,14 @@ export class EmbeddedTableComponent {
     const rows = s.rows.map((row) => ({
       ...row,
       cells: row.cells.map((c) => {
-        if (c.id === fromCellId) return { ...c, widget: null };
-        if (c.id === toCellId) return { ...c, widget };
+        if (c.id === fromCellId) {
+          const currentWidgets = getNestedCellWidgets(c).filter((w) => w.id !== widget.id);
+          return { ...c, widgets: currentWidgets };
+        }
+        if (c.id === toCellId) {
+          const currentWidgets = getNestedCellWidgets(c);
+          return { ...c, widgets: [...currentWidgets, widget] };
+        }
         return c;
       }),
     }));
@@ -303,17 +308,24 @@ export class EmbeddedTableComponent {
     }
   }
 
-  removeNestedWidget(cellId: string): void {
+  removeNestedWidget(cellId: string, widgetId: string): void {
     const s = this.state();
     if (!s) return;
     const rows = s.rows.map((row) => ({
       ...row,
-      cells: row.cells.map((c) =>
-        c.id === cellId ? { ...c, widget: null } : c
-      ),
+      cells: row.cells.map((c) => {
+        if (c.id !== cellId) return c;
+        const currentWidgets = getNestedCellWidgets(c).filter((w) => w.id !== widgetId);
+        return { ...c, widgets: currentWidgets };
+      }),
     }));
     this.state.set({ rows });
     this.emitState();
+  }
+
+  /** Returns the list of widgets in a nested cell (stacked vertically in the UI). */
+  nestedCellWidgets(cell: NestedTableCell): WidgetInstance[] {
+    return getNestedCellWidgets(cell);
   }
 
   readonly selectionCells = signal<string[]>([]); // "row,col", merge only when it's a full rectangle
@@ -443,16 +455,15 @@ export class EmbeddedTableComponent {
     );
   }
 
-  onCellWidgetLabelChange(cellId: string, label: string): void {
+  onCellWidgetLabelChange(cellId: string, widgetId: string, label: string): void {
     const s = this.state();
     if (!s) return;
     const rows = s.rows.map((row) => ({
       ...row,
       cells: row.cells.map((c) => {
-        if (c.id !== cellId || !c.widget) return c;
-        const w = c.widget;
-        const updates = { label };
-        return { ...c, widget: { ...w, ...updates } };
+        if (c.id !== cellId) return c;
+        const widgets = getNestedCellWidgets(c).map((w) => (w.id === widgetId ? { ...w, label } : w));
+        return { ...c, widgets };
       }),
     }));
     this.state.set({ rows });
@@ -496,9 +507,11 @@ export class EmbeddedTableComponent {
     cellId: string
   ): { cell: NestedTableCell; cellEl: HTMLElement; controlEl: HTMLElement; isLabel: boolean; isInput: boolean } | null {
     const cell = this.findCellById(s.rows, cellId);
-    if (!cell?.widget) return null;
-    const isLabel = cell.widget.type === WIDGET_TYPE_LABEL;
-    const isInput = cell.widget.type === WIDGET_TYPE_INPUT;
+    const widgets = cell ? getNestedCellWidgets(cell) : [];
+    const firstLabelOrInput = widgets.find((w) => w.type === WIDGET_TYPE_LABEL || w.type === WIDGET_TYPE_INPUT);
+    if (!cell || !firstLabelOrInput) return null;
+    const isLabel = firstLabelOrInput.type === WIDGET_TYPE_LABEL;
+    const isInput = firstLabelOrInput.type === WIDGET_TYPE_INPUT;
     if (!isLabel && !isInput) return null;
     const cellEl = this.hostRef.nativeElement.querySelector(`[data-cell-id="${cellId}"]`) as HTMLElement | null;
     const controlEl = cellEl?.querySelector(isLabel ? '.widget-label-control' : '.widget-input-control') as HTMLElement | null;
@@ -542,7 +555,7 @@ export class EmbeddedTableComponent {
     );
     if (!nextOrigin || nextOrigin.rowIndex !== cell.rowIndex || nextOrigin.colIndex !== nextCol) return;
     const nextCell = nextOrigin as NestedTableCell;
-    if (nextCell.widget != null) return;
+    if (getNestedCellWidgets(nextCell).length > 0) return;
     if (contentWidth <= cellEl.clientWidth) return;
     const mergedRows = gridMerge.mergeCells(
       s.rows as gridMerge.MergeableRow[],
@@ -582,25 +595,25 @@ export class EmbeddedTableComponent {
     return null;
   }
 
-  onCellOptionSelect(cell: NestedTableCell, optionIndex: number): void {
+  onCellOptionSelect(cell: NestedTableCell, _widget: WidgetInstance, optionIndex: number): void {
     const parentCellId = this.parentCellId();
     const parentWidgetId = this.parentWidgetId();
-    if (parentCellId && parentWidgetId && cell.widget) {
+    if (parentCellId && parentWidgetId) {
       this.canvas.setSelectedNestedCell(parentCellId, parentWidgetId, cell.id, SelectedTarget.WidgetInner);
       this.canvas.setSelectedOptionIndex(optionIndex);
     }
   }
 
-  onCellWidgetOptionsChange(cellId: string, options: string[]): void {
+  onCellWidgetOptionsChange(cellId: string, widgetId: string, options: string[]): void {
     const s = this.state();
     if (!s) return;
     const rows = s.rows.map((row) => ({
       ...row,
-      cells: row.cells.map((c) =>
-        c.id === cellId && c.widget
-          ? { ...c, widget: { ...c.widget, options } }
-          : c
-      ),
+      cells: row.cells.map((c) => {
+        if (c.id !== cellId) return c;
+        const widgets = getNestedCellWidgets(c).map((w) => (w.id === widgetId ? { ...w, options } : w));
+        return { ...c, widgets };
+      }),
     }));
     this.state.set({ rows });
     this.emitState();
@@ -611,11 +624,13 @@ export class EmbeddedTableComponent {
     if (!s) return;
     const rows = s.rows.map((row) => ({
       ...row,
-      cells: row.cells.map((c) =>
-        c.id === cellId && c.widget && c.widget.id === widgetId
-          ? { ...c, widget: { ...c.widget, nestedTable: nestedState } }
-          : c
-      ),
+      cells: row.cells.map((c) => {
+        if (c.id !== cellId) return c;
+        const widgets = getNestedCellWidgets(c).map((w) =>
+          w.id === widgetId ? { ...w, nestedTable: nestedState } : w
+        );
+        return { ...c, widgets };
+      }),
     }));
     this.state.set({ rows });
     this.emitState();

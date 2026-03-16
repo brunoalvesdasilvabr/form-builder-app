@@ -319,6 +319,15 @@
   outline-offset: -2px;
 }
 
+/* Multiple components in a cell: stacked one under the other as dropped */
+.canvas-cell-widgets-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+  min-width: 0;
+}
+
 .canvas-cell-placeholder {
   min-height: 56px;
   padding: 0.75rem;

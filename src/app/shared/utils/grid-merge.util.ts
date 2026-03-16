@@ -60,6 +60,12 @@ export function shouldSkipRendering<T extends MergeableCell>(
   return (origin.rowIndex !== rowIndex || origin.colIndex !== colIndex);
 }
 
+/** Gets widgets array from a cell (supports legacy widget or widgets). */
+function getCellWidgets(cell: { widgets?: unknown[]; widget?: unknown }): unknown[] {
+  if (Array.isArray(cell.widgets)) return cell.widgets;
+  return cell.widget != null ? [cell.widget] : [];
+}
+
 export function mergeCells<T extends MergeableRow>(
   rows: T[],
   originRow: number,
@@ -69,15 +75,11 @@ export function mergeCells<T extends MergeableRow>(
 ): T[] {
   const rowSpan = endRow - originRow + 1;
   const colSpan = endCol - originCol + 1;
-  // Keep widget from the top-left origin cell; if it's empty, use widget from first non-empty cell in range
-  const originCell = rows[originRow]?.cells[originCol] as { widget?: unknown } | undefined;
-  let widgetToKeep = originCell?.widget;
-  if (widgetToKeep == null) {
-    for (let r = originRow; r <= endRow && widgetToKeep == null; r++) {
-      for (let c = originCol; c <= endCol && widgetToKeep == null; c++) {
-        const c2 = rows[r]?.cells[c] as { widget?: unknown } | undefined;
-        if (c2?.widget != null) widgetToKeep = c2.widget;
-      }
+  const widgetsToKeep: unknown[] = [];
+  for (let r = originRow; r <= endRow; r++) {
+    for (let c = originCol; c <= endCol; c++) {
+      const cell = rows[r]?.cells[c] as { widgets?: unknown[]; widget?: unknown } | undefined;
+      if (cell) widgetsToKeep.push(...getCellWidgets(cell));
     }
   }
   return rows.map((row, ri) => ({
@@ -86,17 +88,15 @@ export function mergeCells<T extends MergeableRow>(
       const inRange = ri >= originRow && ri <= endRow && ci >= originCol && ci <= endCol;
       if (!inRange) return cell;
       const isOrigin = ri === originRow && ci === originCol;
-      const cellWithWidget = {
+      const cellWithWidgets = {
         ...cell,
         colSpan: isOrigin ? colSpan : 1,
         rowSpan: isOrigin ? rowSpan : 1,
         isMergedOrigin: isOrigin,
-        ...(!isOrigin && 'widget' in cell ? { widget: null } : {}),
+        ...('widgets' in cell || 'widget' in cell ? { widgets: isOrigin ? widgetsToKeep : [] } : {}),
       };
-      if (isOrigin && 'widget' in cellWithWidget && widgetToKeep != null) {
-        return { ...cellWithWidget, widget: widgetToKeep };
-      }
-      return cellWithWidget;
+      if ('widget' in cellWithWidgets) delete (cellWithWidgets as { widget?: unknown }).widget;
+      return cellWithWidgets;
     }),
   })) as T[];
 }
@@ -112,8 +112,8 @@ export function unmergeCell<T extends MergeableRow>(
   if (rowSpan === 1 && colSpan === 1) return rows;
   const r0 = origin.rowIndex;
   const c0 = origin.colIndex;
-  const originCell = rows[r0]?.cells[c0];
-  const originWidget = (originCell as { widget?: unknown })?.widget;
+  const originCell = rows[r0]?.cells[c0] as { widgets?: unknown[]; widget?: unknown } | undefined;
+  const originWidgets = originCell ? getCellWidgets(originCell) : [];
   return rows.map((row, ri) => ({
     ...row,
     cells: row.cells.map((cell, ci) => {
@@ -121,13 +121,15 @@ export function unmergeCell<T extends MergeableRow>(
         ri >= r0 && ri < r0 + rowSpan && ci >= c0 && ci < c0 + colSpan;
       if (!inMerged) return cell;
       const isOrigin = ri === r0 && ci === c0;
-      return {
+      const next = {
         ...cell,
         colSpan: 1,
         rowSpan: 1,
         isMergedOrigin: true,
-        ...('widget' in cell ? { widget: isOrigin ? originWidget : null } : {}),
+        ...('widgets' in cell || 'widget' in cell ? { widgets: isOrigin ? originWidgets : [] } : {}),
       };
+      if ('widget' in next) delete (next as { widget?: unknown }).widget;
+      return next;
     }),
   })) as T[];
 }

@@ -61,6 +61,10 @@
   overflow: hidden;
   box-sizing: border-box;
 
+  &:has(.embedded-cell-widgets-stack) {
+    max-height: none;
+  }
+
   > * {
     display: block;
     width: 100%;
@@ -149,6 +153,15 @@
   background: var(--accent-alpha-25);
   outline: 2px solid var(--accent);
   outline-offset: -2px;
+}
+
+/* Multiple components in a cell: stacked one under the other as dropped */
+.embedded-cell-widgets-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  width: 100%;
+  min-width: 0;
 }
 
 .embedded-cell-placeholder {

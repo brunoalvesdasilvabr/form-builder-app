@@ -29,7 +29,7 @@ export class PaletteComponent {
 
   /** Layout actions: row, col (drag to add row/column) */
   readonly layoutActions = [LayoutAction.Row, LayoutAction.Col] as const;
-  readonly layoutActionLabels: Record<string, string> = { [LayoutAction.Row]: 'Row', [LayoutAction.Col]: 'Col' };
+  readonly layoutActionLabels: Record<string, string> = { [LayoutAction.Row]: 'Row', [LayoutAction.Col]: 'Column' };
   readonly layoutActionIcons: Record<string, string> = { [LayoutAction.Row]: '↕', [LayoutAction.Col]: '↔' };
 
   /** Data section: label, input, panel (grid is under its own submenu) */
@@ -40,7 +40,7 @@ export class PaletteComponent {
 
   /** Grid submenu: add col only (rows cannot be added to grids) */
   readonly gridActions = [GridAction.Col] as const;
-  readonly gridActionLabels: Record<string, string> = { [GridAction.Row]: 'Add Row', [GridAction.Col]: 'Add Col' };
+  readonly gridActionLabels: Record<string, string> = { [GridAction.Row]: 'Add Row', [GridAction.Col]: 'Grid Column' };
   readonly gridActionIcons: Record<string, string> = { [GridAction.Row]: '↕', [GridAction.Col]: '↔' };
 
   iconFor(type: WidgetType): string {

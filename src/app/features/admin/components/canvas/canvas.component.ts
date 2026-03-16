@@ -5,7 +5,7 @@ import { MatDialog } from "@angular/material/dialog";
 import { MatSnackBar } from "@angular/material/snack-bar";
 import { MatButtonModule } from "@angular/material/button";
 import { MatIconModule } from "@angular/material/icon";
-import { SearchableSelectComponent, type SearchableSelectOption } from "../../../../shared/components/searchable-select/searchable-select.component";
+import { DropdownAutocompleteComponent, type DropdownAutocompleteOption } from "../../../../shared/components/dropdown-autocomplete/dropdown-autocomplete.component";
 import { stripBuilderChrome, copyFormValues, stripComponentWrappers } from "../../../../shared/utils/preview-html.util";
 import { CanvasService } from "../../../../core/services/canvas.service";
 import { SavedLayoutsService } from "../../../../core/services/saved-layouts.service";
@@ -13,22 +13,25 @@ import { LayoutGuardService } from "../../../../core/services/layout-guard.servi
 import { WidgetRendererComponent } from "../../../../shared/components/widget-renderer/widget-renderer.component";
 import { PreviewModalComponent } from "../../../../shared/components/preview-modal/preview-modal.component";
 import { LayoutNameDialogComponent } from "../../../../shared/components/layout-name-dialog/layout-name-dialog.component";
-import type { CanvasCell, WidgetType, NestedTableState, WidgetInstance } from "../../../../shared/models/canvas.model";
+import { UploadTemplateDialogComponent, type UploadTemplateResult } from "../../../../shared/components/upload-template-dialog/upload-template-dialog.component";
+import type { CanvasCell, CanvasState, WidgetType, NestedTableState, WidgetInstance } from "../../../../shared/models/canvas.model";
 import { LayoutOption } from "../../../../shared/enums";
 import type { LayoutActionType, LayoutDropPositionType } from "../../../../shared/enums";
-import { FORM_CONTROL_WIDGET_TYPES, WIDGET_TYPES, WIDGET_TYPE_GRID, WIDGET_TYPE_TABLE } from "../../../../shared/models/canvas.model";
-import { SelectedTarget } from "../../../../shared/enums";
+import { getCanvasCellWidgets, getPrimaryWidget, FORM_CONTROL_WIDGET_TYPES, WIDGET_TYPES, WIDGET_TYPE_GRID, WIDGET_TYPE_TABLE } from "../../../../shared/models/canvas.model";
+import { SelectedTarget, type SelectedTargetType } from "../../../../shared/enums";
 import {
   computeMergeRange,
   canMergeFromRange,
   updateSelectionForCtrlClick,
 } from "../../../../shared/utils/grid-selection.util";
+import * as gridMerge from "../../../../shared/utils/grid-merge.util";
 import { getElementKeyFromElement } from "../../../../shared/utils/element-target.util";
 import { computeLayoutDropPosition } from "../../../../shared/utils/layout-drop.util";
 import { FormLayoutNameDirective } from "../../../../shared/directives/form-layout-name.directive";
-import { DEFAULT_LAYOUT_NAME } from "../../../../shared/constants/canvas.constants";
+import { DEFAULT_LAYOUT_NAME, FORM_BUILDER_LAYOUT_STATE_SCRIPT_ID } from "../../../../shared/constants/canvas.constants";
 import { toSafeFilename } from "../../../../shared/utils/safe-filename.util";
 import { DragDropDataKey, DragDropCssClass } from "../../../../shared/constants/drag-drop.constants";
+import { getWidgetTypeFromDragEvent } from "../../../../shared/utils/drag-drop.util";
 import { LayoutAction, LayoutDropPosition } from "../../../../shared/enums";
 
 @Component({
@@ -39,7 +42,7 @@ import { LayoutAction, LayoutDropPosition } from "../../../../shared/enums";
     FormsModule,
     MatButtonModule,
     MatIconModule,
-    SearchableSelectComponent,
+    DropdownAutocompleteComponent,
     WidgetRendererComponent,
     FormLayoutNameDirective,
   ],
@@ -56,6 +59,10 @@ export class CanvasComponent {
 
   readonly layouts = this.savedLayouts.layouts;
   readonly selectedLayoutId = this.savedLayouts.selectedLayoutId;
+  readonly selectedLayout = this.savedLayouts.selectedLayout;
+
+  /** True when the user can save (current layout can be persisted/renamed). Enabled when a layout is selected. */
+  readonly canSaveLayout = computed(() => this.savedLayouts.selectedLayout() != null);
 
   readonly rows = this.canvas.rows;
   readonly canUndo = this.canvas.canUndo;
@@ -96,6 +103,21 @@ export class CanvasComponent {
     return cell.isMergedOrigin && (cell.colSpan > 1 || cell.rowSpan > 1);
   });
 
+  /** True when the current selection range contains a merged cell (so Delete row/column must be hidden until unmerge). */
+  readonly selectionContainsMergedCell = computed(() => {
+    if (this.selectedNestedPath() != null) return false;
+    const range = this.mergeRange();
+    if (!range || this.selectionCells().length === 0) return false;
+    const rows = this.rows();
+    const origin = gridMerge.getOriginCell(
+      rows as { cells: gridMerge.MergeableCell[] }[],
+      range.r0,
+      range.c0
+    );
+    if (!origin) return false;
+    return !!(origin.isMergedOrigin && ((origin.colSpan ?? 1) > 1 || (origin.rowSpan ?? 1) > 1));
+  });
+
   /** True when − Row / − Col are shown (ctrl+click selection). */
   readonly showStructuralRemoveButtons = computed(() => {
     if (this.selectionCells().length > 0 && this.mergeRange()) return true;
@@ -116,10 +138,16 @@ export class CanvasComponent {
     return this.selectedLayoutId() ?? null;
   });
 
-  /** Options for the searchable template dropdown: Select Template, New Template, and layouts. */
-  readonly templateSelectOptions = computed((): SearchableSelectOption[] => {
+  readonly selectedLayoutName = computed(() => {
+    const val = this.layoutDropdownValue();
+    if (val === LayoutOption.NewLayout) return 'New Template';
+    return this.savedLayouts.selectedLayout()?.name ?? '';
+  });
+
+  /** Options for the template dropdown: New Template and saved layouts. */
+  readonly templateSelectOptions = computed((): DropdownAutocompleteOption[] => {
     const layouts = this.layouts();
-    const options: SearchableSelectOption[] = [
+    const options: DropdownAutocompleteOption[] = [
       { value: LayoutOption.NewLayout, label: "New Template" },
     ];
     layouts.forEach((l) => options.push({ value: l.id, label: l.name }));
@@ -130,57 +158,64 @@ export class CanvasComponent {
   readonly canClone = computed(() => this.savedLayouts.selectedLayout() != null);
 
   @ViewChild("canvasFormRef") private canvasFormRef?: ElementRef<HTMLFormElement>;
+  @ViewChild("templateDropdownRef") private templateDropdownRef?: DropdownAutocompleteComponent;
 
   isSelected(rowIndex: number, colIndex: number): boolean {
     return this.selectionCells().includes(`${rowIndex},${colIndex}`);
   }
 
-  // ctrl+click = add/remove from selection (for merge). no ctrl = clear or open right panel
+  /** Resolves what the user clicked: element (with key), widget-inner, widget, or cell. Also returns widget id when clicking a widget. */
+  private getSelectionTargetFromEvent(e: MouseEvent): { target: SelectedTargetType; elementKey?: string; widgetId?: string } {
+    const clickedElement = e.target as Element;
+    const elementKey = getElementKeyFromElement(clickedElement);
+    if (elementKey) return { target: SelectedTarget.Element, elementKey };
+    const widgetHost = clickedElement?.closest?.("app-widget-renderer");
+    const widgetId = widgetHost?.getAttribute?.("data-widget-id") ?? undefined;
+    if (
+      clickedElement?.closest?.("app-widget-input") ||
+      clickedElement?.closest?.("app-widget-checkbox") ||
+      clickedElement?.closest?.("app-widget-radio") ||
+      clickedElement?.closest?.("app-widget-label") ||
+      clickedElement?.closest?.("app-widget-table") ||
+      clickedElement?.closest?.("app-widget-grid")
+    ) {
+      return { target: SelectedTarget.WidgetInner, widgetId };
+    }
+    if (widgetHost) return { target: SelectedTarget.Widget, widgetId };
+    return { target: SelectedTarget.Cell };
+  }
+
+  /** Applies selection for a single cell click (opens right panel): sets selected cell and grid column if needed. */
+  private applyCellSelection(cell: CanvasCell, e: MouseEvent): void {
+    const { target, elementKey, widgetId } = this.getSelectionTargetFromEvent(e);
+    this.canvas.setSelectedCell(cell.id, target, elementKey, widgetId);
+    this.setGridColumnSelection(cell, e);
+  }
+
+  /** ctrl+click = add/remove from selection (for merge). Normal click = clear and open right panel. */
   onCellClick(e: MouseEvent, rowIndex: number, colIndex: number, cell: CanvasCell): void {
     this.canvas.clearNestedSelection();
     if (e.ctrlKey) {
       this.canvas.setCanvasSelection(updateSelectionForCtrlClick(this.selectionCells(), rowIndex, colIndex));
-    } else {
-      this.clearSelection();
-      const hasFormControl = cell.widget && (FORM_CONTROL_WIDGET_TYPES as readonly string[]).includes(cell.widget.type);
-      const doSelect = () => {
-        const el = e.target as Element;
-        const elementTarget = getElementKeyFromElement(el);
-        if (elementTarget) {
-          this.canvas.setSelectedCell(cell.id, SelectedTarget.Element, elementTarget);
-        } else if (
-          el?.closest?.("app-widget-input") ||
-          el?.closest?.("app-widget-checkbox") ||
-          el?.closest?.("app-widget-radio") ||
-          el?.closest?.("app-widget-label") ||
-          el?.closest?.("app-widget-table") ||
-          el?.closest?.("app-widget-grid")
-        ) {
-          this.canvas.setSelectedCell(cell.id, SelectedTarget.WidgetInner);
-        } else if (el?.closest?.("app-widget-renderer")) {
-          this.canvas.setSelectedCell(cell.id, SelectedTarget.Widget);
-        } else {
-          this.canvas.setSelectedCell(cell.id, SelectedTarget.Cell);
+      return;
+    }
+    this.clearSelection();
+    const hasFormControl = getCanvasCellWidgets(cell).some((w) => (FORM_CONTROL_WIDGET_TYPES as readonly string[]).includes(w.type));
+    if (hasFormControl && !this.layoutGuard.hasLayoutNamed()) {
+      this.layoutGuard.ensureLayoutNamed().then((ok) => {
+        if (ok) {
+          this.applyCellSelection(cell, e);
+          this.cdr.detectChanges();
         }
-      };
-      if (hasFormControl && !this.layoutGuard.hasLayoutNamed()) {
-        this.layoutGuard.ensureLayoutNamed().then((ok) => {
-          if (ok) {
-            doSelect();
-            this.setGridColumnSelection(cell, e);
-            this.cdr.detectChanges();
-          }
-        });
-      } else {
-        doSelect();
-        this.setGridColumnSelection(cell, e);
-      }
+      });
+    } else {
+      this.applyCellSelection(cell, e);
     }
   }
 
   /** When cell is a grid: set selectedGridColumnIndex from header, body, or footer cell click (any column cell), or null for grid-level. */
   private setGridColumnSelection(cell: CanvasCell, e: MouseEvent): void {
-    if (cell.widget?.type !== WIDGET_TYPE_GRID) return;
+    if (getPrimaryWidget(cell)?.type !== WIDGET_TYPE_GRID) return;
     const el = e.target as Element;
     const headerCell = el.closest("th[mat-header-cell]");
     const bodyCell = el.closest("td[mat-cell]");
@@ -219,16 +254,44 @@ export class CanvasComponent {
 
   /** Unmerge the selected merged cell (top-level canvas). Content stays in the top-left cell; other cells become empty. */
   runUnmerge(): void {
+    if (this.selectedNestedPath()) return;
+    let originRow: number;
+    let originCol: number;
     const cell = this.selectedCell();
-    if (!cell || this.selectedNestedPath()) return;
-    if (!cell.isMergedOrigin || (cell.colSpan <= 1 && cell.rowSpan <= 1)) return;
-    this.canvas.unmergeCell(cell.rowIndex, cell.colIndex);
+    if (cell?.isMergedOrigin && (cell.colSpan > 1 || cell.rowSpan > 1)) {
+      originRow = cell.rowIndex;
+      originCol = cell.colIndex;
+    } else if (this.selectionContainsMergedCell()) {
+      const range = this.mergeRange();
+      if (!range) return;
+      const origin = gridMerge.getOriginCell(
+        this.rows() as { cells: gridMerge.MergeableCell[] }[],
+        range.r0,
+        range.c0
+      );
+      if (!origin?.isMergedOrigin || ((origin.colSpan ?? 1) <= 1 && (origin.rowSpan ?? 1) <= 1)) return;
+      originRow = origin.rowIndex;
+      originCol = origin.colIndex;
+    } else {
+      return;
+    }
+    this.canvas.unmergeCell(originRow, originCol);
     this.canvas.setSelectedCell(null);
     this.clearSelection();
   }
 
   hasSelection(): boolean {
     return this.selectionCells().length > 0;
+  }
+
+  /** Returns the list of widgets in a cell (stacked vertically in the UI). */
+  cellWidgets(cell: CanvasCell): WidgetInstance[] {
+    return getCanvasCellWidgets(cell);
+  }
+
+  /** True if the cell contains at least one embedded table widget (for CSS class). */
+  cellHasEmbeddedTable(cell: CanvasCell): boolean {
+    return getCanvasCellWidgets(cell).some((w) => w.type === WIDGET_TYPE_TABLE);
   }
 
   onDrop(e: DragEvent, targetCell: CanvasCell): void {
@@ -265,9 +328,10 @@ export class CanvasComponent {
   private tryHandleGridActionDrop(e: DragEvent, targetCell: CanvasCell, _td: HTMLElement | undefined): boolean {
     const gridAction = e.dataTransfer?.getData(DragDropDataKey.GridAction) || undefined;
     if (gridAction !== LayoutAction.Row && gridAction !== LayoutAction.Col) return false;
-    if (targetCell.widget?.type === WIDGET_TYPE_GRID) {
-      if (gridAction === LayoutAction.Row) this.canvas.addGridRow(targetCell.id, targetCell.widget.id);
-      else this.canvas.addGridColumn(targetCell.id, targetCell.widget.id);
+    const gridWidget = getCanvasCellWidgets(targetCell).find((w) => w.type === WIDGET_TYPE_GRID);
+    if (gridWidget) {
+      if (gridAction === LayoutAction.Row) this.canvas.addGridRow(targetCell.id, gridWidget.id);
+      else this.canvas.addGridColumn(targetCell.id, gridWidget.id);
     }
     this.removeDragOverClass(e);
     return true;
@@ -279,7 +343,7 @@ export class CanvasComponent {
       this.layoutDropPreview.set(null);
       return false;
     }
-    if (targetCell.widget?.type === WIDGET_TYPE_GRID) {
+    if (getPrimaryWidget(targetCell)?.type === WIDGET_TYPE_GRID) {
       this.removeDragOverClass(e);
       return true;
     }
@@ -302,9 +366,8 @@ export class CanvasComponent {
 
   private tryHandleWidgetDrop(e: DragEvent, targetCell: CanvasCell, _td: HTMLElement | undefined): void {
     this.layoutDropPreview.set(null);
-    const raw = (e.dataTransfer?.getData(DragDropDataKey.WidgetType) || e.dataTransfer?.getData("text/plain") || "").trim();
-    const type = raw.toLowerCase() as WidgetType;
-    if (!type || !WIDGET_TYPES.includes(type) || !targetCell.isMergedOrigin) return;
+    const type = getWidgetTypeFromDragEvent(e);
+    if (!type || !targetCell.isMergedOrigin) return;
     this.canvas.setWidgetAt(targetCell.rowIndex, targetCell.colIndex, type);
     this.removeDragOverClass(e);
   }
@@ -336,7 +399,8 @@ export class CanvasComponent {
   }
 
   private handleGridActionDragOver(e: DragEvent, targetCell: CanvasCell, el: HTMLElement | undefined): void {
-    if (targetCell.widget?.type === WIDGET_TYPE_GRID) {
+    const hasGrid = getCanvasCellWidgets(targetCell).some((w) => w.type === WIDGET_TYPE_GRID);
+    if (hasGrid) {
       el?.classList.add(DragDropCssClass.CellDragOver);
       e.dataTransfer!.dropEffect = "copy";
     } else {
@@ -346,7 +410,7 @@ export class CanvasComponent {
   }
 
   private updateLayoutDropPreview(e: DragEvent, targetCell: CanvasCell, el: HTMLElement | undefined): void {
-    if (targetCell.widget?.type === WIDGET_TYPE_GRID || !targetCell.isMergedOrigin) return;
+    if (getPrimaryWidget(targetCell)?.type === WIDGET_TYPE_GRID || !targetCell.isMergedOrigin) return;
     if (!el) return;
     const rect = el.getBoundingClientRect();
     const types = e.dataTransfer?.types ? Array.from(e.dataTransfer.types) : [];
@@ -363,8 +427,7 @@ export class CanvasComponent {
     e.preventDefault();
     e.stopPropagation();
     if (!this.selectedLayoutId()) return;
-    const raw = (e.dataTransfer?.getData(DragDropDataKey.WidgetType) || e.dataTransfer?.getData("text/plain") || "").trim();
-    const type = raw.toLowerCase() as WidgetType;
+    const type = getWidgetTypeFromDragEvent(e);
     if (type !== WIDGET_TYPE_TABLE) return;
     (e.currentTarget as HTMLElement)?.classList.remove(DragDropCssClass.EmptyStateDragOver);
     this.canvas.setWidgetOnEmptyCanvas(type);
@@ -376,8 +439,7 @@ export class CanvasComponent {
       e.dataTransfer!.dropEffect = "none";
       return;
     }
-    const raw = (e.dataTransfer?.getData(DragDropDataKey.WidgetType) || e.dataTransfer?.getData("text/plain") || "").trim();
-    const type = raw.toLowerCase();
+    const type = getWidgetTypeFromDragEvent(e);
     (e.currentTarget as HTMLElement)?.classList.toggle(DragDropCssClass.EmptyStateDragOver, type === WIDGET_TYPE_TABLE);
     e.dataTransfer!.dropEffect = type === WIDGET_TYPE_TABLE ? "copy" : "none";
   }
@@ -402,8 +464,8 @@ export class CanvasComponent {
     return this.canvas.getSpan(rowIndex, colIndex);
   }
 
-  removeWidget(cellId: string): void {
-    this.canvas.removeWidget(cellId);
+  removeWidget(cellId: string, widgetId: string): void {
+    this.canvas.removeWidget(cellId, widgetId);
   }
 
   /** When a nested cell is selected, returns its { rowIndex, colIndex } in that table; otherwise null. */
@@ -542,6 +604,10 @@ export class CanvasComponent {
       if (!result) return;
       const state = this.canvas.getStateForSave();
       const name = result.name.trim() || DEFAULT_LAYOUT_NAME;
+      const html = this.getPreviewHtml();
+      const clone = this.getPreviewClone();
+      console.log("[Save layout] HTML string:", html);
+      console.log("[Save layout] HTML element (clone):", clone);
       if (result.layoutId) {
         this.savedLayouts.updateLayout(result.layoutId, state, name);
       } else {
@@ -557,6 +623,13 @@ export class CanvasComponent {
     if (value === LayoutOption.NewLayout) {
       this.openNewLayoutDialog();
       return;
+    }
+    const currentId = this.selectedLayoutId();
+    if (currentId && this.canvas.canUndo()) {
+      const current = this.savedLayouts.getLayoutById(currentId);
+      if (current) {
+        this.savedLayouts.updateLayout(currentId, this.canvas.getStateForSave(), current.name);
+      }
     }
     this.savedLayouts.selectLayout(value);
     this.canvas.clearUndoHistory();
@@ -623,16 +696,16 @@ export class CanvasComponent {
         this.cdr.detectChanges();
         return;
       }
-      this.layoutDropdownOverride.set(undefined);
       const name = result.name.trim() || DEFAULT_LAYOUT_NAME;
       const state = this.canvas.getInitialLayoutState();
-      this.savedLayouts.addLayout(name, state);
-      this.canvas.loadState(state);
-      this.canvas.clearUndoHistory();
+      const newLayout = this.savedLayouts.addLayout(name, state);
+      this.layoutDropdownOverride.set(undefined);
+      this.onLayoutSelect(newLayout.id);
       this.canvas.setSelectedCell(null);
       this.clearSelection();
       this.canvas.clearNestedSelection();
       this.cdr.detectChanges();
+      this.templateDropdownRef?.blurInput();
     });
   }
 
@@ -644,11 +717,10 @@ export class CanvasComponent {
   /** Returns the cloned form element (builder chrome stripped). Use for preview/export or inspection. */
   getPreviewClone(): HTMLElement | null {
     this.cdr.detectChanges();
-    const container = (this.canvasFormRef?.nativeElement ??
-      document.body.querySelector("form.canvas-form")) as HTMLElement | null;
-    if (!container) return null;
-    const clone = container.cloneNode(true) as HTMLElement;
-    copyFormValues(container, clone);
+    const form = this.canvasFormRef?.nativeElement as HTMLElement | undefined;
+    if (!form) return null;
+    const clone = form.cloneNode(true) as HTMLElement;
+    copyFormValues(form, clone);
     stripBuilderChrome(clone, { stripAngular: true });
     return clone;
   }
@@ -659,16 +731,22 @@ export class CanvasComponent {
     return clone ? clone.outerHTML : "";
   }
 
+  /** Returns HTML for the layout only (canvas-content: table or empty state), so preview matches the visible canvas area. */
+  getPreviewLayoutHtml(): string {
+    const clone = this.getPreviewClone();
+    if (!clone) return "";
+    const content = clone.querySelector(".canvas-content");
+    return content ? (content as HTMLElement).innerHTML : clone.outerHTML;
+  }
+
   openPreview(): void {
     this.cdr.detectChanges();
-    setTimeout(() => {
-      const html = this.getPreviewHtml();
-      this.dialog.open(PreviewModalComponent, {
-        data: { title: "HTML Preview", html },
-        width: "90vw",
-        maxWidth: "800px",
-      });
-    }, 0);
+    const html = this.getPreviewLayoutHtml();
+    this.dialog.open(PreviewModalComponent, {
+      data: { title: "HTML Preview", html },
+      width: "90vw",
+      maxWidth: "800px",
+    });
   }
 
   downloadCanvasHtml(): void {
@@ -676,13 +754,53 @@ export class CanvasComponent {
     if (!html) return;
     const layout = this.savedLayouts.selectedLayout();
     const filename = `${toSafeFilename(layout?.name)}.html`;
-    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+    const state = this.canvas.getStateForSave();
+    const stateJson = JSON.stringify(state);
+    const fullHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body>${html}<script id="${FORM_BUILDER_LAYOUT_STATE_SCRIPT_ID}" type="application/json">${stateJson}</script></body></html>`;
+    const blob = new Blob([fullHtml], { type: "text/html;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
     a.download = filename;
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  openUploadTemplate(): void {
+    const dialogRef = this.dialog.open(UploadTemplateDialogComponent, {
+      width: "400px",
+    });
+    dialogRef.afterClosed().subscribe((result: UploadTemplateResult | undefined) => {
+      if (!result?.content) return;
+      const state = this.extractStateFromUploadedHtml(result.content);
+      if (!state) {
+        this.snackBar.open("No template configuration found in file.", undefined, { duration: 4000 });
+        return;
+      }
+      const baseName = result.fileName.replace(/\.html$/i, "") || "Uploaded template";
+      const newLayout = this.savedLayouts.addLayout(baseName, state);
+      this.onLayoutSelect(newLayout.id);
+      this.canvas.setSelectedCell(null);
+      this.clearSelection();
+      this.cdr.detectChanges();
+      this.templateDropdownRef?.blurInput();
+      this.snackBar.open("Template loaded.", undefined, { duration: 2000 });
+    });
+  }
+
+  /** Extracts canvas state from HTML that was downloaded from this builder (script#form-builder-layout-state). */
+  private extractStateFromUploadedHtml(html: string): CanvasState | null {
+    try {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, "text/html");
+      const script = doc.getElementById(FORM_BUILDER_LAYOUT_STATE_SCRIPT_ID);
+      if (!script?.textContent?.trim()) return null;
+      const state = JSON.parse(script.textContent) as { rows?: unknown[] };
+      if (!state || !Array.isArray(state.rows)) return null;
+      return state as CanvasState;
+    } catch {
+      return null;
+    }
   }
 
   /** Returns the cloned form element (layout + native elements only, component tags stripped). */
@@ -701,6 +819,8 @@ export class CanvasComponent {
   /** Publishes the form HTML (layout + native elements only). */
   publish(): void {
     const clone = this.getPublishHtml();
+    console.log("[Publish] HTML element (clone):", clone);
+    console.log("[Publish] HTML string:", clone?.outerHTML ?? "");
     this.snackBar.open("Form published.", undefined, {
       duration: 4000,
     });

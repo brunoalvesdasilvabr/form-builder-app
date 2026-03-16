@@ -33,7 +33,7 @@
                 (ngModelChange)="pendingFormControlName.set($event)"
                 placeholder="Example: inputName"
               />
-              @if (cell.widget?.type === 'input' && showValidatorValuesSection(cell)) {
+              @if (getSelectedWidget(cell)?.type === widgetTypeInput && showValidatorValuesSection(cell)) {
                 <div class="admin-right-panel-validator-values">
                   <p class="admin-right-panel-hint">Set the value for the chosen rule (data-minlength, data-maxlength, data-min, data-max, data-pattern):</p>
                   @if (showMinLengthInput(cell)) {
@@ -108,7 +108,7 @@
             </div>
           }
           <div class="admin-right-panel-field">
-            <label class="admin-right-panel-label" for="cell-class-input">Class Name</label>
+            <label class="admin-right-panel-label" for="cell-class-input">Style Class Name</label>
             <input
               id="cell-class-input"
               type="text"
@@ -118,7 +118,7 @@
               [placeholder]="'Class for the ' + getClassTargetLabel()"
             />
           </div>
-          @if (cell.widget?.type === 'grid') {
+          @if (!isCellSelection() && getSelectedWidget(cell)?.type === widgetTypeGrid && selectedGridColumnIndex() === null) {
             <div class="admin-right-panel-field">
               <label class="admin-right-panel-label" for="grid-header-text-input">Header text (optional)</label>
               <input
@@ -130,22 +130,20 @@
                 placeholder="e.g. Table title"
               />
             </div>
-            @if (selectedGridColumnIndex() === null) {
-              <div class="admin-right-panel-field">
-                <label class="admin-right-panel-label" for="grid-header-alignment-select">Header alignment</label>
-                <select
-                  id="grid-header-alignment-select"
-                  class="admin-right-panel-input admin-right-panel-select"
-                  [ngModel]="pendingGridHeaderAlignment()"
-                  (ngModelChange)="pendingGridHeaderAlignment.set($event)"
-                >
-                  <option value="">— Left —</option>
-                  <option value="left">Left</option>
-                  <option value="center">Center</option>
-                  <option value="right">Right</option>
-                </select>
-              </div>
-            }
+            <div class="admin-right-panel-field">
+              <label class="admin-right-panel-label" for="grid-header-alignment-select">Header alignment</label>
+              <select
+                id="grid-header-alignment-select"
+                class="admin-right-panel-input admin-right-panel-select"
+                [ngModel]="pendingGridHeaderAlignment()"
+                (ngModelChange)="pendingGridHeaderAlignment.set($event)"
+              >
+                <option value="">— Left —</option>
+                <option value="left">Left</option>
+                <option value="center">Center</option>
+                <option value="right">Right</option>
+              </select>
+            </div>
             <div class="admin-right-panel-field">
               <label class="admin-right-panel-label" for="grid-footer-text-input">Footer text (optional)</label>
               <input
@@ -172,7 +170,7 @@
               </select>
             </div>
           }
-          @if (cell.widget?.type === 'grid' && selectedGridColumnIndex() !== null) {
+          @if (!isCellSelection() && getSelectedWidget(cell)?.type === widgetTypeGrid && selectedGridColumnIndex() !== null) {
             <div class="admin-right-panel-field">
               <label class="admin-right-panel-label" for="grid-column-name-input">Column name (optional)</label>
               <input
@@ -223,7 +221,7 @@
               </label>
             </div>
           }
-          @if (cell.widget && cell.widget.type !== 'table') {
+          @if (!isCellSelection() && getSelectedWidget(cell) && getSelectedWidget(cell)?.type !== widgetTypeTable) {
             <div class="admin-right-panel-field">
               @if (showMainDataBindingDropdown()) {
                 <label class="admin-right-panel-label" for="value-binding-select">Data Binding</label>
@@ -257,24 +255,15 @@
               }
             </div>
           }
-          @if (showVisibilityConditionSection()) {
+          @if (!isCellSelection() && showVisibilityConditionSection()) {
             <div class="admin-right-panel-field admin-right-panel-visibility">
               <label class="admin-right-panel-label" for="visibility-condition-input">Visibility rule (*ngIf rule)</label>
+              <!--
               <div class="admin-right-panel-rule-actions">
-                <button
-                  type="button"
-                  class="admin-right-panel-add-rule"
-                  (click)="openAddRuleModal()"
-                  title="Insert a rule from the list"
-                >Add rule</button>
-                <button
-                  type="button"
-                  class="admin-right-panel-clear-rule"
-                  (click)="clearVisibilityRule()"
-                  [disabled]="!pendingVisibilityCondition()"
-                  title="Clear visibility rule"
-                >Clear rule</button>
+                <button type="button" class="admin-right-panel-add-rule" (click)="openAddRuleModal()" title="Insert a rule from the list">Add rule</button>
+                <button type="button" class="admin-right-panel-clear-rule" (click)="clearVisibilityRule()" [disabled]="!pendingVisibilityCondition()" title="Clear visibility rule">Clear rule</button>
               </div>
+              -->
               <div class="admin-right-panel-ngif-preview admin-right-panel-ngif-textarea-wrap">
                 <textarea
                   id="visibility-condition-input"

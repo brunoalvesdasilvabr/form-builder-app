@@ -1,0 +1,118 @@
+:host {
+  display: block;
+  position: relative;
+}
+
+.dropdown-autocomplete {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-width: 140px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  color: var(--text);
+
+  &:focus-within {
+    outline: 2px solid var(--accent);
+    outline-offset: 0;
+    border-color: var(--accent);
+  }
+}
+
+.dropdown-autocomplete-input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.4rem 0.5rem 0.4rem 0.6rem;
+  border: none;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+
+  &::placeholder {
+    color: var(--text-muted);
+  }
+
+  &:focus {
+    outline: none;
+  }
+}
+
+.dropdown-autocomplete-trigger {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 0.4rem;
+  height: 100%;
+  min-height: 28px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+
+  &:hover {
+    color: var(--text);
+    background: var(--bg-cell-hover);
+  }
+}
+
+.dropdown-autocomplete-chevron {
+  font-size: 0.6rem;
+  line-height: 1;
+  transition: transform 0.15s ease;
+}
+
+:host.dropdown-autocomplete-open .dropdown-autocomplete-chevron {
+  transform: rotate(180deg);
+}
+
+.dropdown-autocomplete-list {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin: 2px 0 0;
+  padding: 4px 0;
+  max-height: 240px;
+  overflow-y: auto;
+  list-style: none;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  z-index: 100;
+}
+
+.dropdown-autocomplete-option {
+  padding: 0.4rem 0.75rem;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+
+  &:hover,
+  &:focus-visible {
+    background: var(--bg-cell-hover);
+  }
+
+  &--empty {
+    color: var(--text-muted);
+    cursor: default;
+    font-style: italic;
+  }
+}
+
+/* Compact (toolbar) variant */
+:host.dropdown-autocomplete-compact {
+  min-width: 180px;
+  max-width: 280px;
+
+  .dropdown-autocomplete-input {
+    font-size: 0.85rem;
+  }
+}

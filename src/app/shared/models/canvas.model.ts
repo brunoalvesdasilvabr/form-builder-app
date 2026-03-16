@@ -78,11 +78,15 @@ export const WIDGET_PALETTE_ICONS: Record<WidgetType, string> = {
   panel: "▣",
 };
 
+/** Cell that can hold multiple widgets stacked vertically. */
 export interface NestedTableCell {
   id: string;
   rowIndex: number;
   colIndex: number;
-  widget: WidgetInstance | null;
+  /** All widgets in this cell, in drop order (stacked one under the other). */
+  widgets: WidgetInstance[];
+  /** @deprecated Legacy single widget; normalized to widgets on load. */
+  widget?: WidgetInstance | null;
   colSpan?: number;
   rowSpan?: number;
   isMergedOrigin?: boolean;
@@ -158,16 +162,55 @@ export interface WidgetInstance {
   pattern?: string;
 }
 
+/** Cell that can hold multiple widgets stacked vertically. */
 export interface CanvasCell {
   id: string;
   rowIndex: number;
   colIndex: number;
-  widget: WidgetInstance | null;
+  /** All widgets in this cell, in drop order (stacked one under the other). */
+  widgets: WidgetInstance[];
+  /** @deprecated Legacy single widget; normalized to widgets on load. */
+  widget?: WidgetInstance | null;
   colSpan: number;
   rowSpan: number;
   isMergedOrigin: boolean; // top-left of a merge
   /** Optional CSS class(es) applied to the cell's td */
   className?: string;
+}
+
+/**
+ * Returns the list of widgets in a canvas cell.
+ * Supports legacy state that only has `widget`; use this instead of reading cell.widget or cell.widgets directly.
+ */
+export function getCanvasCellWidgets(cell: CanvasCell): WidgetInstance[] {
+  if (Array.isArray(cell.widgets)) return cell.widgets;
+  return cell.widget != null ? [cell.widget] : [];
+}
+
+/**
+ * Returns the list of widgets in a nested table cell.
+ * Supports legacy state that only has `widget`; use this instead of reading cell.widget or cell.widgets directly.
+ */
+export function getNestedCellWidgets(cell: NestedTableCell): WidgetInstance[] {
+  if (Array.isArray(cell.widgets)) return cell.widgets;
+  return cell.widget != null ? [cell.widget] : [];
+}
+
+/** Returns the first widget in the cell, or null if the cell has no widgets (e.g. for grid/table type checks). */
+export function getPrimaryWidget(cell: { widgets?: WidgetInstance[]; widget?: WidgetInstance | null }): WidgetInstance | null {
+  const list = Array.isArray(cell.widgets) ? cell.widgets : (cell.widget != null ? [cell.widget] : []);
+  return list.length > 0 ? list[0]! : null;
+}
+
+/** Returns the widget in the cell with the given id, or the primary widget if id is null/empty or not found. */
+export function getWidgetByIdOrPrimary(cell: { widgets?: WidgetInstance[]; widget?: WidgetInstance | null } | null, widgetId: string | null): WidgetInstance | null {
+  if (!cell) return null;
+  const list = Array.isArray(cell.widgets) ? cell.widgets : (cell.widget != null ? [cell.widget] : []);
+  if (widgetId && list.length > 0) {
+    const found = list.find((w) => w.id === widgetId);
+    if (found) return found;
+  }
+  return list.length > 0 ? list[0]! : null;
 }
 
 export interface CanvasRow {
