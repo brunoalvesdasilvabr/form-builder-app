@@ -185,6 +185,19 @@ export class WidgetGridComponent extends BaseWidgetComponent implements AfterVie
         : PLACEHOLDER_ROW;
       this.dataSource.data = data;
     });
+    effect(() => {
+      const sort = this.matSort();
+      if (sort) this.dataSource.sort = sort;
+    });
+    effect(() => {
+      const sort = this.matSort();
+      const cols = this.columns();
+      if (!sort?.active || !cols.length) return;
+      const activeCol = cols.find((c) => this.getDisplayKey(c) === sort.active);
+      if (activeCol && !this.isColumnSortable(activeCol)) {
+        sort.sort({ id: '', start: 'asc', disableClear: false });
+      }
+    });
     this.dataSource.sortingDataAccessor = (row: Record<string, unknown>, sortId: string) => {
       const val = row[sortId];
       if (val == null) return '';
@@ -194,10 +207,11 @@ export class WidgetGridComponent extends BaseWidgetComponent implements AfterVie
   }
 
   ngAfterViewInit(): void {
-    effect(() => {
+    // MatSort is inside @if; viewChild may not be set until after first CD. Defer so sort connects reliably.
+    setTimeout(() => {
       const sort = this.matSort();
       if (sort) this.dataSource.sort = sort;
-    });
+    }, 0);
   }
 
   @HostBinding('class') get hostClass(): string {

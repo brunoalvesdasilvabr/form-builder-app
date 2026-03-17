@@ -10,43 +10,24 @@
   }
 }
 
+/* Container with padding so clicking the area around the table selects grid-level (header/footer props in right panel). */
 .widget-grid-wrap {
   display: block;
   width: 100%;
   min-height: 80px;
   max-width: 100%;
+  padding: 0.5rem;
+  box-sizing: border-box;
 
-  &:hover {
+  /* On hover (including padding area): dashed outline around the table so you see where to click for grid-level properties. */
+  &:hover .widget-grid-table {
     outline: 2px dashed var(--accent);
-    outline-offset: 2px;
-  }
-
-  /* Whole-table selection: clear dashed outline when no column is selected (grid-level). */
-  &.widget-grid-level-selected {
-    outline: 2px dashed var(--accent);
-    outline-offset: 2px;
+    outline-offset: 0;
   }
 }
 
 :host:has(.widget-grid-wrap:hover) {
   outline: none;
-}
-
-/* Bar to select whole table (header/footer). Always visible so grid-level is selectable even when header/footer text are empty. */
-.widget-grid-table-level-bar {
-  padding: 0.25rem 0.5rem;
-  font-size: 0.75rem;
-  color: var(--text-muted);
-  font-weight: 500;
-  border-bottom: 1px solid var(--border);
-  background: var(--bg-cell);
-
-  &.widget-grid-click-table-level {
-    outline: 2px dashed var(--accent);
-    outline-offset: -2px;
-    cursor: pointer;
-    color: var(--accent);
-  }
 }
 
 .widget-grid-table {

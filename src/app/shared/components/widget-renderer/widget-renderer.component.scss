@@ -30,7 +30,8 @@
   &:has(app-widget-checkbox:hover),
   &:has(app-widget-radio:hover),
   &:has(app-widget-label:hover),
-  &:has(app-widget-table:hover) {
+  &:has(app-widget-table:hover),
+  &:has(app-widget-grid:hover) {
     outline: none;
   }
 }

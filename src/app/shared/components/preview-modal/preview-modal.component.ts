@@ -9,22 +9,30 @@ export interface PreviewModalData {
   html: string;
 }
 
-/** Wraps form HTML in a full document for iframe. Styles match the canvas drop area so preview looks the same. */
+/** Wraps form HTML for iframe. Uses rem so content scales with base font; smaller base makes preview fit popup and match canvas proportions. */
 function toPreviewDocument(html: string): string {
   if (!html?.trim()) return '';
-  const style = `body{margin:0;padding:1rem;font:16px system-ui,sans-serif;background:#f5f5f7;box-sizing:border-box;color:#1a1a1e}
+  const style = `html{font-size:13px}
 *{box-sizing:border-box}
-.canvas-table{width:100%;table-layout:fixed;border-collapse:collapse;background:#f5f5f7;border-radius:8px;overflow:hidden}
-.canvas-cell{min-width:0;width:1%;min-height:60px;padding:0;vertical-align:top;border:1px solid #e0e0e4;background:#fafafa;overflow:hidden}
+body{margin:0;padding:.75rem;font:1rem system-ui,sans-serif;background:#f5f5f7;color:#1a1a1e;line-height:1.35}
+.canvas-content{padding:.75rem}
+.canvas-table{width:100%;table-layout:fixed;border-collapse:collapse;background:#fff;border-radius:.5rem;overflow:hidden}
+.canvas-cell{min-width:0;width:1%;min-height:2.5rem;padding:0;vertical-align:top;border:1px solid #e0e0e4;background:#fafafa;overflow:hidden}
 .canvas-cell>*{display:block;width:100%;min-width:0;overflow:hidden}
-.embedded-cell{min-width:0;padding:.35rem;vertical-align:top;border:1px solid #e0e0e4;background:#fafafa}
-.embedded-table{width:100%;table-layout:fixed;border-collapse:collapse;font-size:.85rem}
-.embedded-table td{min-height:44px;padding:.35rem;border:1px solid #e0e0e4}
-app-widget-renderer,app-widget-input,app-widget-checkbox,app-widget-radio,app-widget-label,app-widget-table,app-widget-cell-renderer,app-widget-grid,app-widget-panel{display:block;padding:0.5rem;min-height:2rem;box-sizing:border-box}
-.widget-input-control{display:block;width:100%;box-sizing:border-box;padding:0.45rem 0.6rem;background:#f5f5f7;border:1px solid #e0e0e4;border-radius:6px;color:#1a1a1e;font:inherit}
+.canvas-cell-placeholder{min-height:2.25rem;padding:.4rem .6rem;display:flex;align-items:center;justify-content:center;font-size:.85rem;color:#6b7280}
+.embedded-cell{min-width:0;padding:.2rem .3rem;vertical-align:top;border:1px solid #e0e0e4;background:#fafafa}
+.embedded-table{width:100%;table-layout:fixed;border-collapse:collapse;font-size:.9rem}
+.embedded-table td{min-height:2rem;padding:.2rem .3rem;border:1px solid #e0e0e4}
+app-widget-renderer,app-widget-input,app-widget-checkbox,app-widget-radio,app-widget-label,app-widget-table,app-widget-cell-renderer,app-widget-grid,app-widget-panel{display:block;padding:.25rem .4rem;min-height:1.25rem;box-sizing:border-box}
+.widget-input-control{display:block;width:100%;box-sizing:border-box;padding:.25rem .4rem;font-size:.95rem;background:#f5f5f7;border:1px solid #e0e0e4;border-radius:.35rem;color:#1a1a1e}
 .widget-input-control::placeholder{color:#6b7280}
-.widget-label-control{display:block;font-size:0.8rem;color:#1a1a1e;font-weight:500;padding:0.35rem 0.5rem;background:transparent;border:1px solid transparent;border-radius:4px;width:100%;min-height:1.5em}`;
-  return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>${style}</style></head><body>${html}</body></html>`;
+.widget-label-control{display:block;font-size:.85rem;color:#1a1a1e;font-weight:500;padding:.2rem .3rem;background:transparent;border:1px solid transparent;border-radius:.25rem;width:100%;min-height:1.3em}
+.widget-grid-wrap{padding:.25rem .4rem;box-sizing:border-box}
+.widget-grid-table{width:100%;font-size:.9rem}
+.mat-mdc-header-row,.mat-mdc-row,.mat-mdc-footer-row{min-height:0}
+.mat-mdc-cell,.mat-mdc-header-cell,.mat-mdc-footer-cell{padding:.3rem .5rem;border-color:#e0e0e4;font-size:inherit;line-height:1.3}
+.mat-sort-header-arrow,.mat-sort-header-indicator,.mat-sort-header-stem,.mat-sort-header-pointer-left,.mat-sort-header-pointer-right,.mat-sort-header-pointer-middle{display:none !important}`;
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>${style}</style></head><body>${html}</body></html>`;
 }
 
 @Component({

@@ -6,13 +6,6 @@
       [attr.data-grid]="getGridBindingPath()"
       (mouseleave)="setColumnHover(null)"
     >
-    @if (w.type === 'grid') {
-      <div
-        class="widget-grid-table-level-bar"
-        [class.widget-grid-click-table-level]="selectedColumnIndex() !== null"
-        title="Click to edit table (header/footer)"
-      >Table</div>
-    }
     <table
       mat-table
       [dataSource]="dataSource"
