@@ -9,7 +9,6 @@ import { CanvasService } from '../../core/services/canvas.service';
 import { SavedLayoutsService } from '../../core/services/saved-layouts.service';
 import type { CanvasCell } from '../../shared/models/canvas.model';
 import {
-  getPrimaryWidget,
   getWidgetByIdOrPrimary,
   ACTIVITIES_BINDING_PATHS,
   DATA_COMPONENT_WIDGET_TYPES,
@@ -78,7 +77,7 @@ export class AdminComponent {
   /** True when the selected grid cell has a valueBinding that points to an activities array (grid-level choice). */
   readonly gridHasActivitiesBinding = computed(() => {
     const cell = this.selectedCell();
-    const w = getPrimaryWidget(cell ?? {});
+    const w = cell ? this.getSelectedWidget(cell) : null;
     if (!w || w.type !== WIDGET_TYPE_GRID) return false;
     const path = parseBindingProperty(w.valueBinding);
     return (ACTIVITIES_BINDING_PATHS as readonly string[]).includes(path);
@@ -87,7 +86,7 @@ export class AdminComponent {
   /** For grid: grid-level = only activities (user chooses data once); column-level uses child dropdown only. For non-grid use full list. */
   readonly effectiveBindableProperties = computed(() => {
     const cell = this.selectedCell();
-    const w = getPrimaryWidget(cell ?? {});
+    const w = cell ? this.getSelectedWidget(cell) : null;
     if (!w || w.type !== WIDGET_TYPE_GRID) return this.bindableProperties;
     return this.bindablePropertiesColumn;
   });
@@ -95,7 +94,7 @@ export class AdminComponent {
   /** Show the main Data Binding (activities) dropdown whenever we're on a grid (grid-level or any column), so the chosen activity is always visible. */
   readonly showMainDataBindingDropdown = computed(() => {
     const cell = this.selectedCell();
-    const w = getPrimaryWidget(cell ?? {});
+    const w = cell ? this.getSelectedWidget(cell) : null;
     if (!w || w.type === WIDGET_TYPE_TABLE) return false;
     if (w.type !== WIDGET_TYPE_GRID) return true;
     return true;
@@ -113,7 +112,7 @@ export class AdminComponent {
   /** When a column is selected and the grid already has an activity chosen, disable the activities dropdown so the user sees the choice but only edits the child dropdown for this column. */
   readonly isActivitiesDropdownDisabled = computed(() => {
     const cell = this.selectedCell();
-    const w = getPrimaryWidget(cell ?? {});
+    const w = cell ? this.getSelectedWidget(cell) : null;
     if (!w || w.type !== WIDGET_TYPE_GRID) return false;
     return this.selectedGridColumnIndex() !== null && this.gridHasActivitiesBinding();
   });
@@ -121,7 +120,7 @@ export class AdminComponent {
   /** Child dropdown options: loaded from the structure for the chosen activities type (saved on grid or currently selected in dropdown). */
   readonly effectiveActivityDataProperties = computed(() => {
     const cell = this.selectedCell();
-    const w = getPrimaryWidget(cell ?? {});
+    const w = cell ? this.getSelectedWidget(cell) : null;
     if (!w || w.type !== WIDGET_TYPE_GRID) return getActivityPropertiesForPath('');
     const path = parseBindingProperty(w.valueBinding) || this.pendingProperty() || '';
     return getActivityPropertiesForPath(path);
@@ -130,7 +129,7 @@ export class AdminComponent {
   /** True when to show the child "Property from activity" dropdown: when a column is selected AND an activity is chosen (saved on grid or currently selected in the activities dropdown). */
   readonly showActivityDataDropdown = computed(() => {
     const cell = this.selectedCell();
-    const w = getPrimaryWidget(cell ?? {});
+    const w = cell ? this.getSelectedWidget(cell) : null;
     if (!w || w.type !== WIDGET_TYPE_GRID) return false;
     if (this.selectedGridColumnIndex() === null) return false;
     if (this.gridHasActivitiesBinding()) return true;
@@ -196,7 +195,7 @@ export class AdminComponent {
   /** True when the right panel should show the visibility condition block. Shown for data components and table; hidden for grid (no visibility rule for grid or header text). */
   readonly showVisibilityConditionSection = computed(() => {
     const cell = this.selectedCell();
-    const w = getPrimaryWidget(cell ?? {});
+    const w = cell ? this.getSelectedWidget(cell) : null;
     if (!w) return false;
     if (w.type === WIDGET_TYPE_GRID) return false;
     return true;
@@ -251,7 +250,7 @@ export class AdminComponent {
 
   /** Fills initial grid header/footer (table-level) and, when a column is selected, column props. */
   private syncInitialGridColumnStyle(cell: CanvasCell): void {
-    const w = getPrimaryWidget(cell);
+    const w = this.getSelectedWidget(cell);
     if (!w || w.type !== WIDGET_TYPE_GRID) return;
     this.initialGridHeaderText = w.gridHeaderText ?? '';
     this.initialGridHeaderAlignment =
@@ -385,7 +384,7 @@ export class AdminComponent {
   private applyPropertyChangeIfNeeded(cell: CanvasCell, messages: string[]): void {
     const propertyChanged = this.pendingProperty() !== this.initialProperty;
     const gridColumnActivityChanged =
-      getPrimaryWidget(cell)?.type === WIDGET_TYPE_GRID &&
+      this.getSelectedWidget(cell)?.type === WIDGET_TYPE_GRID &&
       this.selectedGridColumnIndex() !== null &&
       this.pendingActivityDataProperty() !== this.initialActivityDataProperty;
     if (propertyChanged || gridColumnActivityChanged) {
@@ -420,7 +419,7 @@ export class AdminComponent {
   }
 
   private applyGridColumnAlignmentChangeIfNeeded(cell: CanvasCell, messages: string[]): void {
-    const isGridColumnSelected = getPrimaryWidget(cell)?.type === WIDGET_TYPE_GRID && this.selectedGridColumnIndex() !== null;
+    const isGridColumnSelected = this.getSelectedWidget(cell)?.type === WIDGET_TYPE_GRID && this.selectedGridColumnIndex() !== null;
     const alignmentChanged = this.pendingGridColumnAlignment() !== this.initialGridColumnAlignment;
     if (isGridColumnSelected && alignmentChanged) {
       this.applyGridColumnAlignmentChange(cell, messages);
@@ -428,7 +427,7 @@ export class AdminComponent {
   }
 
   private applyGridHeaderTextChangeIfNeeded(cell: CanvasCell, messages: string[]): void {
-    const w = getPrimaryWidget(cell);
+    const w = this.getSelectedWidget(cell);
     if (!w || w.type !== WIDGET_TYPE_GRID) return;
     const colIdx = this.selectedGridColumnIndex();
     const headerTextChanged = this.pendingGridHeaderText() !== this.initialGridHeaderText;
@@ -442,7 +441,7 @@ export class AdminComponent {
   }
 
   private applyGridFooterTextChangeIfNeeded(cell: CanvasCell, messages: string[]): void {
-    const w = getPrimaryWidget(cell);
+    const w = this.getSelectedWidget(cell);
     if (!w || w.type !== WIDGET_TYPE_GRID) return;
     const footerChanged =
       this.pendingGridFooterText() !== this.initialGridFooterText ||
@@ -461,7 +460,7 @@ export class AdminComponent {
 
   private applyGridColumnNameChangeIfNeeded(cell: CanvasCell, messages: string[]): void {
     const colIdx = this.selectedGridColumnIndex();
-    const w = getPrimaryWidget(cell);
+    const w = this.getSelectedWidget(cell);
     if (!w || w.type !== WIDGET_TYPE_GRID || colIdx === null) return;
     if (this.pendingGridColumnName() === this.initialGridColumnName) return;
     this.canvas.updateGridColumnName(cell.id, w.id, colIdx, this.pendingGridColumnName());
@@ -471,7 +470,7 @@ export class AdminComponent {
 
   private applyGridColumnDetailsChangeIfNeeded(cell: CanvasCell, messages: string[]): void {
     const colIdx = this.selectedGridColumnIndex();
-    const w = getPrimaryWidget(cell);
+    const w = this.getSelectedWidget(cell);
     if (!w || w.type !== WIDGET_TYPE_GRID || colIdx === null) return;
     const changed =
       this.pendingGridHeaderAlignment() !== this.initialGridHeaderAlignment ||
@@ -499,7 +498,7 @@ export class AdminComponent {
   }
 
   private tryApplyClassToGridColumn(cell: CanvasCell, newClass: string, messages: string[]): boolean {
-    const w = getPrimaryWidget(cell);
+    const w = this.getSelectedWidget(cell);
     if (!w || w.type !== WIDGET_TYPE_GRID || this.selectedGridColumnIndex() === null) return false;
     const colIdx = this.selectedGridColumnIndex()!;
     this.canvas.updateGridColumnClassAndAlignment(cell.id, w.id, colIdx, newClass, this.pendingGridColumnAlignment());
@@ -555,7 +554,7 @@ export class AdminComponent {
   /** Applies the pending property binding and records the message. */
   private applyPropertyChange(cell: CanvasCell, messages: string[]): void {
     const colIdx = this.selectedGridColumnIndex();
-    const w = getPrimaryWidget(cell);
+    const w = this.getSelectedWidget(cell);
     if (w?.type === WIDGET_TYPE_GRID && colIdx !== null) {
       const activityProp = this.pendingActivityDataProperty();
       const valueBinding = this.gridHasActivitiesBinding()
@@ -586,7 +585,7 @@ export class AdminComponent {
   /** Applies grid column alignment when a column is selected. Class uses applyClassChange. */
   private applyGridColumnAlignmentChange(cell: CanvasCell, messages: string[]): void {
     const colIdx = this.selectedGridColumnIndex();
-    const w = getPrimaryWidget(cell);
+    const w = this.getSelectedWidget(cell);
     if (colIdx === null || !w || w.type !== WIDGET_TYPE_GRID) return;
     this.canvas.updateGridColumnClassAndAlignment(cell.id, w.id, colIdx, this.pendingClass(), this.pendingGridColumnAlignment());
     this.initialGridColumnAlignment = this.pendingGridColumnAlignment();
@@ -741,7 +740,7 @@ export class AdminComponent {
     const cell = this.selectedCell();
     if (!cell) return 'Properties';
     if (this.selectedTarget() === SelectedTarget.Cell) return 'Cell Properties';
-    const w = getPrimaryWidget(cell);
+    const w = this.getSelectedWidget(cell);
     if (!w) return 'Cell Properties';
     if (w.type === WIDGET_TYPE_GRID) {
       const colIdx = this.selectedGridColumnIndex();
@@ -764,7 +763,7 @@ export class AdminComponent {
   getClassTargetLabel(): string {
     const columnIndex = this.selectedGridColumnIndex();
     const cell = this.selectedCell();
-    const w = getPrimaryWidget(cell ?? {});
+    const w = cell ? this.getSelectedWidget(cell) : null;
     if (w?.type === WIDGET_TYPE_GRID && columnIndex !== null) return `column ${columnIndex + 1}`;
     const target = this.selectedTarget();
     const elementKey = this.selectedElementKey();
@@ -865,7 +864,7 @@ export class AdminComponent {
 
   /** For grid column: the activity field (e.g. amount, entryDate). */
   private getCurrentActivityDataProperty(cell: CanvasCell): string {
-    const w = getPrimaryWidget(cell);
+    const w = this.getSelectedWidget(cell);
     if (!w || w.type !== WIDGET_TYPE_GRID) return '';
     const colIdx = this.selectedGridColumnIndex();
     if (colIdx === null) return '';

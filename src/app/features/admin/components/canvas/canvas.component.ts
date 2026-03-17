@@ -167,10 +167,10 @@ export class CanvasComponent {
   /** Resolves what the user clicked: element (with key), widget-inner, widget, or cell. Also returns widget id when clicking a widget. */
   private getSelectionTargetFromEvent(e: MouseEvent): { target: SelectedTargetType; elementKey?: string; widgetId?: string } {
     const clickedElement = e.target as Element;
-    const elementKey = getElementKeyFromElement(clickedElement);
-    if (elementKey) return { target: SelectedTarget.Element, elementKey };
     const widgetHost = clickedElement?.closest?.("app-widget-renderer");
     const widgetId = widgetHost?.getAttribute?.("data-widget-id") ?? undefined;
+    const elementKey = getElementKeyFromElement(clickedElement);
+    if (elementKey) return { target: SelectedTarget.Element, elementKey, widgetId };
     if (
       clickedElement?.closest?.("app-widget-input") ||
       clickedElement?.closest?.("app-widget-checkbox") ||
