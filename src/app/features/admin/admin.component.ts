@@ -140,7 +140,7 @@ export class AdminComponent {
   /** Pending values in the form (not applied until Apply is clicked). */
   readonly pendingClass = signal('');
   readonly pendingProperty = signal('');
-  /** For grid column: alignment, column name, header text, header alignment, footer text, footer alignment, sortable. Class reuses pendingClass. */
+  /** For grid column: alignment, column header text, header text, header alignment, footer text, footer alignment, sortable. Class reuses pendingClass. */
   readonly pendingGridColumnAlignment = signal<TextAlignmentType | ''>('');
   readonly pendingGridColumnName = signal('');
   readonly pendingGridHeaderText = signal('');
@@ -465,7 +465,7 @@ export class AdminComponent {
     if (this.pendingGridColumnName() === this.initialGridColumnName) return;
     this.canvas.updateGridColumnName(cell.id, w.id, colIdx, this.pendingGridColumnName());
     this.initialGridColumnName = this.pendingGridColumnName();
-    messages.push('Column name was applied.');
+    messages.push('Column header text was applied.');
   }
 
   private applyGridColumnDetailsChangeIfNeeded(cell: CanvasCell, messages: string[]): void {

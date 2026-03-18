@@ -38,10 +38,10 @@ export function computeMergeRange(selectionCells: string[]): MergeRange | null {
   return { r0: minRow, r1: maxRow, c0: minCol, c1: maxCol };
 }
 
-/** Can we merge? Only if we have more than one row or column. */
+/** Can we merge? Only if the selection spans more than one column (no vertical-only single-column merge). */
 export function canMergeFromRange(range: MergeRange | null): boolean {
   if (!range) return false;
-  return range.r0 < range.r1 || range.c0 < range.c1;
+  return range.c0 < range.c1;
 }
 
 /**
