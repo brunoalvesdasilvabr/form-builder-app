@@ -897,7 +897,7 @@ describe('CanvasComponent with dialog mocks', () => {
     expect(revokeSpy).toHaveBeenCalledWith('blob:url');
   });
 
-  it('openUploadTemplate opens dialog and loads state on result', () => {
+  it('openUploadTemplate opens dialog and loads state on result', async () => {
     const afterClosed$ = new Subject<{ content: string; fileName: string } | undefined>();
     const dialogMock = { open: jasmine.createSpy('open').and.returnValue({ afterClosed: () => afterClosed$.asObservable() }) };
     const snackMock = { open: jasmine.createSpy('open') };
@@ -915,19 +915,20 @@ describe('CanvasComponent with dialog mocks', () => {
     const fixture = TestBed.createComponent(CanvasComponent);
     const savedLayouts = TestBed.inject(SavedLayoutsService);
     const state = { rows: [{ id: 'r0', cells: [{ id: 'c0', rowIndex: 0, colIndex: 0, widgets: [], colSpan: 1, rowSpan: 1, isMergedOrigin: true }] }] };
-    const html = `<!DOCTYPE html><html><body><script id="${FORM_BUILDER_LAYOUT_STATE_SCRIPT_ID}" type="application/json">${JSON.stringify(state)}</script></body></html>`;
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body><script id="${FORM_BUILDER_LAYOUT_STATE_SCRIPT_ID}" type="application/json">${JSON.stringify(state)}</script></body></html>`;
     fixture.detectChanges();
     fixture.componentInstance.openUploadTemplate();
     expect(dialogMock.open).toHaveBeenCalled();
     afterClosed$.next({ content: html, fileName: 'up.html' });
     afterClosed$.complete();
+    await fixture.whenStable();
     fixture.detectChanges();
     const layouts = savedLayouts.layouts();
     expect(layouts.some((l) => l.name === 'up')).toBe(true);
     expect(snackMock.open).toHaveBeenCalledWith('Template loaded.', undefined, { duration: 2000 });
   });
 
-  it('openUploadTemplate shows snack when no state in HTML', () => {
+  it('openUploadTemplate shows snack when no state in HTML', async () => {
     const afterClosed$ = new Subject<{ content: string; fileName: string } | undefined>();
     const dialogMock = { open: jasmine.createSpy('open').and.returnValue({ afterClosed: () => afterClosed$.asObservable() }) };
     const snackMock = { open: jasmine.createSpy('open') };
@@ -945,10 +946,44 @@ describe('CanvasComponent with dialog mocks', () => {
     const fixture = TestBed.createComponent(CanvasComponent);
     fixture.detectChanges();
     fixture.componentInstance.openUploadTemplate();
-    afterClosed$.next({ content: '<html><body>no script</body></html>', fileName: 'x.html' });
+    const validShell =
+      '<!DOCTYPE html><html><head><meta charset="utf-8"></head><body><p>no script</p></body></html>';
+    afterClosed$.next({ content: validShell, fileName: 'x.html' });
     afterClosed$.complete();
+    await fixture.whenStable();
     fixture.detectChanges();
     expect(snackMock.open).toHaveBeenCalledWith('No template configuration found in file.', undefined, { duration: 4000 });
+  });
+
+  it('openUploadTemplate shows snack when HTML fails validation', async () => {
+    const afterClosed$ = new Subject<{ content: string; fileName: string } | undefined>();
+    const dialogMock = { open: jasmine.createSpy('open').and.returnValue({ afterClosed: () => afterClosed$.asObservable() }) };
+    const snackMock = { open: jasmine.createSpy('open') };
+    TestBed.configureTestingModule({
+      imports: [CanvasComponent],
+      providers: [
+        CanvasService,
+        SavedLayoutsService,
+        LayoutGuardService,
+        { provide: MatDialog, useValue: dialogMock },
+        { provide: MatSnackBar, useValue: snackMock },
+        provideRouter(routes),
+      ],
+    });
+    const fixture = TestBed.createComponent(CanvasComponent);
+    fixture.detectChanges();
+    fixture.componentInstance.openUploadTemplate();
+    const badHtml =
+      '<!DOCTYPE html><html><head><meta charset="utf-8"></head><body><div title="a"b"></div></body></html>';
+    afterClosed$.next({ content: badHtml, fileName: 'bad.html' });
+    afterClosed$.complete();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(snackMock.open).toHaveBeenCalled();
+    const calls = (snackMock.open as jasmine.Spy).calls.allArgs();
+    const firstMsg = calls[0]?.[0] as string;
+    expect(firstMsg).not.toBe('Template loaded.');
+    expect(firstMsg).not.toBe('No template configuration found in file.');
   });
 
   it('publish shows snack and getPublishHtml strips component wrappers', () => {

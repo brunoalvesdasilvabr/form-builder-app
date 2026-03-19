@@ -8,7 +8,7 @@ import { MatIconModule } from "@angular/material/icon";
 import { DropdownAutocompleteComponent, type DropdownAutocompleteOption } from "../../../../shared/components/dropdown-autocomplete/dropdown-autocomplete.component";
 import { stripBuilderChrome, copyFormValues, stripComponentWrappers } from "../../../../shared/utils/preview-html.util";
 import { CanvasService } from "../../../../core/services/canvas.service";
-import { SavedLayoutsService } from "../../../../core/services/saved-layouts.service";
+import { SavedLayoutsService, type SavedLayout } from "../../../../core/services/saved-layouts.service";
 import { LayoutGuardService } from "../../../../core/services/layout-guard.service";
 import { WidgetRendererComponent } from "../../../../shared/components/widget-renderer/widget-renderer.component";
 import { PreviewModalComponent } from "../../../../shared/components/preview-modal/preview-modal.component";
@@ -30,6 +30,10 @@ import { computeLayoutDropPosition } from "../../../../shared/utils/layout-drop.
 import { FormLayoutNameDirective } from "../../../../shared/directives/form-layout-name.directive";
 import { DEFAULT_LAYOUT_NAME, FORM_BUILDER_LAYOUT_STATE_SCRIPT_ID } from "../../../../shared/constants/canvas.constants";
 import { toSafeFilename } from "../../../../shared/utils/safe-filename.util";
+import {
+  validateUploadedHtmlDocument,
+  extractCanvasStateFromUploadedHtml,
+} from "../../../../shared/utils/uploaded-html-validation.util";
 import { DragDropDataKey, DragDropCssClass } from "../../../../shared/constants/drag-drop.constants";
 import { getWidgetTypeFromDragEvent } from "../../../../shared/utils/drag-drop.util";
 import { LayoutAction, LayoutDropPosition } from "../../../../shared/enums";
@@ -601,20 +605,27 @@ export class CanvasComponent {
       width: "400px",
     });
     dialogRef.afterClosed().subscribe((result: { name: string; layoutId: string | null } | undefined) => {
-      if (!result) return;
-      const state = this.canvas.getStateForSave();
-      const name = result.name.trim() || DEFAULT_LAYOUT_NAME;
-      const html = this.getPreviewHtml();
-      const clone = this.getPreviewClone();
-      console.log("[Save layout] HTML string:", html);
-      console.log("[Save layout] HTML element (clone):", clone);
-      if (result.layoutId) {
-        this.savedLayouts.updateLayout(result.layoutId, state, name);
-      } else {
-        this.savedLayouts.addLayout(name, state);
-      }
-      this.cdr.detectChanges();
+      this.applySaveLayoutDialogResult(result);
     });
+  }
+
+  /** Writes the layout from the Save dialog into storage (update existing or add new). */
+  private applySaveLayoutDialogResult(
+    result: { name: string; layoutId: string | null } | undefined
+  ): void {
+    if (!result) return;
+    const state = this.canvas.getStateForSave();
+    const name = result.name.trim() || DEFAULT_LAYOUT_NAME;
+    const html = this.getPreviewHtml();
+    const clone = this.getPreviewClone();
+    console.log("[Save layout] HTML string:", html);
+    console.log("[Save layout] HTML element (clone):", clone);
+    if (result.layoutId) {
+      this.savedLayouts.updateLayout(result.layoutId, state, name);
+    } else {
+      this.savedLayouts.addLayout(name, state);
+    }
+    this.cdr.detectChanges();
   }
 
   /** Handles template dropdown change: New Template, Select Template, or a saved layout. */
@@ -658,13 +669,21 @@ export class CanvasComponent {
       width: "400px",
     });
     dialogRef.afterClosed().subscribe((result: { name: string; layoutId: string | null } | undefined) => {
-      if (!result) return;
-      const name = result.name.trim() || DEFAULT_LAYOUT_NAME;
-      const newLayout = this.savedLayouts.addLayout(name, current.state);
-      this.canvas.loadState(newLayout.state);
-      this.canvas.clearUndoHistory();
-      this.cdr.detectChanges();
+      this.applyCloneLayoutDialogResult(result, current);
     });
+  }
+
+  /** Creates a new saved layout from the clone dialog and loads it on the canvas. */
+  private applyCloneLayoutDialogResult(
+    result: { name: string; layoutId: string | null } | undefined,
+    sourceLayout: SavedLayout
+  ): void {
+    if (!result) return;
+    const name = result.name.trim() || DEFAULT_LAYOUT_NAME;
+    const newLayout = this.savedLayouts.addLayout(name, sourceLayout.state);
+    this.canvas.loadState(newLayout.state);
+    this.canvas.clearUndoHistory();
+    this.cdr.detectChanges();
   }
 
   /**
@@ -771,36 +790,31 @@ export class CanvasComponent {
       width: "400px",
     });
     dialogRef.afterClosed().subscribe((result: UploadTemplateResult | undefined) => {
-      if (!result?.content) return;
-      const state = this.extractStateFromUploadedHtml(result.content);
-      if (!state) {
-        this.snackBar.open("No template configuration found in file.", undefined, { duration: 4000 });
-        return;
-      }
-      const baseName = result.fileName.replace(/\.html$/i, "") || "Uploaded template";
-      const newLayout = this.savedLayouts.addLayout(baseName, state);
-      this.onLayoutSelect(newLayout.id);
-      this.canvas.setSelectedCell(null);
-      this.clearSelection();
-      this.cdr.detectChanges();
-      this.templateDropdownRef?.blurInput();
-      this.snackBar.open("Template loaded.", undefined, { duration: 2000 });
+      this.handleUploadTemplateResult(result);
     });
   }
 
-  /** Extracts canvas state from HTML that was downloaded from this builder (script#form-builder-layout-state). */
-  private extractStateFromUploadedHtml(html: string): CanvasState | null {
-    try {
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(html, "text/html");
-      const script = doc.getElementById(FORM_BUILDER_LAYOUT_STATE_SCRIPT_ID);
-      if (!script?.textContent?.trim()) return null;
-      const state = JSON.parse(script.textContent) as { rows?: unknown[] };
-      if (!state || !Array.isArray(state.rows)) return null;
-      return state as CanvasState;
-    } catch {
-      return null;
+  /** Validates uploaded HTML (Unicode + html-validate), then loads layout JSON if present. */
+  private handleUploadTemplateResult(result: UploadTemplateResult | undefined): void {
+    if (!result?.content) return;
+    const validation = validateUploadedHtmlDocument(result.content, result.fileName);
+    if (!validation.ok) {
+      this.snackBar.open(validation.summary, undefined, { duration: 5000 });
+      return;
     }
+    const state = extractCanvasStateFromUploadedHtml(result.content);
+    if (!state) {
+      this.snackBar.open("No template configuration found in file.", undefined, { duration: 4000 });
+      return;
+    }
+    const baseName = result.fileName.replace(/\.html$/i, "") || "Uploaded template";
+    const newLayout = this.savedLayouts.addLayout(baseName, state);
+    this.onLayoutSelect(newLayout.id);
+    this.canvas.setSelectedCell(null);
+    this.clearSelection();
+    this.cdr.detectChanges();
+    this.templateDropdownRef?.blurInput();
+    this.snackBar.open("Template loaded.", undefined, { duration: 2000 });
   }
 
   /** Returns the cloned form element (layout + native elements only, component tags stripped). */

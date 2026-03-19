@@ -49,6 +49,16 @@ export class AdminComponent {
     return !!w && (DATA_COMPONENT_WIDGET_TYPES as readonly string[]).includes(w.type);
   }
 
+  /**
+   * Grid widgets store alignment as TextAlignment; anything else becomes '' for the pending form.
+   */
+  private static gridTextAlignmentOrEmpty(value: TextAlignmentType | undefined): TextAlignmentType | '' {
+    if (value === TextAlignment.Left || value === TextAlignment.Center || value === TextAlignment.Right) {
+      return value;
+    }
+    return '';
+  }
+
   /** Returns the widget being edited: the one that was clicked (selectedWidgetId) or the first in the cell. */
   getSelectedWidget(cell: CanvasCell | null) {
     return cell ? getWidgetByIdOrPrimary(cell, this.canvas.selectedWidgetId()) : null;
@@ -275,19 +285,9 @@ export class AdminComponent {
     }
     const cols = w.gridColumns ?? [];
     const col = cols[colIdx];
-    this.initialGridColumnAlignment =
-      (col?.alignment === TextAlignment.Left ||
-        col?.alignment === TextAlignment.Center ||
-        col?.alignment === TextAlignment.Right)
-        ? col.alignment
-        : '';
+    this.initialGridColumnAlignment = AdminComponent.gridTextAlignmentOrEmpty(col?.alignment);
     this.initialGridColumnName = col?.columnName ?? '';
-    this.initialGridHeaderAlignment =
-      (col?.headerAlignment === TextAlignment.Left ||
-        col?.headerAlignment === TextAlignment.Center ||
-        col?.headerAlignment === TextAlignment.Right)
-        ? col.headerAlignment
-        : '';
+    this.initialGridHeaderAlignment = AdminComponent.gridTextAlignmentOrEmpty(col?.headerAlignment);
     this.initialGridSortable = col?.sortable ?? false;
   }
 

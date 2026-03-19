@@ -258,7 +258,7 @@ describe('AdminComponent', () => {
     expect(fixture.componentInstance.effectiveBindableProperties()).toBe(fixture.componentInstance.bindablePropertiesColumn);
   });
 
-  it('showMainDataBindingDropdown returns false for table and true for label', () => {
+  it('showMainDataBindingDropdown returns false for table and true for label and grid', () => {
     const fixture = TestBed.createComponent(AdminComponent);
     const canvas = TestBed.inject(CanvasService);
     canvas.loadState({
@@ -293,6 +293,23 @@ describe('AdminComponent', () => {
       }],
     });
     canvas.setSelectedCell('c0', SelectedTarget.Element, undefined, 'w2');
+    fixture.detectChanges();
+    expect(fixture.componentInstance.showMainDataBindingDropdown()).toBe(true);
+    canvas.loadState({
+      rows: [{
+        id: 'r0',
+        cells: [{
+          id: 'c0',
+          rowIndex: 0,
+          colIndex: 0,
+          widgets: [{ id: 'w3', type: 'grid', gridColumns: [{ id: 'col0', columnName: 'A' }] }],
+          colSpan: 1,
+          rowSpan: 1,
+          isMergedOrigin: true,
+        }],
+      }],
+    });
+    canvas.setSelectedCell('c0', SelectedTarget.Element, undefined, 'w3');
     fixture.detectChanges();
     expect(fixture.componentInstance.showMainDataBindingDropdown()).toBe(true);
   });
